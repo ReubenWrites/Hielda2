@@ -1,0 +1,265 @@
+import { useState, useEffect, useCallback } from "react"
+import { supabase } from "./supabase"
+import { colors as c, FONT, MONO } from "./constants"
+import { fmt, todayStr } from "./utils"
+import { ShieldLogo, Spinner } from "./components/ui"
+import AuthScreen from "./components/AuthScreen"
+import Dashboard from "./components/Dashboard"
+import Detail from "./components/Detail"
+import Create from "./components/Create"
+import Settings from "./components/Settings"
+import HowItWorks from "./components/HowItWorks"
+
+const NAV_ITEMS = [
+  { id: "dash", l: "Dashboard", i: "◉" },
+  { id: "create", l: "New Invoice", i: "+" },
+  { id: "how", l: "How It Works", i: "?" },
+  { id: "settings", l: "Your Details", i: "⚙" },
+]
+
+export default function App() {
+  const [session, setSession] = useState(null)
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [invs, setInvs] = useState([])
+  const [view, setView] = useState("dash")
+  const [selId, setSelId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [dataError, setDataError] = useState("")
+
+  // Check for existing session on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setSession(session)
+        setUser(session.user)
+      } else {
+        setLoading(false)
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user || null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const loadData = useCallback(async () => {
+    if (!user) return
+    setDataError("")
+    try {
+      const [{ data: profs, error: profErr }, { data: invoices, error: invErr }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id),
+        supabase.from("invoices").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      ])
+
+      if (profErr) throw profErr
+      if (invErr) throw invErr
+
+      if (profs?.[0]) setProfile(profs[0])
+
+      const today = todayStr()
+      setInvs(
+        (invoices || []).map((i) => {
+          if (i.status === "pending" && i.due_date < today) {
+            return { ...i, status: "overdue", chase_stage: i.chase_stage || "reminder_1" }
+          }
+          return i
+        })
+      )
+    } catch (e) {
+      setDataError("Failed to load data. Please try refreshing.")
+      console.error("Data load error:", e)
+    }
+    setLoading(false)
+  }, [user])
+
+  useEffect(() => {
+    if (user) loadData()
+  }, [user, loadData])
+
+  const handleAuth = (sess, usr) => {
+    setSession(sess)
+    setUser(usr)
+  }
+
+  const nav = (v, id) => {
+    setView(v)
+    setSelId(id || null)
+  }
+
+  const logout = async () => {
+    await supabase.auth.signOut()
+    setSession(null)
+    setUser(null)
+    setProfile(null)
+    setInvs([])
+    setView("dash")
+  }
+
+  const sel = invs.find((i) => i.id === selId)
+
+  // Pre-compute header stats once
+  const overdueInvs = invs.filter((i) => i.status === "overdue")
+  const pendingInvs = invs.filter((i) => i.status === "pending")
+
+  if (!session && !loading) return <AuthScreen onAuth={handleAuth} />
+
+  if (loading) {
+    return (
+      <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+        <Spinner size={28} />
+        <span style={{ color: c.tm, fontSize: 13 }}>Loading your invoices...</span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ fontFamily: FONT, background: c.bg, color: c.tx, minHeight: "100vh", display: "flex" }}>
+      {/* Sidebar */}
+      <div style={{ width: 210, flexShrink: 0, background: c.ac, padding: "20px 12px", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+        <div style={{ padding: "0 8px", marginBottom: 20, position: "relative", zIndex: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+            <ShieldLogo size={18} white />
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>Hielda</span>
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 1 }}>Protecting your pay.</div>
+        </div>
+
+        <nav style={{ flex: 1, position: "relative", zIndex: 2 }} aria-label="Main navigation">
+          {NAV_ITEMS.map((item) => {
+            const active = view === item.id || (item.id === "dash" && view === "detail")
+            return (
+              <button
+                key={item.id}
+                onClick={() => nav(item.id)}
+                aria-current={active ? "page" : undefined}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  width: "100%",
+                  padding: "8px 10px",
+                  background: active ? "rgba(255,255,255,0.13)" : "transparent",
+                  border: "none",
+                  borderRadius: 7,
+                  color: active ? "#fff" : "rgba(255,255,255,0.5)",
+                  fontFamily: FONT,
+                  fontSize: 12,
+                  fontWeight: active ? 600 : 400,
+                  cursor: "pointer",
+                  marginBottom: 2,
+                  textAlign: "left",
+                }}
+              >
+                <span style={{ width: 17, textAlign: "center", fontSize: 12 }} aria-hidden="true">{item.i}</span>
+                {item.l}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", padding: "0 8px", marginBottom: 8, position: "relative", zIndex: 2 }}>
+          {profile?.email || user?.email}
+        </div>
+        <button
+          onClick={logout}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 7,
+            padding: "8px 10px",
+            color: "rgba(255,255,255,0.5)",
+            fontFamily: FONT,
+            fontSize: 11,
+            cursor: "pointer",
+            textAlign: "left",
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          Log out
+        </button>
+        <img src="/shield-maiden.png" alt="" style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", width: 190, opacity: 0.1, pointerEvents: "none", zIndex: 1 }} />
+      </div>
+
+      {/* Main content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: "100vh" }}>
+        {/* Header */}
+        <header style={{ flexShrink: 0, padding: "10px 28px", borderBottom: `1px solid ${c.bd}`, background: c.sf, display: "flex", alignItems: "center", zIndex: 2, minHeight: 54 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, background: c.ac, color: "#fff", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, fontFamily: FONT }}>
+              {(profile?.full_name || "U").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: c.tx }}>{profile?.business_name || profile?.full_name || "Welcome"}</div>
+              {profile?.business_name && profile?.full_name && (
+                <div style={{ fontSize: 11, color: c.td }}>{profile.full_name}</div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 10 }}>
+            {overdueInvs.length > 0 && (
+              <div style={{ display: "inline-flex", alignItems: "center", padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: c.ord, color: c.or, border: `1px solid ${c.or}20` }}>
+                <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 10, height: 10, marginRight: 7 }}>
+                  <span className="header-pulse" />
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.or, position: "relative", zIndex: 1 }} />
+                </span>
+                {overdueInvs.length} chasing · {fmt(overdueInvs.reduce((s, i) => s + Number(i.amount), 0))}
+              </div>
+            )}
+            {pendingInvs.length > 0 && (
+              <div style={{ display: "inline-flex", alignItems: "center", padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: c.amd, color: c.am, border: `1px solid ${c.am}20` }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.am, marginRight: 7 }} />
+                {pendingInvs.length} pending
+              </div>
+            )}
+          </div>
+
+          <div style={{ fontSize: 12, color: c.tm }}>
+            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </div>
+        </header>
+
+        {/* Content */}
+        <main style={{ flex: 1, padding: "28px 32px", overflowY: "auto", position: "relative" }}>
+          <div style={{ position: "absolute", inset: 0, opacity: 0.25, backgroundImage: "radial-gradient(circle,#b0bcc8 0.5px,transparent 0.5px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
+          <div style={{ position: "relative" }}>
+            {dataError && (
+              <div role="alert" style={{ padding: "12px 16px", background: c.ord, color: c.or, borderRadius: 8, fontSize: 13, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>{dataError}</span>
+                <button onClick={loadData} style={{ background: c.or, color: "#fff", border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                  Retry
+                </button>
+              </div>
+            )}
+            {view === "dash" && <Dashboard invs={invs} nav={nav} />}
+            {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} />}
+            {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} />}
+            {view === "settings" && <Settings profile={profile} onUpdate={loadData} />}
+            {view === "how" && <HowItWorks />}
+          </div>
+        </main>
+      </div>
+
+      <style>{`
+        @keyframes pulse-ring { 0% { transform: scale(1); opacity: .4 } 100% { transform: scale(2.2); opacity: 0 } }
+        @keyframes spin { to { transform: rotate(360deg) } }
+        * { box-sizing: border-box; margin: 0; }
+        .pulse-ring { position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid ${c.ac}; opacity: .4; animation: pulse-ring 2s ease-out infinite; }
+        .header-pulse { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: ${c.or}; opacity: 0.3; animation: pulse-ring 2s ease-out infinite; }
+        .table-row-hover:hover { background: ${c.sfh}; }
+        .table-row-hover:focus { outline: 2px solid ${c.ac}; outline-offset: -2px; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: ${c.bg}; }
+        ::-webkit-scrollbar-thumb { background: ${c.bd}; border-radius: 3px; }
+      `}</style>
+    </div>
+  )
+}
