@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../supabase"
-import { colors as c, BOE, RATE } from "../constants"
-import { Card, Inp, Btn, ErrorBanner } from "./ui"
+import { colors as c, BOE, RATE, TERMS } from "../constants"
+import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
 
 export default function Settings({ profile, onUpdate, isMobile }) {
   const [p, setP] = useState(profile || {})
@@ -30,6 +30,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           account_number: p.account_number,
           vat_number: p.vat_number,
           utr_number: p.utr_number,
+          default_payment_terms: p.default_payment_terms ? parseInt(p.default_payment_terms) : 30,
         })
         .eq("id", p.id)
       if (dbError) throw dbError
@@ -82,6 +83,23 @@ export default function Settings({ profile, onUpdate, isMobile }) {
               Penalties: £40 / £70 / £100
             </div>
           </div>
+        </Card>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Card>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Defaults</h3>
+          <div style={{ maxWidth: 320 }}>
+            <Sel
+              label="Default Payment Terms"
+              value={String(p.default_payment_terms || 30)}
+              onChange={(v) => update("default_payment_terms", parseInt(v))}
+              opts={TERMS.filter(t => t.d !== -1).map((t) => ({ l: t.l, v: String(t.d) }))}
+            />
+          </div>
+          <p style={{ fontSize: 11, color: c.td, margin: "4px 0 0" }}>
+            New invoices will default to this payment term. You can override it per invoice.
+          </p>
         </Card>
       </div>
     </div>

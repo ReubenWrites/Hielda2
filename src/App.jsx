@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { id: "create", l: "New Invoice", i: "+" },
   { id: "how", l: "How It Works", i: "?" },
   { id: "settings", l: "Your Details", i: "⚙" },
-  { id: "billing", l: "Billing", i: "○" },
+  { id: "billing", l: "Your Account", i: "○" },
 ]
 
 function useMediaQuery(query) {

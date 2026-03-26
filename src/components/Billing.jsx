@@ -76,8 +76,8 @@ export default function Billing({ subscription, userId, onUpdate }) {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>Billing</h1>
-        <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>Manage your subscription and payment.</p>
+        <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>Your Account</h1>
+        <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>Manage your subscription and billing.</p>
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />

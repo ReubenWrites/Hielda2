@@ -205,10 +205,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No client email on this invoice' })
     }
 
-    // Calculate amounts
+    // Calculate amounts (respect no_fines flag)
     const dl = daysLate(invoice.due_date)
-    const interest = Number(invoice.amount) * DAILY_RATE * dl
-    const pen = penalty(Number(invoice.amount))
+    const finesEnabled = !invoice.no_fines
+    const interest = finesEnabled ? Number(invoice.amount) * DAILY_RATE * dl : 0
+    const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
     const total = Number(invoice.amount) + interest + pen
 
     // Build email

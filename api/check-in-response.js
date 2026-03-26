@@ -353,10 +353,11 @@ export default async function handler(req, res) {
         )
       }
 
-      // Build and send the chase email to the client
+      // Build and send the chase email to the client (respect no_fines flag)
       const dl = daysLate(invoice.due_date)
-      const interest = Number(invoice.amount) * DAILY_RATE * dl
-      const pen = penalty(Number(invoice.amount))
+      const finesEnabled = !invoice.no_fines
+      const interest = finesEnabled ? Number(invoice.amount) * DAILY_RATE * dl : 0
+      const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
       const total = Number(invoice.amount) + interest + pen
 
       const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total)

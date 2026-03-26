@@ -5,27 +5,34 @@ import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail 
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
 
 export default function Create({ profile, nav, userId, onCreated, isMobile }) {
+  const defaultTerms = profile?.default_payment_terms ? String(profile.default_payment_terms) : "30"
+  const isCustomDefault = !TERMS.slice(0, -1).some(t => String(t.d) === defaultTerms)
+
   const [cn, setCn] = useState("")
   const [ce, setCe] = useState("")
   const [ca, setCa] = useState("")
   const [desc, setDesc] = useState("")
   const [amt, setAmt] = useState("")
-  const [terms, setTerms] = useState("30")
+  const [terms, setTerms] = useState(isCustomDefault ? "-1" : defaultTerms)
+  const [customDays, setCustomDays] = useState(isCustomDefault ? defaultTerms : "")
   const [date, setDate] = useState(todayStr())
   const [step, setStep] = useState(1)
   const [meth, setMeth] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [ref, setRef] = useState(generateRef)
+  const [noFines, setNoFines] = useState(false)
 
-  const due = addDays(date, parseInt(terms))
+  const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
+  const due = addDays(date, effectiveDays)
   const p = penalty(parseFloat(amt) || 0)
   const parsedAmt = parseFloat(amt)
 
   // Validation
   const emailError = ce && !isValidEmail(ce) ? "Invalid email format" : ""
   const amtError = amt && (isNaN(parsedAmt) || parsedAmt <= 0) ? "Amount must be greater than 0" : ""
-  const canProceed = cn && ce && !emailError && amt && !amtError && desc
+  const customDaysError = terms === "-1" && (!customDays || parseInt(customDays) < 1 || parseInt(customDays) > 365) ? "Enter 1–365 days" : ""
+  const canProceed = cn && ce && !emailError && amt && !amtError && desc && !customDaysError && effectiveDays > 0
 
   const resetForm = () => {
     setCn("")
@@ -52,11 +59,12 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
         description: desc,
         amount: parsedAmt,
         issue_date: date,
-        payment_term_days: parseInt(terms),
+        payment_term_days: effectiveDays,
         due_date: dueStr,
         status: isOverdue ? "overdue" : "pending",
         chase_stage: isOverdue ? "reminder_1" : null,
         send_method: meth,
+        no_fines: noFines,
         client_name: cn,
         client_email: ce,
         client_address: ca,
@@ -118,8 +126,23 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Job</h3>
             <Inp label="Description" value={desc} onChange={setDesc} ph="e.g. Video production" />
             <Inp label="Amount (£)" value={amt} onChange={setAmt} ph="0.00" type="number" mono error={amtError} />
-            <Sel label="Payment Terms" value={terms} onChange={setTerms} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
+            <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
+            {terms === "-1" && (
+              <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="number" mono error={customDaysError} />
+            )}
             <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 4 }}>
+              <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} style={{ accentColor: c.ac, width: 16, height: 16 }} />
+              <label htmlFor="noFines" style={{ fontSize: 12, color: c.tm, cursor: "pointer" }}>
+                Chase without fines or interest
+              </label>
+            </div>
+            {noFines && (
+              <div style={{ fontSize: 11, color: c.td, marginBottom: 4, paddingLeft: 24 }}>
+                We'll still send chase emails, but won't add statutory penalties or interest.
+              </div>
+            )}
             <div style={{ marginTop: 10, padding: 10, background: c.bg, borderRadius: 8, border: `1px solid ${c.bd}`, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: c.tm }}>Ref</span>
@@ -129,10 +152,16 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
                 <span style={{ color: c.tm }}>Due</span>
                 <span style={{ color: c.tx, fontWeight: 500 }}>{formatDate(due)}</span>
               </div>
-              {amt && !amtError && (
+              {amt && !amtError && !noFines && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
                   <span>Late penalty</span>
                   <span>{fmt(p)} + {RATE}% p.a.</span>
+                </div>
+              )}
+              {amt && !amtError && noFines && (
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
+                  <span>Late penalty</span>
+                  <span style={{ fontStyle: "italic" }}>Waived</span>
                 </div>
               )}
             </div>
@@ -168,7 +197,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
                 <div style={{ textAlign: "right", fontSize: 11, color: c.tm }}>
                   <div>Issue: {formatDate(date)}</div>
                   <div>Due: {formatDate(due)}</div>
-                  <div>Terms: {terms} days</div>
+                  <div>Terms: {effectiveDays} days</div>
                 </div>
               </div>
               <div style={{ borderTop: `1px solid ${c.bdl}`, borderBottom: `1px solid ${c.bdl}`, padding: "10px 0" }}>

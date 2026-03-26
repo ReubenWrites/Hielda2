@@ -66,8 +66,9 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
 
   const dl = daysLate(inv.due_date)
   const ov = inv.status === "overdue"
-  const interest = ov ? calcInterest(Number(inv.amount), dl) : 0
-  const pen = ov ? penalty(Number(inv.amount)) : 0
+  const finesEnabled = !inv.no_fines
+  const interest = ov && finesEnabled ? calcInterest(Number(inv.amount), dl) : 0
+  const pen = ov && finesEnabled ? penalty(Number(inv.amount)) : 0
   const ex = interest + pen
   const tot = Number(inv.amount) + ex
   const si = CHASE_STAGES.findIndex((s) => s.id === inv.chase_stage)

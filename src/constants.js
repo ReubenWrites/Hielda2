@@ -5,10 +5,12 @@ export const RATE = 8 + BOE
 export const DAILY_RATE = RATE / 365 / 100
 
 export const TERMS = [
+  { l: "7 days", d: 7 },
   { l: "14 days", d: 14 },
   { l: "30 days (standard)", d: 30 },
   { l: "45 days", d: 45 },
   { l: "60 days (legal max)", d: 60 },
+  { l: "Custom", d: -1 },
 ]
 
 export const CHASE_STAGES = [
