@@ -12,6 +12,8 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   const [previewHtml, setPreviewHtml] = useState(null)
   const [chaseLogs, setChaseLogs] = useState([])
   const [autoChase, setAutoChase] = useState(inv?.auto_chase !== false)
+  const [sending, setSending] = useState(false)
+  const [sendSuccess, setSendSuccess] = useState("")
 
   // Load chase logs for this invoice
   useEffect(() => {
@@ -90,6 +92,35 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
     setMarking(false)
   }
 
+  const sendChaseEmail = async () => {
+    const stage = inv.chase_stage || "reminder_1"
+    setSending(true)
+    setError("")
+    setSendSuccess("")
+    try {
+      const res = await fetch("/api/send-chase-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: inv.id, chase_stage: stage }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to send")
+      setSendSuccess(`Chase email sent to ${data.email_to}`)
+      // Refresh chase logs
+      const { data: logs } = await supabase
+        .from("chase_log")
+        .select("*")
+        .eq("invoice_id", inv.id)
+        .order("sent_at", { ascending: false })
+      if (logs) setChaseLogs(logs)
+      onUpdate()
+      setTimeout(() => setSendSuccess(""), 5000)
+    } catch (e) {
+      setError("Failed to send chase email: " + e.message)
+    }
+    setSending(false)
+  }
+
   const toggleAutoChase = async () => {
     const newVal = !autoChase
     setAutoChase(newVal)
@@ -126,9 +157,14 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
             {downloading ? "Generating..." : "📥 PDF"}
           </Btn>
-          {ov && (
+          {inv.status !== "paid" && inv.client_email && (
             <Btn v="ghost" onClick={showEmailPreview} sz="sm">
-              📧 Preview Email
+              📧 Preview
+            </Btn>
+          )}
+          {inv.status !== "paid" && inv.client_email && (
+            <Btn v="ghost" onClick={sendChaseEmail} dis={sending} sz="sm">
+              {sending ? "Sending..." : "📤 Send Chase"}
             </Btn>
           )}
           {inv.status !== "paid" && (
@@ -140,6 +176,12 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
+
+      {sendSuccess && (
+        <div style={{ padding: "10px 14px", background: c.gnd, color: c.gn, borderRadius: 8, fontSize: 12, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>✓</span> {sendSuccess}
+        </div>
+      )}
 
       {ov && ex > 0 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", background: c.god, border: `1px solid rgba(161,98,7,0.15)`, borderLeft: "3px solid #d4a017", borderRadius: "0 12px 12px 0", marginBottom: 18 }}>
