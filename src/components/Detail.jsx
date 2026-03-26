@@ -5,7 +5,7 @@ import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../ut
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 
-const STAGE_ORDER = ["reminder_1", "reminder_2", "first_chase", "second_chase", "final_notice"]
+const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"]
 
 function getNextStage(currentStage) {
   if (!currentStage) return "reminder_1"

@@ -11,11 +11,15 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const RATE = 11.75
 const DAILY_RATE = RATE / 365 / 100
 
-const STAGE_ORDER = ['reminder_1', 'reminder_2', 'first_chase', 'second_chase', 'final_notice']
+const STAGE_ORDER = ['reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase', 'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11', 'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice']
 
 const STAGE_COLORS = {
-  reminder_1: '#1e5fa0', reminder_2: '#2d72b8', first_chase: '#d97706',
-  second_chase: '#c2410c', final_notice: '#9f1239',
+  reminder_1: '#1e5fa0', reminder_2: '#2d72b8', final_warning: '#b45309',
+  first_chase: '#d97706', second_chase: '#c2410c', third_chase: '#b91c1c',
+  chase_4: '#9f1239', chase_5: '#9f1239', chase_6: '#9f1239', chase_7: '#9f1239',
+  chase_8: '#9f1239', chase_9: '#9f1239', chase_10: '#9f1239', chase_11: '#9f1239',
+  escalation_1: '#7f1d1d', escalation_2: '#7f1d1d', escalation_3: '#7f1d1d', escalation_4: '#7f1d1d',
+  final_notice: '#7f1d1d',
 }
 
 function penalty(amount) {

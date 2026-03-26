@@ -30,8 +30,12 @@ function daysLate(due) {
 }
 
 const STAGE_COLORS = {
-  reminder_1: '#1e5fa0', reminder_2: '#2d72b8', first_chase: '#d97706',
-  second_chase: '#c2410c', final_notice: '#9f1239',
+  reminder_1: '#1e5fa0', reminder_2: '#2d72b8', final_warning: '#b45309',
+  first_chase: '#d97706', second_chase: '#c2410c', third_chase: '#b91c1c',
+  chase_4: '#9f1239', chase_5: '#9f1239', chase_6: '#9f1239', chase_7: '#9f1239',
+  chase_8: '#9f1239', chase_9: '#9f1239', chase_10: '#9f1239', chase_11: '#9f1239',
+  escalation_1: '#7f1d1d', escalation_2: '#7f1d1d', escalation_3: '#7f1d1d', escalation_4: '#7f1d1d',
+  final_notice: '#7f1d1d',
 }
 
 function paymentDetailsBlock(invoice, profile) {
@@ -54,11 +58,40 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const payBlock = paymentDetailsBlock(invoice, profile)
 
+  const interestTable = `
+      <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
+        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
+        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
+        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+        <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
+      </table>`
+
+  const totalBlock = `
+      <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
+        <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
+        <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Penalty: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
+      </div>`
+
   const subjects = {
     reminder_1: `Payment reminder: Invoice ${invoice.ref} — ${fmt(invoice.amount)}`,
     reminder_2: `Upcoming: Invoice ${invoice.ref} due tomorrow — ${fmt(invoice.amount)}`,
-    first_chase: `OVERDUE: Invoice ${invoice.ref} — payment required`,
-    second_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed (interest applied)`,
+    final_warning: `URGENT: Invoice ${invoice.ref} — last chance to settle at ${fmt(invoice.amount)}`,
+    first_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed`,
+    second_chase: `OVERDUE: Invoice ${invoice.ref} — ${dl} days late, ${fmt(total)} owed`,
+    third_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} outstanding`,
+    chase_4: `URGENT: Invoice ${invoice.ref} — ${fmt(total)} overdue`,
+    chase_5: `URGENT: Invoice ${invoice.ref} — immediate payment required`,
+    chase_6: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} still outstanding`,
+    chase_7: `URGENT: Invoice ${invoice.ref} — ${fmt(total)} overdue`,
+    chase_8: `OVERDUE: Invoice ${invoice.ref} — ${dl} days, ${fmt(total)} owed`,
+    chase_9: `OVERDUE: Invoice ${invoice.ref} — payment demand`,
+    chase_10: `URGENT: Invoice ${invoice.ref} — ${fmt(total)} outstanding`,
+    chase_11: `OVERDUE: Invoice ${invoice.ref} — final chase before escalation`,
+    escalation_1: `WARNING: Invoice ${invoice.ref} — escalation in 4 days`,
+    escalation_2: `WARNING: Invoice ${invoice.ref} — escalation in 3 days`,
+    escalation_3: `WARNING: Invoice ${invoice.ref} — escalation in 2 days`,
+    escalation_4: `WARNING: Invoice ${invoice.ref} — escalation tomorrow`,
     final_notice: `FINAL NOTICE: Invoice ${invoice.ref} — ${fmt(total)} overdue. Legal action pending.`,
   }
 
@@ -78,38 +111,148 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
       ${payBlock}
       <p>Kind regards,<br/>${fromName}</p>
     `,
+    final_warning: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
+      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
+      <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>. This means the amount owed will increase from tomorrow.</p>
+      <p>Please arrange payment immediately to avoid additional charges.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due on <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
-      <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, we are entitled to charge interest at <strong>${RATE}% per annum</strong> and a fixed penalty. Interest is now accruing on this debt.</p>
-      <p>Please arrange payment immediately.</p>
+      <p>As notified, under the Late Payment of Commercial Debts (Interest) Act 1998, the following statutory charges have now been applied:</p>
+      ${interestTable}
+      <p>Please arrange payment of <strong>${fmt(total)}</strong> immediately. Interest continues to accrue daily.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,
     second_chase: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Under the Late Payment of Commercial Debts (Interest) Act 1998, the following charges have been applied:</p>
-      <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
-        <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
-      </table>
+      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite previous correspondence, payment has not been received.</p>
+      <p>The amount owed continues to increase under the Late Payment of Commercial Debts (Interest) Act 1998:</p>
+      ${interestTable}
       <p>Please settle this amount immediately to prevent further charges.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    third_chase: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>This is our third notice regarding invoice <strong>${invoice.ref}</strong>, which is now <strong>${dl} days overdue</strong>.</p>
+      <p>The current amount owed is <strong>${fmt(total)}</strong> and continues to grow daily under the Late Payment of Commercial Debts (Interest) Act 1998.</p>
+      ${interestTable}
+      <p>We strongly urge you to settle this debt without further delay.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_4: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> remains unpaid after <strong>${dl} days</strong>. Multiple reminders have been sent.</p>
+      ${totalBlock}
+      <p>Please arrange payment today. Continued non-payment may result in further action.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_5: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>We are writing again regarding invoice <strong>${invoice.ref}</strong>, now <strong>${dl} days overdue</strong>.</p>
+      ${totalBlock}
+      <p>Immediate payment is required. We reserve the right to pursue this debt through formal channels if it remains unsettled.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_6: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> has been outstanding for <strong>${dl} days</strong>. This matter is becoming urgent.</p>
+      ${totalBlock}
+      <p>Please settle the amount of <strong>${fmt(total)}</strong> without further delay to avoid escalation.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_7: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong> and remains unpaid despite repeated communications.</p>
+      ${totalBlock}
+      <p>If payment of <strong>${fmt(total)}</strong> is not received promptly, we will proceed to the next stage of recovery.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_8: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> has been outstanding for <strong>${dl} days</strong>. The amount owed continues to increase daily.</p>
+      ${totalBlock}
+      <p>Please settle this debt immediately.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_9: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>This is a further demand for payment of invoice <strong>${invoice.ref}</strong>, now <strong>${dl} days overdue</strong>.</p>
+      ${totalBlock}
+      <p>We have made numerous attempts to resolve this. Immediate payment is required.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_10: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> remains unpaid after <strong>${dl} days</strong>. Interest continues to accrue daily under the Late Payment of Commercial Debts (Interest) Act 1998.</p>
+      ${totalBlock}
+      <p>Please arrange payment without further delay.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    chase_11: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>This is our final chase before we begin the escalation process.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>.</p>
+      ${totalBlock}
+      <p>If payment is not received within the next 5 days, we will begin formal escalation proceedings. You will receive daily notices until the deadline.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    escalation_1: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>ESCALATION NOTICE — 4 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>4 days</strong> to settle this debt before we pursue formal recovery.</p>
+      ${totalBlock}
+      <p>Formal recovery may include referral to a debt recovery agency or County Court proceedings. A County Court Judgment (CCJ) will adversely affect your credit rating for 6 years.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    escalation_2: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>ESCALATION NOTICE — 3 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>3 days</strong> to settle before formal recovery begins.</p>
+      ${totalBlock}
+      <p>This is your opportunity to resolve this matter without court involvement.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    escalation_3: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>ESCALATION NOTICE — 2 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>2 days</strong> to pay before we escalate.</p>
+      ${totalBlock}
+      <p>We strongly advise you to settle this debt immediately to avoid County Court proceedings and damage to your credit rating.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    escalation_4: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>ESCALATION NOTICE — this is your final day to pay.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. If payment of <strong>${fmt(total)}</strong> is not received by end of business <strong>tomorrow</strong>, we will commence formal recovery proceedings.</p>
+      ${totalBlock}
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,
     final_notice: `
       <p>Dear ${invoice.client_name},</p>
-      <p><strong>This is a final notice before we consider further action.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite previous communications, payment has not been received.</p>
-      <p>The total amount now owed, including statutory interest and penalties under the Late Payment of Commercial Debts (Interest) Act 1998, is:</p>
-      <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
-        <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
-        <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Penalty: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
-      </div>
-      <p>If payment is not received within <strong>7 days</strong>, we will have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or legal proceedings.</p>
+      <p><strong>FINAL NOTICE — This is our last communication before we pursue formal recovery.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite numerous attempts to resolve this, payment has not been received.</p>
+      ${totalBlock}
+      <p>If payment is not received within <strong>7 days</strong>, we will have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or County Court proceedings. A County Court Judgment (CCJ) will adversely affect your credit rating.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,

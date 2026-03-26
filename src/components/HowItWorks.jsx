@@ -3,10 +3,12 @@ import { Card } from "./ui"
 
 const TIMELINE_STEPS = [
   { day: "Day -5", title: "Friendly Reminder", desc: "We check in with you first. If unpaid, we send a polite heads-up to your client.", col: c.ac, ico: "📋" },
-  { day: "Day -1", title: "Second Reminder", desc: "Another check-in with you. If still unpaid, a firmer nudge goes out.", col: "#2d72b8", ico: "📬" },
-  { day: "Day +1", title: "First Chase", desc: "Check-in with you. If unpaid, formal notice citing the Act. 7-day deadline.", col: "#d97706", ico: "⚡" },
-  { day: "Day +14", title: "Second Chase + Interest", desc: "Check-in with you. Escalated notice with accrued interest and penalties. You're BCC'd.", col: "#c2410c", ico: "📊" },
-  { day: "Day +30", title: "Final Notice", desc: "Last formal demand. If still unpaid, we'll support you to escalate to County Court if you choose to.", col: "#9f1239", ico: "⚖️" },
+  { day: "Day -1", title: "Second Reminder", desc: "Another check-in with you. If still unpaid, a firmer reminder goes out.", col: "#2d72b8", ico: "📬" },
+  { day: "Day 0", title: "Final Warning", desc: "Due date. Last chance to settle at the original amount — warns that fines and interest start tomorrow.", col: "#b45309", ico: "⚠️" },
+  { day: "Day +1", title: "First Chase", desc: "Fines and interest now applied. Formal notice citing the Act with the new total owed.", col: "#d97706", ico: "⚡" },
+  { day: "Day +6–25", title: "Regular Chasing", desc: "Chase emails every 2 days, each with updated interest. The amount grows daily — pressure builds.", col: "#c2410c", ico: "📊" },
+  { day: "Day +26–29", title: "Daily Escalation Warnings", desc: "Daily countdown emails warning that formal recovery (debt agency / County Court) begins in X days.", col: "#7f1d1d", ico: "🔴" },
+  { day: "Day +30", title: "Final Notice", desc: "Last formal demand. If still unpaid, we'll support you to escalate to County Court if you choose to.", col: "#7f1d1d", ico: "⚖️" },
 ]
 
 export default function HowItWorks() {
