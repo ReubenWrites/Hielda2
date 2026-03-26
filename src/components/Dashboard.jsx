@@ -1,10 +1,13 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { colors as c, FONT, MONO, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
+import { supabase } from "../supabase"
 
-export default function Dashboard({ invs, nav, isMobile }) {
+export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
   const [search, setSearch] = useState("")
+  const [selected, setSelected] = useState(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   const { overdue, pending, paid, totExtra, totOwed } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
@@ -33,6 +36,60 @@ export default function Dashboard({ invs, nav, isMobile }) {
       )
     )
   }, [invs, search])
+
+  useEffect(() => { setSelected(new Set()) }, [invs])
+
+  const toggleOne = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selected.size === filtered.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(filtered.map(i => i.id)))
+    }
+  }
+
+  const bulkMarkPaid = async () => {
+    if (!window.confirm(`Mark ${selected.size} invoice(s) as paid?`)) return
+    setBulkLoading(true)
+    try {
+      const ids = Array.from(selected)
+      const { error } = await supabase
+        .from("invoices")
+        .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], chase_stage: null })
+        .in("id", ids)
+      if (error) throw error
+      setSelected(new Set())
+      onUpdate()
+    } catch (e) {
+      alert("Failed to update: " + e.message)
+    }
+    setBulkLoading(false)
+  }
+
+  const bulkDelete = async () => {
+    if (!window.confirm(`Permanently delete ${selected.size} invoice(s)? This cannot be undone.`)) return
+    setBulkLoading(true)
+    try {
+      const ids = Array.from(selected)
+      const { error } = await supabase
+        .from("invoices")
+        .delete()
+        .in("id", ids)
+      if (error) throw error
+      setSelected(new Set())
+      onUpdate()
+    } catch (e) {
+      alert("Failed to delete: " + e.message)
+    }
+    setBulkLoading(false)
+  }
 
   return (
     <div>
@@ -125,10 +182,36 @@ export default function Dashboard({ invs, nav, isMobile }) {
             <Btn onClick={() => nav("create")}>+ Create Invoice</Btn>
           </Card>
         ) : (
+          <>
+          {selected.size > 0 && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "10px 16px", background: c.acd, border: `1px solid rgba(30,95,160,0.15)`,
+              borderRadius: 10, marginBottom: 10,
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: c.ac }}>
+                {selected.size} invoice{selected.size > 1 ? "s" : ""} selected
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn sz="sm" v="primary" onClick={bulkMarkPaid} dis={bulkLoading}>
+                  ✓ Mark as Paid
+                </Btn>
+                <Btn sz="sm" v="danger" onClick={bulkDelete} dis={bulkLoading}>
+                  🗑 Delete
+                </Btn>
+                <Btn sz="sm" v="ghost" onClick={() => setSelected(new Set())}>
+                  Cancel
+                </Btn>
+              </div>
+            </div>
+          )}
           <Card style={{ padding: 0, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${c.bd}`, background: "#f8f9fb" }}>
+                  <th style={{ padding: "10px 8px", width: 36 }}>
+                    <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} style={{ cursor: "pointer" }} />
+                  </th>
                   {["Ref", "Client", "Amount", "Extra", "Total", "Due", "Status"].map((h) => (
                     <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: c.tm, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       {h}
@@ -140,7 +223,7 @@ export default function Dashboard({ invs, nav, isMobile }) {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "24px 12px", textAlign: "center", color: c.tm, fontSize: 13 }}>
+                    <td colSpan={9} style={{ padding: "24px 12px", textAlign: "center", color: c.tm, fontSize: 13 }}>
                       No invoices match your search.
                     </td>
                   </tr>
@@ -157,6 +240,9 @@ export default function Dashboard({ invs, nav, isMobile }) {
                         onKeyDown={(e) => { if (e.key === "Enter") nav("detail", i.id) }}
                         className="table-row-hover"
                       >
+                        <td style={{ padding: "10px 8px" }} onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggleOne(i.id)} style={{ cursor: "pointer" }} />
+                        </td>
                         <td style={{ padding: "10px 12px", fontFamily: MONO, fontSize: 11, color: c.td }}>{i.ref}</td>
                         <td style={{ padding: "10px 12px", color: c.tx, fontWeight: 500 }}>{i.client_name || "—"}</td>
                         <td style={{ padding: "10px 12px", fontFamily: MONO }}>{fmt(i.amount)}</td>
@@ -178,6 +264,7 @@ export default function Dashboard({ invs, nav, isMobile }) {
               </tbody>
             </table>
           </Card>
+          </>
         )}
       </div>
     </div>

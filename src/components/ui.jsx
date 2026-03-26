@@ -54,6 +54,7 @@ export const Btn = ({ children, onClick, v = "primary", sz = "md", dis, style: s
     ghost: { background: "transparent", color: c.tm, border: `1px solid ${c.bd}` },
     danger: { background: c.ord, color: c.or, border: `1px solid ${c.or}20` },
     success: { background: c.gnd, color: c.gn, border: `1px solid ${c.gn}20` },
+    successAction: { background: "transparent", color: c.gn, border: `2px solid ${c.gn}` },
   }
 
   return (

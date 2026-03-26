@@ -29,6 +29,7 @@ function getStageLabel(stageId) {
 
 export default function Detail({ inv, nav, profile, onUpdate }) {
   const [marking, setMarking] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
   const [downloading, setDownloading] = useState(false)
   const [previewHtml, setPreviewHtml] = useState(null)
@@ -96,6 +97,21 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   const showEmailPreview = () => {
     const email = buildChaseEmail(inv, profile, currentSendStage)
     if (email) setPreviewHtml(email.html)
+  }
+
+  const deleteInvoice = async () => {
+    if (!window.confirm(`Permanently delete invoice ${inv.ref}? This cannot be undone.`)) return
+    setDeleting(true)
+    setError("")
+    try {
+      const { error: err } = await supabase.from("invoices").delete().eq("id", inv.id)
+      if (err) throw err
+      onUpdate()
+      nav("dash")
+    } catch (e) {
+      setError("Failed to delete: " + e.message)
+    }
+    setDeleting(false)
   }
 
   const markPaid = async () => {
@@ -203,6 +219,9 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
+            {deleting ? "Deleting..." : "🗑 Delete"}
+          </Btn>
           <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
             {downloading ? "Generating..." : "📥 PDF"}
           </Btn>
@@ -217,7 +236,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
             </Btn>
           )}
           {inv.status !== "paid" && (
-            <Btn v="success" onClick={markPaid} dis={marking}>
+            <Btn v="successAction" onClick={markPaid} dis={marking}>
               {marking ? "Marking..." : "✓ Mark as Paid"}
             </Btn>
           )}
