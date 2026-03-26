@@ -27,6 +27,127 @@ function getStageLabel(stageId) {
   return stage ? stage.label : stageId
 }
 
+const TIMELINE_GROUPS = [
+  {
+    label: "Friendly Reminders",
+    desc: "Polite check-ins before the due date",
+    col: "#1e5fa0",
+    stages: ["reminder_1", "reminder_2"],
+  },
+  {
+    label: "Due Date Warning",
+    desc: "Last chance to pay at the original amount",
+    col: "#b45309",
+    stages: ["final_warning"],
+  },
+  {
+    label: "Overdue — Fines Applied",
+    desc: "Statutory interest and penalties now accruing",
+    col: "#d97706",
+    stages: ["first_chase", "second_chase", "third_chase"],
+  },
+  {
+    label: "Persistent Chasing",
+    desc: "Every 2 days — amount growing with each notice",
+    col: "#9f1239",
+    stages: ["chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11"],
+  },
+  {
+    label: "Daily Escalation",
+    desc: "Countdown to formal recovery — one email per day",
+    col: "#7f1d1d",
+    stages: ["escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"],
+  },
+]
+
+function ChaseTimeline({ inv, si }) {
+  const [expanded, setExpanded] = useState({})
+
+  const toggle = (label) => setExpanded((prev) => ({ ...prev, [label]: !prev[label] }))
+
+  // Auto-expand the group containing the current stage
+  const currentGroup = TIMELINE_GROUPS.find((g) => g.stages.includes(inv.chase_stage))
+
+  return (
+    <Card>
+      <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" }}>Chase Timeline</h3>
+      <p style={{ fontSize: 11, color: c.td, marginBottom: 14 }}>We check in with you before every step. Click a section to see details.</p>
+      {TIMELINE_GROUPS.map((group) => {
+        const groupStages = CHASE_STAGES.filter((s) => group.stages.includes(s.id))
+        const isCurrentGroup = currentGroup?.label === group.label
+        const isOpen = expanded[group.label] ?? isCurrentGroup
+        const allPast = groupStages.every((s) => si >= 0 && CHASE_STAGES.indexOf(s) <= si)
+        const somePast = groupStages.some((s) => si >= 0 && CHASE_STAGES.indexOf(s) <= si)
+        const firstStage = groupStages[0]
+        const lastStage = groupStages[groupStages.length - 1]
+        const dateRange = firstStage.dfd === lastStage.dfd
+          ? formatDate(addDays(inv.due_date, firstStage.dfd))
+          : `${formatDate(addDays(inv.due_date, firstStage.dfd))} — ${formatDate(addDays(inv.due_date, lastStage.dfd))}`
+
+        return (
+          <div key={group.label} style={{ marginBottom: 8 }}>
+            <button
+              onClick={() => toggle(group.label)}
+              style={{
+                width: "100%", textAlign: "left", background: allPast ? "rgba(22,163,74,0.05)" : somePast ? "rgba(30,95,160,0.05)" : c.bg,
+                border: `1px solid ${allPast ? "rgba(22,163,74,0.15)" : somePast ? "rgba(30,95,160,0.15)" : c.bd}`,
+                borderRadius: 8, padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+              }}
+            >
+              <div style={{
+                width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                background: allPast ? c.gn : somePast ? group.col : c.bg,
+                border: `2px solid ${allPast ? c.gn : somePast ? group.col : c.bd}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, color: allPast || somePast ? c.w : c.td,
+              }}>
+                {allPast ? "✓" : somePast ? "•" : ""}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 600, color: allPast ? c.gn : somePast ? c.tx : c.td, fontSize: 12 }}>{group.label}</span>
+                  {isCurrentGroup && <Badge color={group.col}>Active</Badge>}
+                  <span style={{ fontSize: 10, color: c.td, marginLeft: "auto" }}>{groupStages.length} {groupStages.length === 1 ? "email" : "emails"}</span>
+                </div>
+                <div style={{ fontSize: 10, color: c.td, marginTop: 2 }}>{dateRange}</div>
+              </div>
+              <span style={{ fontSize: 11, color: c.td, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
+            </button>
+
+            {isOpen && (
+              <div style={{ paddingLeft: 20, borderLeft: `2px solid ${group.col}20`, marginLeft: 12, marginTop: 6 }}>
+                <p style={{ fontSize: 10, color: c.tm, margin: "0 0 8px", fontStyle: "italic" }}>{group.desc}</p>
+                {groupStages.map((stg) => {
+                  const act = stg.id === inv.chase_stage
+                  const past = si >= 0 && CHASE_STAGES.indexOf(stg) <= si
+                  return (
+                    <div key={stg.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", borderBottom: `1px solid ${c.bdl}` }}>
+                      <div style={{
+                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                        background: past ? stg.col : "transparent",
+                        border: `2px solid ${past ? stg.col : c.bd}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 8, color: past ? c.w : c.td,
+                      }}>
+                        {past ? "✓" : ""}
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: act ? 700 : 400, color: past ? c.tx : c.td, flex: 1 }}>{stg.label}</span>
+                      {act && <Badge color={stg.col}>Next</Badge>}
+                      <span style={{ fontSize: 10, color: c.td, fontFamily: MONO }}>
+                        {stg.dfd < 0 ? `${Math.abs(stg.dfd)}d before` : stg.dfd === 0 ? "Due date" : `+${stg.dfd}d`}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </Card>
+  )
+}
+
 export default function Detail({ inv, nav, profile, onUpdate }) {
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -360,48 +481,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
         )}
       </div>
 
-      <Card>
-        <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 16px" }}>Chase timeline</h3>
-        <p style={{ fontSize: 11, color: c.td, marginBottom: 14 }}>We check in with you before every step.</p>
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: 15, top: 20, bottom: 20, width: 2, background: c.bdl }} />
-          {CHASE_STAGES.map((stg, idx) => {
-            const act = stg.id === inv.chase_stage
-            const past = si >= 0 && CHASE_STAGES.indexOf(stg) <= si
-            return (
-              <div key={stg.id} style={{ display: "flex", gap: 16, marginBottom: 16, position: "relative" }}>
-                <div
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    background: past ? stg.col : c.bg,
-                    border: `2px solid ${past ? stg.col : c.bd}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 13,
-                    color: past ? c.w : c.td,
-                    zIndex: 1,
-                  }}
-                >
-                  {past ? "✓" : idx + 1}
-                </div>
-                <div style={{ flex: 1, paddingTop: 3 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600, color: past ? c.tx : c.td, fontSize: 13 }}>{stg.label}</span>
-                    {act && <Badge color={stg.col}>Current</Badge>}
-                  </div>
-                  <div style={{ fontSize: 11, color: c.td }}>
-                    {stg.dfd < 0 ? `${Math.abs(stg.dfd)}d before due` : stg.dfd === 0 ? "On due date" : `${stg.dfd}d after due`} · {formatDate(addDays(inv.due_date, stg.dfd))}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+      <ChaseTimeline inv={inv} si={si} />
 
       {/* Auto-chase toggle */}
       {inv.status !== "paid" && (
