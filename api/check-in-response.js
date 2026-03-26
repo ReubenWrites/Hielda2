@@ -73,8 +73,9 @@ function respondHtml(title, body, color = '#1e5fa0') {
         ${body}
       </div>
     </div>
-    <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">
-      Sent via Hielda — Protecting your pay.
+    <div style="text-align:center;padding:16px;">
+      <p style="font-size:12px;color:#94a3b8;margin:0 0 6px;">You can close this tab now.</p>
+      <p style="font-size:11px;color:#bcc3ce;margin:0;">Hielda — Protecting your pay.</p>
     </div>
   </div>
 </body>
