@@ -266,9 +266,11 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
-            {deleting ? "Deleting..." : "🗑 Delete"}
-          </Btn>
+          {inv.status !== "paid" && (
+            <Btn v="successAction" onClick={markPaid} dis={marking}>
+              {marking ? "Marking..." : "✓ Mark as Paid"}
+            </Btn>
+          )}
           <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
             {downloading ? "Generating..." : "📥 PDF"}
           </Btn>
@@ -278,20 +280,13 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
             </Btn>
           )}
           {inv.status !== "paid" && inv.client_email && (
-            <Btn v="ghost" onClick={sendCheckInEmail} dis={sendingCheckIn} sz="sm">
-              {sendingCheckIn ? "Sending..." : "📬 Send Check-in"}
-            </Btn>
-          )}
-          {inv.status !== "paid" && inv.client_email && (
             <Btn v="ghost" onClick={sendChaseEmail} dis={sending} sz="sm">
               {sending ? "Sending..." : `📤 Send ${getStageLabel(currentSendStage)}`}
             </Btn>
           )}
-          {inv.status !== "paid" && (
-            <Btn v="successAction" onClick={markPaid} dis={marking}>
-              {marking ? "Marking..." : "✓ Mark as Paid"}
-            </Btn>
-          )}
+          <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
+            {deleting ? "Deleting..." : "🗑 Delete"}
+          </Btn>
         </div>
       </div>
 
