@@ -143,7 +143,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: `${email.fromName} via Hielda <onboarding@resend.dev>`,
+        from: `${email.fromName} via Hielda <chase@hielda.com>`,
         to: [invoice.client_email],
         subject: email.subject,
         html: email.html,
