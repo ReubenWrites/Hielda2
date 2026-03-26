@@ -268,36 +268,44 @@ export const InfoBanner = ({ message }) => {
   )
 }
 
-// ── Sidebar Decoration (Norse-inspired geometric shield pattern) ──
+// ── Sidebar Decoration (matches ShieldLogo + knotwork border) ──
 export const SidebarDecoration = () => (
-  <svg width="140" height="160" viewBox="0 0 140 160" aria-hidden="true" style={{ opacity: 0.06 }}>
-    {/* Shield outline */}
+  <svg width="160" height="192" viewBox="0 0 160 192" aria-hidden="true" style={{ opacity: 0.12 }}>
+    {/* Outer shield border */}
     <path
-      d="M70 8 L120 24 L120 72 Q120 120 70 148 Q20 120 20 72 L20 24 Z"
+      d="M80 6 L148 30 L148 108 Q148 160 80 188 Q12 160 12 108 L12 30 Z"
       fill="none"
       stroke="#fff"
       strokeWidth="2"
     />
-    {/* Inner shield */}
+    {/* Knotwork band — interlacing arcs between outer and inner shield */}
+    {/* Top row */}
+    <path d="M44 22 Q56 14 68 22 Q80 14 92 22 Q104 14 116 22" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <path d="M44 28 Q56 36 68 28 Q80 36 92 28 Q104 36 116 28" fill="none" stroke="#fff" strokeWidth="1.5" />
+    {/* Right side */}
+    <path d="M138 40 Q146 52 138 64 Q146 76 138 88 Q146 100 138 112" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <path d="M132 40 Q124 52 132 64 Q124 76 132 88 Q124 100 132 112" fill="none" stroke="#fff" strokeWidth="1.5" />
+    {/* Left side */}
+    <path d="M22 40 Q14 52 22 64 Q14 76 22 88 Q14 100 22 112" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <path d="M28 40 Q36 52 28 64 Q36 76 28 88 Q36 100 28 112" fill="none" stroke="#fff" strokeWidth="1.5" />
+    {/* Bottom curves */}
+    <path d="M32 118 Q44 126 56 118 Q68 126 80 118 Q92 126 104 118 Q116 126 128 118" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <path d="M36 124 Q48 116 60 124 Q72 116 80 124 Q88 116 100 124 Q112 116 124 124" fill="none" stroke="#fff" strokeWidth="1.5" />
+    {/* Bottom point knotwork */}
+    <path d="M56 138 Q68 146 80 138 Q92 146 104 138" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <path d="M60 144 Q72 136 80 144 Q88 136 100 144" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <path d="M68 156 Q74 162 80 156 Q86 162 92 156" fill="none" stroke="#fff" strokeWidth="1.5" />
+    {/* Inner shield — same shape as ShieldLogo */}
     <path
-      d="M70 22 L108 35 L108 70 Q108 110 70 134 Q32 110 32 70 L32 35 Z"
-      fill="none"
+      d="M80 32 L136 48 L136 104 Q136 148 80 172 Q24 148 24 104 L24 48 Z"
+      fill="rgba(255,255,255,0.05)"
       stroke="#fff"
-      strokeWidth="1.5"
+      strokeWidth="2"
     />
-    {/* Horizontal knotwork lines */}
-    <line x1="38" y1="55" x2="102" y2="55" stroke="#fff" strokeWidth="1.5" />
-    <line x1="42" y1="75" x2="98" y2="75" stroke="#fff" strokeWidth="1.5" />
-    <line x1="48" y1="95" x2="92" y2="95" stroke="#fff" strokeWidth="1.5" />
-    {/* Vertical center line */}
-    <line x1="70" y1="30" x2="70" y2="128" stroke="#fff" strokeWidth="1.5" />
-    {/* Diagonal crosshatch */}
-    <line x1="50" y1="40" x2="90" y2="110" stroke="#fff" strokeWidth="1" />
-    <line x1="90" y1="40" x2="50" y2="110" stroke="#fff" strokeWidth="1" />
-    {/* Corner knots */}
-    <circle cx="70" cy="55" r="4" fill="none" stroke="#fff" strokeWidth="1.5" />
-    <circle cx="70" cy="75" r="4" fill="none" stroke="#fff" strokeWidth="1.5" />
-    <circle cx="70" cy="95" r="4" fill="none" stroke="#fff" strokeWidth="1.5" />
+    {/* H letter — same proportions as ShieldLogo */}
+    <rect x="52" y="60" width="14" height="72" rx="3" fill="#fff" />
+    <rect x="94" y="60" width="14" height="72" rx="3" fill="#fff" />
+    <rect x="62" y="88" width="36" height="14" rx="3" fill="#fff" />
   </svg>
 )
 

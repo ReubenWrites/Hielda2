@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { id: "create", l: "New Invoice", i: "+" },
   { id: "how", l: "How It Works", i: "?" },
   { id: "settings", l: "Your Details", i: "⚙" },
-  { id: "billing", l: "Billing", i: "💳" },
+  { id: "billing", l: "Billing", i: "○" },
 ]
 
 function useMediaQuery(query) {
@@ -205,6 +205,7 @@ export default function App() {
                 key={item.id}
                 onClick={() => nav(item.id)}
                 aria-current={active ? "page" : undefined}
+                className={!active ? "sidebar-nav" : ""}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -221,6 +222,7 @@ export default function App() {
                   cursor: "pointer",
                   marginBottom: 2,
                   textAlign: "left",
+                  transition: "all 0.15s ease",
                 }}
               >
                 <span style={{ width: 17, textAlign: "center", fontSize: 12 }} aria-hidden="true">{item.i}</span>
@@ -251,9 +253,7 @@ export default function App() {
         >
           Log out
         </button>
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 1 }}>
-          <SidebarDecoration />
-        </div>
+        <img src="/shield-d6-single.png" alt="" style={{ position: "absolute", top: "43%", left: "50%", transform: "translate(-50%, -50%)", width: 120, opacity: 0.13, pointerEvents: "none", zIndex: 1 }} />
       </div>
 
       {/* Main content */}
@@ -343,6 +343,7 @@ export default function App() {
         button:focus:not(:focus-visible) { outline: none; }
         .pulse-ring { position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid ${c.ac}; opacity: .4; animation: pulse-ring 2s ease-out infinite; }
         .header-pulse { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: ${c.or}; opacity: 0.3; animation: pulse-ring 2s ease-out infinite; }
+        .sidebar-nav:hover { background: rgba(255,255,255,0.08) !important; color: rgba(255,255,255,0.8) !important; }
         .table-row-hover:hover { background: ${c.sfh}; }
         .table-row-hover:focus { outline: 2px solid ${c.ac}; outline-offset: -2px; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
