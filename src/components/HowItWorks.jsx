@@ -74,6 +74,65 @@ export default function HowItWorks() {
           </div>
         ))}
       </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 22 }}>
+        <Card>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: c.ac, margin: "0 0 12px" }}>Frequently Asked</h3>
+          {[
+            { q: "Will this damage my client relationships?", a: "Most late-paying clients expect to be chased. The early reminders are polite and professional — it's only unpaid invoices that escalate. You can also disable fines for specific invoices if you prefer a softer approach." },
+            { q: "Does this apply to all businesses?", a: "The Act applies to business-to-business transactions in England, Wales and Scotland. It doesn't cover consumer debts or contracts with public authorities (which have separate rules)." },
+            { q: "What if my client disputes the invoice?", a: "Hielda always checks in with you before sending each chase. If there's a dispute, simply tell us not to send the next email and resolve it directly with your client." },
+            { q: "Do I have to charge interest?", a: "No — it's your right, not an obligation. When creating an invoice, tick 'Chase without fines' to send reminders without adding penalties. You can always change this later." },
+          ].map((faq, i) => (
+            <div key={i} style={{ marginBottom: i < 3 ? 14 : 0, paddingBottom: i < 3 ? 14 : 0, borderBottom: i < 3 ? `1px solid ${c.bdl}` : "none" }}>
+              <div style={{ fontWeight: 600, color: c.tx, fontSize: 12, marginBottom: 4 }}>{faq.q}</div>
+              <div style={{ fontSize: 11.5, color: c.tm, lineHeight: 1.5 }}>{faq.a}</div>
+            </div>
+          ))}
+        </Card>
+
+        <Card>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: c.ac, margin: "0 0 12px" }}>Penalty Breakdown</h3>
+          <p style={{ fontSize: 12, color: c.tm, margin: "0 0 12px", lineHeight: 1.5 }}>
+            The fixed penalty depends on the invoice value:
+          </p>
+          <div style={{ background: c.bg, borderRadius: 8, overflow: "hidden" }}>
+            {[
+              { range: "Up to £999.99", penalty: "£40" },
+              { range: "£1,000 – £9,999.99", penalty: "£70" },
+              { range: "£10,000+", penalty: "£100" },
+            ].map((row, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", borderBottom: i < 2 ? `1px solid ${c.bdl}` : "none" }}>
+                <span style={{ fontSize: 12, color: c.tm }}>{row.range}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: c.ac }}>{row.penalty}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: c.td, margin: "12px 0 0", lineHeight: 1.5 }}>
+            Interest accrues daily at {RATE}% per annum from the day after the due date. For a £5,000 invoice, that's roughly £1.61 per day.
+          </p>
+
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: c.ac, margin: "20px 0 10px" }}>Example</h3>
+          <div style={{ background: c.bg, borderRadius: 8, padding: 14, fontSize: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: c.tm }}>Invoice</span>
+              <span style={{ fontFamily: MONO, color: c.tx }}>£3,000.00</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: c.tm }}>30 days late — penalty</span>
+              <span style={{ fontFamily: MONO, color: c.or }}>+ £40.00</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: c.tm }}>30 days interest ({RATE}% p.a.)</span>
+              <span style={{ fontFamily: MONO, color: c.or }}>+ £28.97</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, borderTop: `2px solid ${c.ac}` }}>
+              <span style={{ fontWeight: 700, color: c.tx }}>Total owed</span>
+              <span style={{ fontWeight: 700, fontFamily: MONO, color: c.ac }}>£3,068.97</span>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

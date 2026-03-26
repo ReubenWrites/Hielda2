@@ -261,6 +261,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
             <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : c.am}>
               {ov ? "being chased" : inv.status}
             </Badge>
+            {inv.no_fines && <Badge color={c.td}>no fines</Badge>}
           </div>
           <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
         </div>

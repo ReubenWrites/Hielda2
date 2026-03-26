@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { supabase } from "../supabase"
-import { colors as c, FONT } from "../constants"
-import { Card, Inp, Btn, ShieldLogo, ErrorBanner, Spinner } from "./ui"
+import { colors as c, FONT, TERMS } from "../constants"
+import { Card, Inp, Sel, Btn, ShieldLogo, ErrorBanner, Spinner } from "./ui"
 
 const STEPS = ["Welcome", "Business Details", "Payment Details"]
 
@@ -22,6 +22,7 @@ export default function Onboarding({ user, profile, onComplete }) {
     account_number: profile?.account_number || "",
     vat_number: profile?.vat_number || "",
     utr_number: profile?.utr_number || "",
+    default_payment_terms: profile?.default_payment_terms || 30,
   })
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
@@ -66,6 +67,7 @@ export default function Onboarding({ user, profile, onComplete }) {
         account_number: form.account_number.replace(/[^0-9]/g, ""),
         vat_number: form.vat_number,
         utr_number: form.utr_number,
+        default_payment_terms: parseInt(form.default_payment_terms) || 30,
         onboarding_complete: true,
       }
 
@@ -171,6 +173,12 @@ export default function Onboarding({ user, profile, onComplete }) {
             />
             <Inp label="Phone" value={form.phone} onChange={(v) => update("phone", v)} ph="07xxx xxx xxx" />
             <Inp label="Business Address" value={form.address} onChange={(v) => update("address", v)} ph="Your business address" ta />
+            <Sel
+              label="Default Payment Terms"
+              value={String(form.default_payment_terms)}
+              onChange={(v) => update("default_payment_terms", parseInt(v))}
+              opts={TERMS.filter(t => t.d !== -1).map((t) => ({ l: t.l, v: String(t.d) }))}
+            />
 
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
               <Btn v="ghost" onClick={() => setStep(0)}>← Back</Btn>
