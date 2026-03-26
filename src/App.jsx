@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { supabase } from "./supabase"
-import { colors as c, FONT, MONO } from "./constants"
+import { colors as c, FONT, MONO, loadLiveBoeRate } from "./constants"
 import { fmt, todayStr } from "./utils"
 import { ShieldLogo, Spinner } from "./components/ui"
 import AuthScreen from "./components/AuthScreen"
@@ -45,6 +45,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isMobile = useMediaQuery("(max-width: 768px)")
+
+  // Load live BoE rate on mount
+  useEffect(() => { loadLiveBoeRate() }, [])
 
   // Check for existing session on mount
   useEffect(() => {

@@ -8,8 +8,19 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const RATE = 11.75
-const DAILY_RATE = RATE / 365 / 100
+let RATE = 11.75
+let DAILY_RATE = RATE / 365 / 100
+
+async function loadLiveRate() {
+  try {
+    const { fetchBoeRate } = await import('./boe-rate.js')
+    const { rate } = await fetchBoeRate()
+    RATE = 8 + rate
+    DAILY_RATE = RATE / 365 / 100
+  } catch {
+    // Keep fallback
+  }
+}
 
 const STAGE_ORDER = ['reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase', 'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11', 'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice']
 
@@ -189,6 +200,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).send('Method not allowed')
   }
+
+  // Load live BoE rate before calculating
+  await loadLiveRate()
 
   try {
     const { action, invoice_id, stage, token } = req.query

@@ -1,8 +1,23 @@
 // ── THEME & CONSTANTS ──
 
-export const BOE = 3.75
-export const RATE = 8 + BOE
-export const DAILY_RATE = RATE / 365 / 100
+// Fallback values — overridden at runtime by /api/boe-rate
+export let BOE = 3.75
+export let RATE = 8 + BOE
+export let DAILY_RATE = RATE / 365 / 100
+
+// Called on app load to update with live BoE rate
+export async function loadLiveBoeRate() {
+  try {
+    const res = await fetch('/api/boe-rate')
+    if (!res.ok) return
+    const data = await res.json()
+    BOE = data.boe_rate
+    RATE = data.statutory_rate
+    DAILY_RATE = data.daily_rate
+  } catch {
+    // Keep fallback values
+  }
+}
 
 export const TERMS = [
   { l: "7 days", d: 7 },

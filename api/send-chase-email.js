@@ -7,8 +7,20 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const RATE = 11.75
-const DAILY_RATE = RATE / 365 / 100
+// Fallback rate — overridden by live BoE fetch
+let RATE = 11.75
+let DAILY_RATE = RATE / 365 / 100
+
+async function loadLiveRate() {
+  try {
+    const { fetchBoeRate } = await import('./boe-rate.js')
+    const { rate } = await fetchBoeRate()
+    RATE = 8 + rate
+    DAILY_RATE = RATE / 365 / 100
+  } catch {
+    // Keep fallback
+  }
+}
 
 function penalty(amount) {
   if (amount < 1000) return 40
@@ -288,6 +300,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+
+  // Load live BoE rate before calculating
+  await loadLiveRate()
 
   try {
     const { invoice_id, chase_stage, user_token } = req.body
