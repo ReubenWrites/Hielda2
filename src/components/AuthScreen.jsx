@@ -76,7 +76,6 @@ export default function AuthScreen({ onAuth }) {
 
           <Btn
             type="submit"
-            onClick={handleSubmit}
             dis={loading || !canSubmit}
             style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}
           >

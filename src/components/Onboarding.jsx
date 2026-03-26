@@ -9,6 +9,7 @@ export default function Onboarding({ user, profile, onComplete }) {
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [touched, setTouched] = useState({})
 
   const [form, setForm] = useState({
     full_name: profile?.full_name || user?.user_metadata?.full_name || "",
@@ -23,6 +24,7 @@ export default function Onboarding({ user, profile, onComplete }) {
   })
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
+  const blur = (field) => setTouched((prev) => ({ ...prev, [field]: true }))
 
   // Validation
   const sortCodeClean = form.sort_code.replace(/[^0-9]/g, "")
@@ -34,10 +36,14 @@ export default function Onboarding({ user, profile, onComplete }) {
     sortCodeClean.length === 6 &&
     acctClean.length === 8
 
+  const businessNameError =
+    touched.business_name && form.business_name.trim().length === 0 ? "Business name is required" : ""
+  const bankNameError =
+    touched.bank_name && form.bank_name.trim().length === 0 ? "Bank name is required" : ""
   const sortCodeError =
-    form.sort_code && sortCodeClean.length !== 6 ? "Must be 6 digits (e.g. 12-34-56)" : ""
+    touched.sort_code && sortCodeClean.length !== 6 ? "Must be 6 digits" : ""
   const acctError =
-    form.account_number && acctClean.length !== 8 ? "Must be 8 digits" : ""
+    touched.account_number && acctClean.length !== 8 ? "Must be 8 digits" : ""
 
   const handleComplete = async () => {
     setSaving(true)
@@ -51,8 +57,8 @@ export default function Onboarding({ user, profile, onComplete }) {
         phone: form.phone,
         address: form.address,
         bank_name: form.bank_name,
-        sort_code: form.sort_code,
-        account_number: form.account_number,
+        sort_code: form.sort_code.replace(/[^0-9]/g, ""),
+        account_number: form.account_number.replace(/[^0-9]/g, ""),
         vat_number: form.vat_number,
         utr_number: form.utr_number,
         onboarding_complete: true,
@@ -64,15 +70,13 @@ export default function Onboarding({ user, profile, onComplete }) {
 
       if (profError) throw profError
 
-      // Create trial subscription
+      // Create trial subscription (dates default via DB: trial_start=now(), trial_end=now()+7days)
       const { error: subError } = await supabase
         .from("subscriptions")
         .upsert({
           user_id: user.id,
           status: "trialing",
           plan: "pro",
-          trial_start: new Date().toISOString(),
-          trial_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         }, { onConflict: "user_id" })
 
       // Don't fail onboarding if subscription insert fails (table might not exist yet)
@@ -150,8 +154,9 @@ export default function Onboarding({ user, profile, onComplete }) {
               label="Business Name *"
               value={form.business_name}
               onChange={(v) => update("business_name", v)}
+              onBlur={() => blur("business_name")}
               ph="e.g. Smith Design Ltd"
-              error={form.business_name !== undefined && form.business_name.length === 0 ? "" : ""}
+              error={businessNameError}
             />
             <Inp label="Phone" value={form.phone} onChange={(v) => update("phone", v)} ph="07xxx xxx xxx" />
             <Inp label="Business Address" value={form.address} onChange={(v) => update("address", v)} ph="Your business address" ta />
@@ -171,11 +176,12 @@ export default function Onboarding({ user, profile, onComplete }) {
               Shown on your invoices so clients can pay you directly.
             </p>
 
-            <Inp label="Bank Name *" value={form.bank_name} onChange={(v) => update("bank_name", v)} ph="e.g. Barclays" />
+            <Inp label="Bank Name *" value={form.bank_name} onChange={(v) => update("bank_name", v)} onBlur={() => blur("bank_name")} ph="e.g. Barclays" error={bankNameError} />
             <Inp
               label="Sort Code *"
               value={form.sort_code}
               onChange={(v) => update("sort_code", v)}
+              onBlur={() => blur("sort_code")}
               ph="12-34-56"
               mono
               error={sortCodeError}
@@ -184,6 +190,7 @@ export default function Onboarding({ user, profile, onComplete }) {
               label="Account Number *"
               value={form.account_number}
               onChange={(v) => update("account_number", v)}
+              onBlur={() => blur("account_number")}
               ph="12345678"
               mono
               error={acctError}

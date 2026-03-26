@@ -5,6 +5,28 @@ import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../ut
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 
+const STAGE_ORDER = ["reminder_1", "reminder_2", "first_chase", "second_chase", "final_notice"]
+
+function getNextStage(currentStage) {
+  if (!currentStage) return "reminder_1"
+  const idx = STAGE_ORDER.indexOf(currentStage)
+  if (idx === -1) return "reminder_1"
+  if (idx >= STAGE_ORDER.length - 1) return null // already at final_notice
+  return STAGE_ORDER[idx + 1]
+}
+
+function getStageToBeSent(invoice) {
+  // The stage to send is the current stage if nothing has been sent yet,
+  // otherwise the next stage after the current one
+  if (!invoice.chase_stage) return "reminder_1"
+  return invoice.chase_stage
+}
+
+function getStageLabel(stageId) {
+  const stage = CHASE_STAGES.find((s) => s.id === stageId)
+  return stage ? stage.label : stageId
+}
+
 export default function Detail({ inv, nav, profile, onUpdate }) {
   const [marking, setMarking] = useState(false)
   const [error, setError] = useState("")
@@ -69,9 +91,10 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
     setDownloading(false)
   }
 
+  const currentSendStage = getStageToBeSent(inv)
+
   const showEmailPreview = () => {
-    const stage = inv.chase_stage || "reminder_1"
-    const email = buildChaseEmail(inv, profile, stage)
+    const email = buildChaseEmail(inv, profile, currentSendStage)
     if (email) setPreviewHtml(email.html)
   }
 
@@ -93,19 +116,45 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   }
 
   const sendChaseEmail = async () => {
-    const stage = inv.chase_stage || "reminder_1"
+    const stage = currentSendStage
+    const stageLabel = getStageLabel(stage)
+
+    // Task 4: Confirmation dialog before sending
+    const confirmed = window.confirm(
+      `Send ${stageLabel} email to ${inv.client_email}?`
+    )
+    if (!confirmed) return
+
     setSending(true)
     setError("")
     setSendSuccess("")
     try {
+      // Task 1: Include user token for authentication
+      const { data: { session } } = await supabase.auth.getSession()
+      const userToken = session?.access_token
+
       const res = await fetch("/api/send-chase-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoice_id: inv.id, chase_stage: stage }),
+        body: JSON.stringify({
+          invoice_id: inv.id,
+          chase_stage: stage,
+          user_token: userToken,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to send")
-      setSendSuccess(`Chase email sent to ${data.email_to}`)
+      setSendSuccess(`${stageLabel} email sent to ${data.email_to}`)
+
+      // Task 3: Advance to the next chase stage after successful send
+      const nextStage = getNextStage(stage)
+      if (nextStage) {
+        await supabase
+          .from("invoices")
+          .update({ chase_stage: nextStage })
+          .eq("id", inv.id)
+      }
+
       // Refresh chase logs
       const { data: logs } = await supabase
         .from("chase_log")
@@ -164,7 +213,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           )}
           {inv.status !== "paid" && inv.client_email && (
             <Btn v="ghost" onClick={sendChaseEmail} dis={sending} sz="sm">
-              {sending ? "Sending..." : "📤 Send Chase"}
+              {sending ? "Sending..." : `📤 Send ${getStageLabel(currentSendStage)}`}
             </Btn>
           )}
           {inv.status !== "paid" && (
@@ -362,6 +411,19 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
               style={{ flex: 1, border: "none", minHeight: 400 }}
               title="Email preview"
             />
+            <div style={{ padding: "12px 20px", borderTop: `1px solid ${c.bd}`, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <Btn v="ghost" onClick={() => setPreviewHtml(null)} sz="sm">Close</Btn>
+              <Btn
+                onClick={() => {
+                  setPreviewHtml(null)
+                  sendChaseEmail()
+                }}
+                dis={sending}
+                sz="sm"
+              >
+                {sending ? "Sending..." : `📤 Send ${getStageLabel(currentSendStage)}`}
+              </Btn>
+            </div>
           </div>
         </div>
       )}

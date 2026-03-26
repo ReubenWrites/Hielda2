@@ -99,7 +99,7 @@ export const Card = ({ children, style, onClick, as: Tag = "div" }) => {
 }
 
 // ── Input ──
-export const Inp = ({ label, value, onChange, ph, type = "text", ta, mono, disabled, error }) => {
+export const Inp = ({ label, value, onChange, onBlur, ph, type = "text", ta, mono, disabled, error }) => {
   const shared = {
     width: "100%",
     padding: "10px 14px",
@@ -126,6 +126,7 @@ export const Inp = ({ label, value, onChange, ph, type = "text", ta, mono, disab
           rows={3}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={ph}
           style={{ ...shared, resize: "vertical" }}
           disabled={disabled}
@@ -136,6 +137,7 @@ export const Inp = ({ label, value, onChange, ph, type = "text", ta, mono, disab
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={ph}
           style={shared}
           disabled={disabled}

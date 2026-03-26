@@ -140,25 +140,25 @@ export default function App() {
   const overdueInvs = invs.filter((i) => i.status === "overdue")
   const pendingInvs = invs.filter((i) => i.status === "pending")
 
-  if (!session && !loading) return <AuthScreen onAuth={handleAuth} />
-
-  // Show onboarding for new users who haven't completed setup
-  if (session && !loading && (!profile || !profile.onboarding_complete)) {
-    return (
-      <Onboarding
-        user={user}
-        profile={profile}
-        onComplete={() => { loadData(); setView("dash") }}
-      />
-    )
-  }
-
   if (loading) {
     return (
       <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
         <Spinner size={28} />
         <span style={{ color: c.tm, fontSize: 13 }}>Loading your invoices...</span>
       </div>
+    )
+  }
+
+  if (!session) return <AuthScreen onAuth={handleAuth} />
+
+  // Show onboarding for new users who haven't completed setup
+  if (!profile || !profile.onboarding_complete) {
+    return (
+      <Onboarding
+        user={user}
+        profile={profile}
+        onComplete={() => { loadData(); setView("dash") }}
+      />
     )
   }
 
