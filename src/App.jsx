@@ -2,30 +2,49 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "./supabase"
 import { colors as c, FONT, MONO } from "./constants"
 import { fmt, todayStr } from "./utils"
-import { ShieldLogo, Spinner } from "./components/ui"
+import { ShieldLogo, Spinner, SidebarDecoration } from "./components/ui"
 import AuthScreen from "./components/AuthScreen"
+import Onboarding from "./components/Onboarding"
 import Dashboard from "./components/Dashboard"
 import Detail from "./components/Detail"
 import Create from "./components/Create"
 import Settings from "./components/Settings"
 import HowItWorks from "./components/HowItWorks"
+import Billing from "./components/Billing"
+import SubscriptionGate from "./components/SubscriptionGate"
 
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
   { id: "create", l: "New Invoice", i: "+" },
   { id: "how", l: "How It Works", i: "?" },
   { id: "settings", l: "Your Details", i: "⚙" },
+  { id: "billing", l: "Billing", i: "💳" },
 ]
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const handler = (e) => setMatches(e.matches)
+    mql.addEventListener("change", handler)
+    return () => mql.removeEventListener("change", handler)
+  }, [query])
+  return matches
+}
 
 export default function App() {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [subscription, setSubscription] = useState(null)
   const [invs, setInvs] = useState([])
   const [view, setView] = useState("dash")
   const [selId, setSelId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [dataError, setDataError] = useState("")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const isMobile = useMediaQuery("(max-width: 768px)")
 
   // Check for existing session on mount
   useEffect(() => {
@@ -71,6 +90,18 @@ export default function App() {
           return i
         })
       )
+
+      // Load subscription (don't fail if table doesn't exist yet)
+      try {
+        const { data: subData } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .single()
+        if (subData) setSubscription(subData)
+      } catch {
+        // subscriptions table may not exist yet
+      }
     } catch (e) {
       setDataError("Failed to load data. Please try refreshing.")
       console.error("Data load error:", e)
@@ -90,6 +121,7 @@ export default function App() {
   const nav = (v, id) => {
     setView(v)
     setSelId(id || null)
+    if (isMobile) setSidebarOpen(false)
   }
 
   const logout = async () => {
@@ -97,6 +129,7 @@ export default function App() {
     setSession(null)
     setUser(null)
     setProfile(null)
+    setSubscription(null)
     setInvs([])
     setView("dash")
   }
@@ -109,6 +142,17 @@ export default function App() {
 
   if (!session && !loading) return <AuthScreen onAuth={handleAuth} />
 
+  // Show onboarding for new users who haven't completed setup
+  if (session && !loading && (!profile || !profile.onboarding_complete)) {
+    return (
+      <Onboarding
+        user={user}
+        profile={profile}
+        onComplete={() => { loadData(); setView("dash") }}
+      />
+    )
+  }
+
   if (loading) {
     return (
       <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
@@ -120,8 +164,31 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: FONT, background: c.bg, color: c.tx, minHeight: "100vh", display: "flex" }}>
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 99 }}
+        />
+      )}
+
       {/* Sidebar */}
-      <div style={{ width: 210, flexShrink: 0, background: c.ac, padding: "20px 12px", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div
+        style={{
+          width: 210,
+          flexShrink: 0,
+          background: c.ac,
+          padding: "20px 12px",
+          display: "flex",
+          flexDirection: "column",
+          position: isMobile ? "fixed" : "relative",
+          overflow: "hidden",
+          height: isMobile ? "100vh" : "auto",
+          zIndex: isMobile ? 100 : "auto",
+          transform: isMobile && !sidebarOpen ? "translateX(-100%)" : "translateX(0)",
+          transition: "transform 0.25s ease",
+        }}
+      >
         <div style={{ padding: "0 8px", marginBottom: 20, position: "relative", zIndex: 2 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
             <ShieldLogo size={18} white />
@@ -184,23 +251,37 @@ export default function App() {
         >
           Log out
         </button>
-        <img src="/shield-maiden.png" alt="" style={{ position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)", width: 190, opacity: 0.1, pointerEvents: "none", zIndex: 1 }} />
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", pointerEvents: "none", zIndex: 1 }}>
+          <SidebarDecoration />
+        </div>
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: "100vh" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: "100vh", minWidth: 0 }}>
         {/* Header */}
-        <header style={{ flexShrink: 0, padding: "10px 28px", borderBottom: `1px solid ${c.bd}`, background: c.sf, display: "flex", alignItems: "center", zIndex: 2, minHeight: 54 }}>
+        <header style={{ flexShrink: 0, padding: isMobile ? "10px 16px" : "10px 28px", borderBottom: `1px solid ${c.bd}`, background: c.sf, display: "flex", alignItems: "center", zIndex: 2, minHeight: 54, gap: 10 }}>
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "4px 8px", color: c.tx }}
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+          )}
+
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, background: c.ac, color: "#fff", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, fontFamily: FONT }}>
               {(profile?.full_name || "U").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: c.tx }}>{profile?.business_name || profile?.full_name || "Welcome"}</div>
-              {profile?.business_name && profile?.full_name && (
-                <div style={{ fontSize: 11, color: c.td }}>{profile.full_name}</div>
-              )}
-            </div>
+            {!isMobile && (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: c.tx }}>{profile?.business_name || profile?.full_name || "Welcome"}</div>
+                {profile?.business_name && profile?.full_name && (
+                  <div style={{ fontSize: 11, color: c.td }}>{profile.full_name}</div>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 10 }}>
@@ -210,10 +291,10 @@ export default function App() {
                   <span className="header-pulse" />
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.or, position: "relative", zIndex: 1 }} />
                 </span>
-                {overdueInvs.length} chasing · {fmt(overdueInvs.reduce((s, i) => s + Number(i.amount), 0))}
+                {overdueInvs.length} chasing{!isMobile && ` · ${fmt(overdueInvs.reduce((s, i) => s + Number(i.amount), 0))}`}
               </div>
             )}
-            {pendingInvs.length > 0 && (
+            {pendingInvs.length > 0 && !isMobile && (
               <div style={{ display: "inline-flex", alignItems: "center", padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: c.amd, color: c.am, border: `1px solid ${c.am}20` }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.am, marginRight: 7 }} />
                 {pendingInvs.length} pending
@@ -221,28 +302,33 @@ export default function App() {
             )}
           </div>
 
-          <div style={{ fontSize: 12, color: c.tm }}>
-            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </div>
+          {!isMobile && (
+            <div style={{ fontSize: 12, color: c.tm }}>
+              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            </div>
+          )}
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: "28px 32px", overflowY: "auto", position: "relative" }}>
+        <main style={{ flex: 1, padding: isMobile ? "20px 16px" : "28px 32px", overflowY: "auto", position: "relative" }}>
           <div style={{ position: "absolute", inset: 0, opacity: 0.25, backgroundImage: "radial-gradient(circle,#b0bcc8 0.5px,transparent 0.5px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
           <div style={{ position: "relative" }}>
-            {dataError && (
-              <div role="alert" style={{ padding: "12px 16px", background: c.ord, color: c.or, borderRadius: 8, fontSize: 13, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>{dataError}</span>
-                <button onClick={loadData} style={{ background: c.or, color: "#fff", border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-                  Retry
-                </button>
-              </div>
-            )}
-            {view === "dash" && <Dashboard invs={invs} nav={nav} />}
-            {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} />}
-            {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} />}
-            {view === "settings" && <Settings profile={profile} onUpdate={loadData} />}
-            {view === "how" && <HowItWorks />}
+            <SubscriptionGate subscription={subscription} onUpgrade={() => nav("billing")}>
+              {dataError && (
+                <div role="alert" style={{ padding: "12px 16px", background: c.ord, color: c.or, borderRadius: 8, fontSize: 13, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>{dataError}</span>
+                  <button onClick={loadData} style={{ background: c.or, color: "#fff", border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                    Retry
+                  </button>
+                </div>
+              )}
+              {view === "dash" && <Dashboard invs={invs} nav={nav} isMobile={isMobile} />}
+              {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} />}
+              {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} isMobile={isMobile} />}
+              {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}
+              {view === "how" && <HowItWorks />}
+              {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} />}
+            </SubscriptionGate>
           </div>
         </main>
       </div>
@@ -251,6 +337,10 @@ export default function App() {
         @keyframes pulse-ring { 0% { transform: scale(1); opacity: .4 } 100% { transform: scale(2.2); opacity: 0 } }
         @keyframes spin { to { transform: rotate(360deg) } }
         * { box-sizing: border-box; margin: 0; }
+        html { scroll-behavior: smooth; }
+        ::selection { background: rgba(30,95,160,0.15); }
+        :focus-visible { outline: 2px solid ${c.ac}; outline-offset: 2px; }
+        button:focus:not(:focus-visible) { outline: none; }
         .pulse-ring { position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid ${c.ac}; opacity: .4; animation: pulse-ring 2s ease-out infinite; }
         .header-pulse { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: ${c.or}; opacity: 0.3; animation: pulse-ring 2s ease-out infinite; }
         .table-row-hover:hover { background: ${c.sfh}; }

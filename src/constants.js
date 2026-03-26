@@ -22,6 +22,8 @@ export const CHASE_STAGES = [
 export const FONT = `'DM Sans',system-ui,-apple-system,sans-serif`
 export const MONO = `'JetBrains Mono','Fira Code',monospace`
 
+export const TRIAL_DAYS = 7
+
 export const colors = {
   bg: "#f1f3f6",
   sf: "#fff",

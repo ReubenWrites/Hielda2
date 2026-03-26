@@ -3,10 +3,13 @@ import { supabase } from "../supabase"
 import { colors as c, MONO, RATE, CHASE_STAGES, DAILY_RATE } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
+import { buildChaseEmail } from "../lib/emailTemplates"
 
 export default function Detail({ inv, nav, profile, onUpdate }) {
   const [marking, setMarking] = useState(false)
   const [error, setError] = useState("")
+  const [downloading, setDownloading] = useState(false)
+  const [previewHtml, setPreviewHtml] = useState(null)
 
   if (!inv) {
     return (
@@ -26,6 +29,33 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   const ex = interest + pen
   const tot = Number(inv.amount) + ex
   const si = CHASE_STAGES.findIndex((s) => s.id === inv.chase_stage)
+
+  const downloadPdf = async () => {
+    setDownloading(true)
+    setError("")
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("generate-invoice-pdf", {
+        body: { invoice_id: inv.id },
+      })
+      if (fnErr) throw fnErr
+      const blob = new Blob([data], { type: "application/pdf" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${inv.ref}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError("PDF generation failed: " + e.message)
+    }
+    setDownloading(false)
+  }
+
+  const showEmailPreview = () => {
+    const stage = inv.chase_stage || "reminder_1"
+    const email = buildChaseEmail(inv, profile, stage)
+    if (email) setPreviewHtml(email.html)
+  }
 
   const markPaid = async () => {
     setMarking(true)
@@ -60,11 +90,21 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           </div>
           <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
         </div>
-        {inv.status !== "paid" && (
-          <Btn v="success" onClick={markPaid} dis={marking}>
-            {marking ? "Marking..." : "✓ Mark as Paid"}
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
+            {downloading ? "Generating..." : "📥 PDF"}
           </Btn>
-        )}
+          {ov && (
+            <Btn v="ghost" onClick={showEmailPreview} sz="sm">
+              📧 Preview Email
+            </Btn>
+          )}
+          {inv.status !== "paid" && (
+            <Btn v="success" onClick={markPaid} dis={marking}>
+              {marking ? "Marking..." : "✓ Mark as Paid"}
+            </Btn>
+          )}
+        </div>
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
@@ -173,6 +213,23 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           })}
         </div>
       </Card>
+
+      {/* Email preview modal */}
+      {previewHtml && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ background: c.sf, borderRadius: 14, width: 680, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid ${c.bd}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 600, fontSize: 14, color: c.tx }}>Chase Email Preview</span>
+              <button onClick={() => setPreviewHtml(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: c.tm }}>×</button>
+            </div>
+            <iframe
+              srcDoc={previewHtml}
+              style={{ flex: 1, border: "none", minHeight: 400 }}
+              title="Email preview"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

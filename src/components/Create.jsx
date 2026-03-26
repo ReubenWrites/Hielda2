@@ -4,7 +4,7 @@ import { colors as c, FONT, MONO, TERMS, RATE } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail } from "../utils"
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
 
-export default function Create({ profile, nav, userId, onCreated }) {
+export default function Create({ profile, nav, userId, onCreated, isMobile }) {
   const [cn, setCn] = useState("")
   const [ce, setCe] = useState("")
   const [ca, setCa] = useState("")
@@ -107,7 +107,7 @@ export default function Create({ profile, nav, userId, onCreated }) {
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
       {step === 1 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 18 }}>
           <Card>
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Client</h3>
             <Inp label="Company Name" value={cn} onChange={setCn} ph="e.g. Mega Corp Ltd" />
@@ -159,7 +159,7 @@ export default function Create({ profile, nav, userId, onCreated }) {
               </div>
             </div>
             <div style={{ padding: "14px 26px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 18, marginBottom: 18 }}>
                 <div>
                   <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: c.td, marginBottom: 3 }}>Bill To</div>
                   <div style={{ fontWeight: 600, fontSize: 13, color: c.tx }}>{cn}</div>
@@ -188,7 +188,7 @@ export default function Create({ profile, nav, userId, onCreated }) {
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 16 }}>
             <Card onClick={() => setMeth("portal")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "portal" ? c.ac : c.bd, background: meth === "portal" ? c.acd : c.sf }}>
               <div style={{ fontSize: 22, marginBottom: 5 }} aria-hidden="true">📧</div>
               <div style={{ fontWeight: 600, color: c.tx, fontSize: 13 }}>Send via Hielda</div>

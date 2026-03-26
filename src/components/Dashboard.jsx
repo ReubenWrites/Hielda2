@@ -3,7 +3,7 @@ import { colors as c, FONT, MONO, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
 
-export default function Dashboard({ invs, nav }) {
+export default function Dashboard({ invs, nav, isMobile }) {
   const [search, setSearch] = useState("")
 
   const { overdue, pending, paid, totExtra, totOwed } = useMemo(() => {
@@ -43,7 +43,7 @@ export default function Dashboard({ invs, nav }) {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color={c.go} borderColor="#d4a017" />
         <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color={c.or} borderColor="#d97706" />
         <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color={c.am} borderColor="#b45309" />

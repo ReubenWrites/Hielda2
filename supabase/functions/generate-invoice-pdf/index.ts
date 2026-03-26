@@ -1,0 +1,263 @@
+// Supabase Edge Function: Generate invoice PDF
+// Uses jsPDF via ESM to build a professional invoice PDF
+
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.0"
+import { jsPDF } from "https://esm.sh/jspdf@2.5.1"
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+
+const RATE = 11.75
+const DAILY_RATE = RATE / 365 / 100
+
+function penalty(amount: number): number {
+  if (amount < 1000) return 40
+  if (amount < 10000) return 70
+  return 100
+}
+
+function fmt(amount: number): string {
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(amount)
+}
+
+function formatDate(d: string): string {
+  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+}
+
+serve(async (req) => {
+  try {
+    // Support both authenticated and service-role calls
+    const authHeader = req.headers.get("Authorization")
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    const { invoice_id } = await req.json()
+    if (!invoice_id) {
+      return new Response(JSON.stringify({ error: "invoice_id required" }), { status: 400 })
+    }
+
+    // Fetch invoice
+    const { data: invoice, error: invErr } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("id", invoice_id)
+      .single()
+
+    if (invErr || !invoice) {
+      return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404 })
+    }
+
+    // Fetch profile
+    const { data: profile, error: profErr } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", invoice.user_id)
+      .single()
+
+    if (profErr || !profile) {
+      return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404 })
+    }
+
+    // Calculate overdue amounts
+    const dueDate = new Date(invoice.due_date)
+    const now = new Date()
+    const daysOverdue = Math.max(0, Math.floor((now.getTime() - dueDate.getTime()) / 864e5))
+    const isOverdue = invoice.status === "overdue" || dueDate < now
+    const interest = isOverdue ? Number(invoice.amount) * DAILY_RATE * daysOverdue : 0
+    const pen = isOverdue ? penalty(Number(invoice.amount)) : 0
+    const total = Number(invoice.amount) + interest + pen
+
+    // Build PDF
+    const doc = new jsPDF()
+    const blue = "#1e5fa0"
+    const gray = "#64748b"
+    const dark = "#0f172a"
+    let y = 20
+
+    // Header
+    doc.setFontSize(10)
+    doc.setTextColor(blue)
+    doc.setFont("helvetica", "bold")
+    doc.text("INVOICE", 20, y)
+
+    doc.setFontSize(22)
+    doc.text(invoice.ref, 20, y + 10)
+
+    // Business info (right side)
+    doc.setFontSize(10)
+    doc.setTextColor(dark)
+    doc.setFont("helvetica", "bold")
+    const bizName = profile.business_name || profile.full_name || ""
+    doc.text(bizName, 190, y, { align: "right" })
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.setTextColor(gray)
+    if (profile.address) {
+      const addrLines = profile.address.split("\n")
+      addrLines.forEach((line: string, i: number) => {
+        doc.text(line.trim(), 190, y + 5 + i * 4, { align: "right" })
+      })
+    }
+    if (profile.phone) {
+      doc.text(profile.phone, 190, y + 20, { align: "right" })
+    }
+    if (profile.email) {
+      doc.text(profile.email, 190, y + 25, { align: "right" })
+    }
+
+    // Blue line
+    y = 50
+    doc.setDrawColor(blue)
+    doc.setLineWidth(0.5)
+    doc.line(20, y, 190, y)
+
+    // Bill to + dates
+    y = 58
+    doc.setFontSize(8)
+    doc.setTextColor(gray)
+    doc.text("BILL TO", 20, y)
+    doc.text("DETAILS", 120, y)
+
+    y += 6
+    doc.setFontSize(10)
+    doc.setTextColor(dark)
+    doc.setFont("helvetica", "bold")
+    doc.text(invoice.client_name || "—", 20, y)
+
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.setTextColor(gray)
+    if (invoice.client_address) {
+      const clientLines = invoice.client_address.split("\n")
+      clientLines.forEach((line: string, i: number) => {
+        doc.text(line.trim(), 20, y + 5 + i * 4)
+      })
+    }
+    if (invoice.client_email) {
+      doc.text(invoice.client_email, 20, y + 18)
+    }
+
+    // Dates column
+    const details = [
+      ["Issue Date", formatDate(invoice.issue_date)],
+      ["Due Date", formatDate(invoice.due_date)],
+      ["Terms", `${invoice.payment_term_days} days`],
+    ]
+    if (invoice.paid_date) details.push(["Paid", formatDate(invoice.paid_date)])
+
+    details.forEach(([k, v], i) => {
+      doc.setTextColor(gray)
+      doc.text(k, 120, y + i * 6)
+      doc.setTextColor(dark)
+      doc.text(v, 160, y + i * 6)
+    })
+
+    // Line items
+    y = 100
+    doc.setDrawColor("#dce1e8")
+    doc.setLineWidth(0.3)
+    doc.line(20, y, 190, y)
+
+    y += 6
+    doc.setFontSize(8)
+    doc.setTextColor(gray)
+    doc.text("DESCRIPTION", 20, y)
+    doc.text("AMOUNT", 190, y, { align: "right" })
+
+    y += 8
+    doc.setFontSize(10)
+    doc.setTextColor(dark)
+    doc.text(invoice.description || "Services rendered", 20, y)
+    doc.setFont("helvetica", "bold")
+    doc.text(fmt(Number(invoice.amount)), 190, y, { align: "right" })
+
+    // Totals
+    y += 14
+    doc.line(120, y, 190, y)
+
+    if (isOverdue && daysOverdue > 0) {
+      y += 8
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.setTextColor(gray)
+      doc.text("Original amount", 120, y)
+      doc.text(fmt(Number(invoice.amount)), 190, y, { align: "right" })
+
+      y += 6
+      doc.setTextColor("#a16207")
+      doc.text("Fixed penalty", 120, y)
+      doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
+
+      y += 6
+      doc.text(`Interest (${daysOverdue}d at ${RATE}% p.a.)`, 120, y)
+      doc.text(`+${fmt(interest)}`, 190, y, { align: "right" })
+
+      y += 8
+      doc.setDrawColor(blue)
+      doc.setLineWidth(0.5)
+      doc.line(120, y, 190, y)
+
+      y += 8
+      doc.setFontSize(11)
+      doc.setTextColor(blue)
+      doc.setFont("helvetica", "bold")
+      doc.text("TOTAL NOW OWED", 120, y)
+      doc.text(fmt(total), 190, y, { align: "right" })
+    } else {
+      y += 8
+      doc.setFontSize(11)
+      doc.setTextColor(blue)
+      doc.setFont("helvetica", "bold")
+      doc.text("TOTAL DUE", 120, y)
+      doc.text(fmt(Number(invoice.amount)), 190, y, { align: "right" })
+    }
+
+    // Payment details box
+    y += 16
+    doc.setFillColor("#f1f3f6")
+    doc.roundedRect(20, y, 170, 30, 3, 3, "F")
+
+    y += 8
+    doc.setFontSize(9)
+    doc.setTextColor(dark)
+    doc.setFont("helvetica", "bold")
+    doc.text("Payment Details", 28, y)
+
+    y += 6
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(gray)
+    doc.text(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Account: ${profile.account_number || "—"}`, 28, y)
+
+    y += 5
+    doc.text(`Reference: ${invoice.ref}`, 28, y)
+    if (profile.vat_number) {
+      doc.text(`VAT: ${profile.vat_number}`, 120, y)
+    }
+
+    // Footer
+    doc.setFontSize(8)
+    doc.setTextColor("#94a3b8")
+    doc.text("Generated by Hielda — Protecting your pay.", 105, 280, { align: "center" })
+
+    if (isOverdue) {
+      doc.setFontSize(7)
+      doc.text("Late payment charges applied under the Late Payment of Commercial Debts (Interest) Act 1998.", 105, 285, { align: "center" })
+    }
+
+    // Output
+    const pdfOutput = doc.output("arraybuffer")
+
+    return new Response(pdfOutput, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${invoice.ref}.pdf"`,
+      },
+    })
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+})

@@ -268,6 +268,39 @@ export const InfoBanner = ({ message }) => {
   )
 }
 
+// ── Sidebar Decoration (Norse-inspired geometric shield pattern) ──
+export const SidebarDecoration = () => (
+  <svg width="140" height="160" viewBox="0 0 140 160" aria-hidden="true" style={{ opacity: 0.06 }}>
+    {/* Shield outline */}
+    <path
+      d="M70 8 L120 24 L120 72 Q120 120 70 148 Q20 120 20 72 L20 24 Z"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="2"
+    />
+    {/* Inner shield */}
+    <path
+      d="M70 22 L108 35 L108 70 Q108 110 70 134 Q32 110 32 70 L32 35 Z"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="1.5"
+    />
+    {/* Horizontal knotwork lines */}
+    <line x1="38" y1="55" x2="102" y2="55" stroke="#fff" strokeWidth="1.5" />
+    <line x1="42" y1="75" x2="98" y2="75" stroke="#fff" strokeWidth="1.5" />
+    <line x1="48" y1="95" x2="92" y2="95" stroke="#fff" strokeWidth="1.5" />
+    {/* Vertical center line */}
+    <line x1="70" y1="30" x2="70" y2="128" stroke="#fff" strokeWidth="1.5" />
+    {/* Diagonal crosshatch */}
+    <line x1="50" y1="40" x2="90" y2="110" stroke="#fff" strokeWidth="1" />
+    <line x1="90" y1="40" x2="50" y2="110" stroke="#fff" strokeWidth="1" />
+    {/* Corner knots */}
+    <circle cx="70" cy="55" r="4" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <circle cx="70" cy="75" r="4" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <circle cx="70" cy="95" r="4" fill="none" stroke="#fff" strokeWidth="1.5" />
+  </svg>
+)
+
 // ── Loading Spinner ──
 export const Spinner = ({ size = 20, color = c.ac }) => (
   <div

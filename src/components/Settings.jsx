@@ -3,7 +3,7 @@ import { supabase } from "../supabase"
 import { colors as c, BOE, RATE } from "../constants"
 import { Card, Inp, Btn, ErrorBanner } from "./ui"
 
-export default function Settings({ profile, onUpdate }) {
+export default function Settings({ profile, onUpdate, isMobile }) {
   const [p, setP] = useState(profile || {})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -57,7 +57,7 @@ export default function Settings({ profile, onUpdate }) {
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
         <Card>
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Personal</h3>
           <Inp label="Name" value={p.full_name || ""} onChange={(v) => update("full_name", v)} />
