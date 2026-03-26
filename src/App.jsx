@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "./supabase"
 import { colors as c, FONT, MONO } from "./constants"
 import { fmt, todayStr } from "./utils"
-import { ShieldLogo, Spinner, SidebarDecoration } from "./components/ui"
+import { ShieldLogo, Spinner } from "./components/ui"
 import AuthScreen from "./components/AuthScreen"
 import Onboarding from "./components/Onboarding"
 import Dashboard from "./components/Dashboard"
@@ -189,15 +189,15 @@ export default function App() {
           transition: "transform 0.25s ease",
         }}
       >
-        <div style={{ padding: "0 8px", marginBottom: 20, position: "relative", zIndex: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
-            <ShieldLogo size={18} white />
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>Hielda</span>
+        <div style={{ padding: "0 8px", marginBottom: 10, position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: 9 }}>
+          <ShieldLogo size={36} white />
+          <div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1 }}>Hielda</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginTop: 2, letterSpacing: "0.02em" }}>Protecting your pay.</div>
           </div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 1 }}>Protecting your pay.</div>
         </div>
 
-        <nav style={{ flex: 1, position: "relative", zIndex: 2 }} aria-label="Main navigation">
+        <nav style={{ flex: 1, position: "relative", zIndex: 2, marginTop: 28 }} aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const active = view === item.id || (item.id === "dash" && view === "detail")
             return (
@@ -211,7 +211,7 @@ export default function App() {
                   alignItems: "center",
                   gap: 9,
                   width: "100%",
-                  padding: "8px 10px",
+                  padding: "9px 10px",
                   background: active ? "rgba(255,255,255,0.13)" : "transparent",
                   border: "none",
                   borderRadius: 7,
@@ -220,7 +220,7 @@ export default function App() {
                   fontSize: 12,
                   fontWeight: active ? 600 : 400,
                   cursor: "pointer",
-                  marginBottom: 2,
+                  marginBottom: 3,
                   textAlign: "left",
                   transition: "all 0.15s ease",
                 }}
@@ -232,7 +232,7 @@ export default function App() {
           })}
         </nav>
 
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", padding: "0 8px", marginBottom: 8, position: "relative", zIndex: 2 }}>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", padding: "0 8px", marginBottom: 8, position: "relative", zIndex: 2, textAlign: "center" }}>
           {profile?.email || user?.email}
         </div>
         <button
@@ -246,7 +246,7 @@ export default function App() {
             fontFamily: FONT,
             fontSize: 11,
             cursor: "pointer",
-            textAlign: "left",
+            textAlign: "center",
             position: "relative",
             zIndex: 2,
           }}

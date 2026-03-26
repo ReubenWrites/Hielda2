@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "../supabase"
-import { colors as c, MONO, RATE, CHASE_STAGES, DAILY_RATE } from "../constants"
+import { colors as c, MONO, RATE, CHASE_STAGES, DAILY_RATE, FONT } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
@@ -10,6 +10,22 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   const [error, setError] = useState("")
   const [downloading, setDownloading] = useState(false)
   const [previewHtml, setPreviewHtml] = useState(null)
+  const [chaseLogs, setChaseLogs] = useState([])
+  const [autoChase, setAutoChase] = useState(inv?.auto_chase !== false)
+
+  // Load chase logs for this invoice
+  useEffect(() => {
+    if (!inv?.id) return
+    setAutoChase(inv.auto_chase !== false)
+    supabase
+      .from("chase_log")
+      .select("*")
+      .eq("invoice_id", inv.id)
+      .order("sent_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setChaseLogs(data)
+      })
+  }, [inv?.id, inv?.auto_chase])
 
   if (!inv) {
     return (
@@ -72,6 +88,22 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
       setError("Failed to mark as paid: " + e.message)
     }
     setMarking(false)
+  }
+
+  const toggleAutoChase = async () => {
+    const newVal = !autoChase
+    setAutoChase(newVal)
+    try {
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({ auto_chase: newVal })
+        .eq("id", inv.id)
+      if (err) throw err
+      onUpdate()
+    } catch (e) {
+      setAutoChase(!newVal) // revert on error
+      setError("Failed to update auto-chase: " + e.message)
+    }
   }
 
   return (
@@ -213,6 +245,67 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           })}
         </div>
       </Card>
+
+      {/* Auto-chase toggle */}
+      {inv.status !== "paid" && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, marginTop: 16, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Automatic chasing</div>
+            <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
+              {autoChase ? "Hielda will send chase emails automatically" : "Chase emails paused for this invoice"}
+            </div>
+          </div>
+          <button
+            onClick={toggleAutoChase}
+            style={{
+              width: 44,
+              height: 24,
+              borderRadius: 12,
+              border: "none",
+              background: autoChase ? c.ac : c.bd,
+              cursor: "pointer",
+              position: "relative",
+              transition: "background 0.2s",
+              flexShrink: 0,
+            }}
+            aria-label={autoChase ? "Disable automatic chasing" : "Enable automatic chasing"}
+          >
+            <div style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: "#fff",
+              position: "absolute",
+              top: 3,
+              left: autoChase ? 23 : 3,
+              transition: "left 0.2s",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+            }} />
+          </button>
+        </div>
+      )}
+
+      {/* Chase log */}
+      {chaseLogs.length > 0 && (
+        <Card style={{ marginTop: 0 }}>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>Chase log</h3>
+          {chaseLogs.map((log) => {
+            const stg = CHASE_STAGES.find((s) => s.id === log.chase_stage)
+            return (
+              <div key={log.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${c.bdl}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: stg?.col || c.ac, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: c.tx }}>{stg?.label || log.chase_stage}</div>
+                    <div style={{ fontSize: 11, color: c.td }}>Sent to {log.email_to}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: c.td }}>{formatDate(log.sent_at)}</div>
+              </div>
+            )
+          })}
+        </Card>
+      )}
 
       {/* Email preview modal */}
       {previewHtml && (
