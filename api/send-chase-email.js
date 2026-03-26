@@ -174,12 +174,11 @@ export default async function handler(req, res) {
     // Service role client for DB operations
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    // Fetch invoice
-    const { data: invoice, error: invErr } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('id', invoice_id)
-      .single()
+    // Fetch invoice and profile in parallel
+    const [{ data: invoice, error: invErr }, { data: profile, error: profErr }] = await Promise.all([
+      supabase.from('invoices').select('*').eq('id', invoice_id).single(),
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+    ])
 
     if (invErr || !invoice) {
       return res.status(404).json({ error: 'Invoice not found' })
@@ -190,19 +189,25 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'You do not own this invoice' })
     }
 
-    // Fetch profile
-    const { data: profile, error: profErr } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', invoice.user_id)
-      .single()
-
     if (profErr || !profile) {
       return res.status(404).json({ error: 'Profile not found' })
     }
 
     if (!invoice.client_email) {
       return res.status(400).json({ error: 'No client email on this invoice' })
+    }
+
+    // Idempotency: check if this stage was already sent
+    const { data: existingSend } = await supabase
+      .from('chase_log')
+      .select('id')
+      .eq('invoice_id', invoice_id)
+      .eq('chase_stage', chase_stage)
+      .eq('status', 'sent')
+      .limit(1)
+
+    if (existingSend && existingSend.length > 0) {
+      return res.status(409).json({ error: 'This chase stage has already been sent for this invoice' })
     }
 
     // Calculate amounts (respect no_fines flag)

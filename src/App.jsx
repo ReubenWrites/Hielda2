@@ -73,7 +73,7 @@ export default function App() {
     try {
       const [{ data: profs, error: profErr }, { data: invoices, error: invErr }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id),
-        supabase.from("invoices").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,payment_term_days,send_method").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
       ])
 
       if (profErr) throw profErr
