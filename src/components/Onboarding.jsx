@@ -150,9 +150,15 @@ export default function Onboarding({ user, profile, onComplete }) {
         {step === 1 && (
           <div>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 4px" }}>Your Business</h2>
-            <p style={{ color: c.tm, fontSize: 13, marginBottom: 22 }}>
-              These details auto-fill every invoice you create.
+            <p style={{ color: c.tm, fontSize: 13, marginBottom: 16 }}>
+              To get you paid on time, we need a few details. These auto-fill every invoice and chase email we send on your behalf.
             </p>
+            <div style={{ background: "#f0f6ff", border: `1px solid ${c.bdl}`, borderRadius: 8, padding: "10px 14px", marginBottom: 22, display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>🔒</span>
+              <p style={{ color: c.tm, fontSize: 11.5, lineHeight: 1.5, margin: 0 }}>
+                Your information is stored securely and only used to send invoices and chase emails. We never share your data with third parties.
+              </p>
+            </div>
 
             <Inp label="Full Name" value={form.full_name} onChange={(v) => update("full_name", v)} ph="Your name" />
             <Inp
@@ -177,9 +183,20 @@ export default function Onboarding({ user, profile, onComplete }) {
         {step === 2 && (
           <div>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 4px" }}>Payment Details</h2>
-            <p style={{ color: c.tm, fontSize: 13, marginBottom: 22 }}>
-              Shown on your invoices so clients can pay you directly.
+            <p style={{ color: c.tm, fontSize: 13, marginBottom: 16 }}>
+              These appear on your invoices so clients know where to pay. We never take money from your account.
             </p>
+            <div style={{ background: "#f0f6ff", border: `1px solid ${c.bdl}`, borderRadius: 8, padding: "10px 14px", marginBottom: 22 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>🛡️</span>
+                <div>
+                  <p style={{ color: c.tx, fontSize: 11.5, fontWeight: 600, margin: "0 0 3px" }}>Bank-grade security</p>
+                  <p style={{ color: c.tm, fontSize: 11, lineHeight: 1.5, margin: 0 }}>
+                    Your data is protected with AES-256 encryption at rest, TLS in transit, and row-level access controls. Only you can see your details — not even our team can access them.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <Inp label="Account Name *" value={form.account_name} onChange={(v) => update("account_name", v)} onBlur={() => blur("account_name")} ph="e.g. J Smith or Smith Design Ltd" error={accountNameError} />
             <Inp label="Bank Name *" value={form.bank_name} onChange={(v) => update("bank_name", v)} onBlur={() => blur("bank_name")} ph="e.g. Barclays" error={bankNameError} />
@@ -210,6 +227,9 @@ export default function Onboarding({ user, profile, onComplete }) {
                 {saving ? "Setting up..." : "Complete Setup →"}
               </Btn>
             </div>
+            <p style={{ textAlign: "center", color: c.td, fontSize: 10.5, marginTop: 14, marginBottom: 0, lineHeight: 1.5 }}>
+              🔒 Encrypted & secure · No card required · 7-day free trial
+            </p>
           </div>
         )}
       </Card>
