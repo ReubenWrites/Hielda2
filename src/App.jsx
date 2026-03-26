@@ -253,7 +253,7 @@ export default function App() {
         >
           Log out
         </button>
-        <img src="/shield-f2-single.png" alt="" style={{ position: "absolute", top: "43%", left: "50%", transform: "translate(-50%, -50%)", width: 120, opacity: 0.13, pointerEvents: "none", zIndex: 1 }} />
+        <img src="/shield-f2-single.png?v=2" alt="" style={{ position: "absolute", top: "43%", left: "50%", transform: "translate(-50%, -50%)", width: 120, opacity: 0.13, pointerEvents: "none", zIndex: 1 }} />
       </div>
 
       {/* Main content */}
