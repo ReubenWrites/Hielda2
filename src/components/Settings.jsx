@@ -24,6 +24,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           business_name: p.business_name,
           phone: p.phone,
           address: p.address,
+          account_name: p.account_name,
           bank_name: p.bank_name,
           sort_code: p.sort_code,
           account_number: p.account_number,
@@ -68,6 +69,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
         </Card>
         <Card>
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Payment</h3>
+          <Inp label="Account Name" value={p.account_name || ""} onChange={(v) => update("account_name", v)} />
           <Inp label="Bank" value={p.bank_name || ""} onChange={(v) => update("bank_name", v)} />
           <Inp label="Sort Code" value={p.sort_code || ""} onChange={(v) => update("sort_code", v)} mono />
           <Inp label="Account No." value={p.account_number || ""} onChange={(v) => update("account_number", v)} mono />

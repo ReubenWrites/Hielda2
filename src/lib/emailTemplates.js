@@ -98,6 +98,7 @@ function paymentDetailsBlock(invoice, profile) {
     <div style="background:#f1f3f6;padding:14px 18px;border-radius:8px;margin:16px 0;font-size:13px;">
       <div style="font-weight:600;color:#0f172a;margin-bottom:6px;">Payment Details</div>
       <div style="color:#64748b;">
+        Account Name: ${profile.account_name || "—"}<br/>
         Bank: ${profile.bank_name || "—"}<br/>
         Sort Code: ${profile.sort_code || "—"}<br/>
         Account: ${profile.account_number || "—"}<br/>

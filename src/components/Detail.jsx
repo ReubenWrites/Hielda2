@@ -37,6 +37,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   const [autoChase, setAutoChase] = useState(inv?.auto_chase !== false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
+  const [sendingCheckIn, setSendingCheckIn] = useState(false)
 
   // Load chase logs for this invoice
   useEffect(() => {
@@ -186,6 +187,50 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
     setSending(false)
   }
 
+  const sendCheckInEmail = async () => {
+    const stage = currentSendStage
+    const stageLabel = getStageLabel(stage)
+
+    const confirmed = window.confirm(
+      `Send a check-in email to yourself for "${stageLabel}" on invoice ${inv.ref}?\n\nYou'll receive an email asking if ${inv.client_name} has paid. You can then confirm or trigger the chase from the email.`
+    )
+    if (!confirmed) return
+
+    setSendingCheckIn(true)
+    setError("")
+    setSendSuccess("")
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const userToken = session?.access_token
+
+      const res = await fetch("/api/send-check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice_id: inv.id,
+          chase_stage: stage,
+          user_token: userToken,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to send check-in")
+      setSendSuccess(`Check-in email sent to ${data.email_to}`)
+
+      // Refresh chase logs
+      const { data: logs } = await supabase
+        .from("chase_log")
+        .select("*")
+        .eq("invoice_id", inv.id)
+        .order("sent_at", { ascending: false })
+      if (logs) setChaseLogs(logs)
+      onUpdate()
+      setTimeout(() => setSendSuccess(""), 5000)
+    } catch (e) {
+      setError("Failed to send check-in: " + e.message)
+    }
+    setSendingCheckIn(false)
+  }
+
   const toggleAutoChase = async () => {
     const newVal = !autoChase
     setAutoChase(newVal)
@@ -228,6 +273,11 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           {inv.status !== "paid" && inv.client_email && (
             <Btn v="ghost" onClick={showEmailPreview} sz="sm">
               📧 Preview
+            </Btn>
+          )}
+          {inv.status !== "paid" && inv.client_email && (
+            <Btn v="ghost" onClick={sendCheckInEmail} dis={sendingCheckIn} sz="sm">
+              {sendingCheckIn ? "Sending..." : "📬 Send Check-in"}
             </Btn>
           )}
           {inv.status !== "paid" && inv.client_email && (
@@ -401,13 +451,21 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>Chase log</h3>
           {chaseLogs.map((log) => {
             const stg = CHASE_STAGES.find((s) => s.id === log.chase_stage)
+            const isCheckIn = log.status === "check_in_sent"
+            const isMarkedPaid = log.status === "marked_paid_via_check_in"
+            const statusLabel = isCheckIn
+              ? `Check-in: ${stg?.label || log.chase_stage}`
+              : isMarkedPaid
+              ? "Marked paid via check-in"
+              : stg?.label || log.chase_stage
+            const dotColor = isCheckIn ? c.ac : isMarkedPaid ? c.gn : stg?.col || c.ac
             return (
               <div key={log.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${c.bdl}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: stg?.col || c.ac, flexShrink: 0 }} />
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: c.tx }}>{stg?.label || log.chase_stage}</div>
-                    <div style={{ fontSize: 11, color: c.td }}>Sent to {log.email_to}</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: c.tx }}>{statusLabel}</div>
+                    <div style={{ fontSize: 11, color: c.td }}>{isCheckIn ? "Sent to you" : `Sent to ${log.email_to}`}</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: c.td }}>{formatDate(log.sent_at)}</div>

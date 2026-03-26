@@ -16,6 +16,7 @@ export default function Onboarding({ user, profile, onComplete }) {
     business_name: profile?.business_name || "",
     phone: profile?.phone || "",
     address: profile?.address || "",
+    account_name: profile?.account_name || "",
     bank_name: profile?.bank_name || "",
     sort_code: profile?.sort_code || "",
     account_number: profile?.account_number || "",
@@ -32,12 +33,15 @@ export default function Onboarding({ user, profile, onComplete }) {
 
   const step1Valid = form.business_name.trim().length > 0
   const step2Valid =
+    form.account_name.trim().length > 0 &&
     form.bank_name.trim().length > 0 &&
     sortCodeClean.length === 6 &&
     acctClean.length === 8
 
   const businessNameError =
     touched.business_name && form.business_name.trim().length === 0 ? "Business name is required" : ""
+  const accountNameError =
+    touched.account_name && form.account_name.trim().length === 0 ? "Account name is required" : ""
   const bankNameError =
     touched.bank_name && form.bank_name.trim().length === 0 ? "Bank name is required" : ""
   const sortCodeError =
@@ -56,6 +60,7 @@ export default function Onboarding({ user, profile, onComplete }) {
         business_name: form.business_name,
         phone: form.phone,
         address: form.address,
+        account_name: form.account_name,
         bank_name: form.bank_name,
         sort_code: form.sort_code.replace(/[^0-9]/g, ""),
         account_number: form.account_number.replace(/[^0-9]/g, ""),
@@ -176,6 +181,7 @@ export default function Onboarding({ user, profile, onComplete }) {
               Shown on your invoices so clients can pay you directly.
             </p>
 
+            <Inp label="Account Name *" value={form.account_name} onChange={(v) => update("account_name", v)} onBlur={() => blur("account_name")} ph="e.g. J Smith or Smith Design Ltd" error={accountNameError} />
             <Inp label="Bank Name *" value={form.bank_name} onChange={(v) => update("bank_name", v)} onBlur={() => blur("bank_name")} ph="e.g. Barclays" error={bankNameError} />
             <Inp
               label="Sort Code *"
