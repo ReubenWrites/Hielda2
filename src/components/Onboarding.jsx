@@ -100,7 +100,7 @@ export default function Onboarding({ user, profile, onComplete }) {
     <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ position: "absolute", inset: 0, opacity: 0.25, backgroundImage: "radial-gradient(circle,#b0bcc8 0.5px,transparent 0.5px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
 
-      <Card style={{ width: 520, padding: "40px 36px", position: "relative", zIndex: 1 }}>
+      <Card style={{ width: "100%", maxWidth: 520, padding: window.innerWidth <= 768 ? "28px 20px" : "40px 36px", position: "relative", zIndex: 1, margin: "0 16px" }}>
         {/* Progress indicator */}
         <div style={{ display: "flex", gap: 4, marginBottom: 28 }}>
           {STEPS.map((label, i) => (

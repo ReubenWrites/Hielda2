@@ -93,14 +93,14 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: c.tx, margin: 0 }}>Dashboard</h1>
+      <div style={{ marginBottom: isMobile ? 18 : 24 }}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: c.tx, margin: 0 }}>Dashboard</h1>
         <p style={{ color: c.tm, margin: "5px 0 0", fontSize: 13 }}>
           Your payment overview for {formatDate(new Date())}
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4,1fr)", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 18 : 24 }}>
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color={c.go} borderColor="#d4a017" />
         <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color={c.or} borderColor="#d97706" />
         <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color={c.am} borderColor="#b45309" />
@@ -108,7 +108,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
       </div>
 
       {overdue.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: isMobile ? 18 : 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{ position: "relative", width: 8, height: 8 }}>
               <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: c.ac }} />
@@ -122,24 +122,50 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
               const ex = calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
               return (
-                <Card key={i.id} onClick={() => nav("detail", i.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: c.acd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }} aria-hidden="true">
-                      🛡️
-                    </div>
+                <Card key={i.id} onClick={() => nav("detail", i.id)} style={{ padding: isMobile ? "12px 14px" : "13px 18px" }}>
+                  {isMobile ? (
+                    /* Mobile: stacked layout */
                     <div>
-                      <div style={{ fontWeight: 600, color: c.tx, fontSize: 13 }}>{i.client_name || "Client"}</div>
-                      <div style={{ fontSize: 11, color: c.tm, marginTop: 1 }}>{i.ref} · {i.description}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 7, background: c.acd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
+                          🛡️
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, color: c.tx, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.client_name || "Client"}</div>
+                          <div style={{ fontSize: 10, color: c.tm, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.ref} · {i.description}</div>
+                        </div>
+                        <span style={{ color: c.td, fontSize: 15 }} aria-hidden="true">→</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <span style={{ fontWeight: 600, color: c.tx, fontFamily: MONO, fontSize: 14 }}>{fmt(Number(i.amount) + ex)}</span>
+                          <span style={{ fontSize: 10, color: c.go, fontWeight: 600, marginLeft: 6 }}>+{fmt(ex)}</span>
+                        </div>
+                        {stg && <Badge color={stg.col}>{stg.label}</Badge>}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontWeight: 600, color: c.tx, fontFamily: MONO, fontSize: 14 }}>{fmt(Number(i.amount) + ex)}</div>
-                      <div style={{ fontSize: 10, color: c.go, fontWeight: 600, marginTop: 1 }}>+{fmt(ex)} extra</div>
+                  ) : (
+                    /* Desktop: horizontal layout */
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: c.acd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }} aria-hidden="true">
+                          🛡️
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, color: c.tx, fontSize: 13 }}>{i.client_name || "Client"}</div>
+                          <div style={{ fontSize: 11, color: c.tm, marginTop: 1 }}>{i.ref} · {i.description}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 600, color: c.tx, fontFamily: MONO, fontSize: 14 }}>{fmt(Number(i.amount) + ex)}</div>
+                          <div style={{ fontSize: 10, color: c.go, fontWeight: 600, marginTop: 1 }}>+{fmt(ex)} extra</div>
+                        </div>
+                        {stg && <Badge color={stg.col}>{stg.label}</Badge>}
+                        <span style={{ color: c.td, fontSize: 15 }} aria-hidden="true">→</span>
+                      </div>
                     </div>
-                    {stg && <Badge color={stg.col}>{stg.label}</Badge>}
-                    <span style={{ color: c.td, fontSize: 15 }} aria-hidden="true">→</span>
-                  </div>
+                  )}
                 </Card>
               )
             })}
@@ -148,9 +174,9 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
       )}
 
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: c.tx, margin: 0 }}>All invoices</h2>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, marginBottom: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: c.tx, margin: 0, flexShrink: 0 }}>All invoices</h2>
+          <div style={{ flex: 1, minWidth: isMobile ? "100%" : "auto", order: isMobile ? 3 : 0 }}>
             <input
               type="text"
               placeholder="Search invoices..."
@@ -159,7 +185,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
               aria-label="Search invoices"
               style={{
                 width: "100%",
-                maxWidth: 280,
+                maxWidth: isMobile ? "100%" : 280,
                 padding: "7px 12px",
                 background: c.bg,
                 border: `1px solid ${c.bd}`,
@@ -171,11 +197,11 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
               }}
             />
           </div>
-          <Btn sz="sm" onClick={() => nav("create")}>+ New Invoice</Btn>
+          <Btn sz="sm" onClick={() => nav("create")}>+ New</Btn>
         </div>
 
         {invs.length === 0 ? (
-          <Card style={{ textAlign: "center", padding: "40px 24px" }}>
+          <Card style={{ textAlign: "center", padding: isMobile ? "30px 20px" : "40px 24px" }}>
             <div style={{ fontSize: 28, marginBottom: 10 }} aria-hidden="true">📋</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: c.tx, marginBottom: 4 }}>No invoices yet</div>
             <div style={{ fontSize: 13, color: c.tm, marginBottom: 16 }}>Create your first invoice and Hielda will handle the rest.</div>
@@ -186,84 +212,141 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
           {selected.size > 0 && (
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "10px 16px", background: c.acd, border: `1px solid rgba(30,95,160,0.15)`,
+              padding: isMobile ? "8px 12px" : "10px 16px",
+              background: c.acd, border: `1px solid rgba(30,95,160,0.15)`,
               borderRadius: 10, marginBottom: 10,
+              flexWrap: isMobile ? "wrap" : "nowrap", gap: 8,
             }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: c.ac }}>
-                {selected.size} invoice{selected.size > 1 ? "s" : ""} selected
+                {selected.size} selected
               </span>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 6 }}>
                 <Btn sz="sm" v="primary" onClick={bulkMarkPaid} dis={bulkLoading}>
-                  ✓ Mark as Paid
+                  ✓ Paid
                 </Btn>
                 <Btn sz="sm" v="danger" onClick={bulkDelete} dis={bulkLoading}>
                   🗑 Delete
                 </Btn>
                 <Btn sz="sm" v="ghost" onClick={() => setSelected(new Set())}>
-                  Cancel
+                  ✕
                 </Btn>
               </div>
             </div>
           )}
-          <Card style={{ padding: 0, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${c.bd}`, background: "#f8f9fb" }}>
-                  <th style={{ padding: "10px 8px", width: 36 }}>
-                    <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} style={{ cursor: "pointer" }} />
-                  </th>
-                  {["Ref", "Client", "Amount", "Extra", "Total", "Due", "Status"].map((h) => (
-                    <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: c.tm, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                      {h}
+
+          {isMobile ? (
+            /* Mobile: card-based invoice list */
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {filtered.length === 0 ? (
+                <Card style={{ textAlign: "center", padding: "24px 16px" }}>
+                  <span style={{ color: c.tm, fontSize: 13 }}>No invoices match your search.</span>
+                </Card>
+              ) : (
+                filtered.map((i) => {
+                  const dl = daysLate(i.due_date)
+                  const ex = i.status === "overdue" ? calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)) : 0
+                  return (
+                    <Card
+                      key={i.id}
+                      onClick={() => nav("detail", i.id)}
+                      style={{
+                        padding: "12px 14px",
+                        borderLeft: `3px solid ${i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}`,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(i.id)}
+                          onChange={() => toggleOne(i.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ cursor: "pointer", marginTop: 3, flexShrink: 0 }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span style={{ fontWeight: 600, color: c.tx, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.client_name || "—"}</span>
+                            <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}>
+                              {i.status === "overdue" ? "chasing" : i.status}
+                            </Badge>
+                          </div>
+                          <div style={{ fontSize: 11, color: c.td, fontFamily: MONO, marginBottom: 6 }}>{i.ref}</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <span style={{ fontFamily: MONO, fontWeight: 600, fontSize: 14, color: c.tx }}>{fmt(Number(i.amount) + ex)}</span>
+                              {ex > 0 && <span style={{ fontSize: 10, color: c.go, fontWeight: 600, marginLeft: 6 }}>+{fmt(ex)}</span>}
+                            </div>
+                            <span style={{ fontSize: 11, color: c.tm }}>Due {formatDate(i.due_date)}</span>
+                          </div>
+                        </div>
+                        <span style={{ color: c.td, fontSize: 14, flexShrink: 0, marginTop: 2 }} aria-hidden="true">→</span>
+                      </div>
+                    </Card>
+                  )
+                })
+              )}
+            </div>
+          ) : (
+            /* Desktop: table view */
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${c.bd}`, background: "#f8f9fb" }}>
+                    <th style={{ padding: "10px 8px", width: 36 }}>
+                      <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} style={{ cursor: "pointer" }} />
                     </th>
-                  ))}
-                  <th style={{ width: 30 }}><span className="sr-only">View</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} style={{ padding: "24px 12px", textAlign: "center", color: c.tm, fontSize: 13 }}>
-                      No invoices match your search.
-                    </td>
+                    {["Ref", "Client", "Amount", "Extra", "Total", "Due", "Status"].map((h) => (
+                      <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: c.tm, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        {h}
+                      </th>
+                    ))}
+                    <th style={{ width: 30 }}><span className="sr-only">View</span></th>
                   </tr>
-                ) : (
-                  filtered.map((i) => {
-                    const dl = daysLate(i.due_date)
-                    const ex = i.status === "overdue" ? calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)) : 0
-                    return (
-                      <tr
-                        key={i.id}
-                        style={{ borderBottom: `1px solid ${c.bdl}`, cursor: "pointer" }}
-                        onClick={() => nav("detail", i.id)}
-                        tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === "Enter") nav("detail", i.id) }}
-                        className="table-row-hover"
-                      >
-                        <td style={{ padding: "10px 8px" }} onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggleOne(i.id)} style={{ cursor: "pointer" }} />
-                        </td>
-                        <td style={{ padding: "10px 12px", fontFamily: MONO, fontSize: 11, color: c.td }}>{i.ref}</td>
-                        <td style={{ padding: "10px 12px", color: c.tx, fontWeight: 500 }}>{i.client_name || "—"}</td>
-                        <td style={{ padding: "10px 12px", fontFamily: MONO }}>{fmt(i.amount)}</td>
-                        <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600, color: ex > 0 ? c.go : c.td }}>
-                          {ex > 0 ? `+${fmt(ex)}` : "—"}
-                        </td>
-                        <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600 }}>{fmt(Number(i.amount) + ex)}</td>
-                        <td style={{ padding: "10px 12px", color: c.tm }}>{formatDate(i.due_date)}</td>
-                        <td style={{ padding: "10px 12px" }}>
-                          <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}>
-                            {i.status === "overdue" ? "being chased" : i.status}
-                          </Badge>
-                        </td>
-                        <td style={{ padding: "10px 12px", color: c.td }} aria-hidden="true">→</td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </Card>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} style={{ padding: "24px 12px", textAlign: "center", color: c.tm, fontSize: 13 }}>
+                        No invoices match your search.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((i) => {
+                      const dl = daysLate(i.due_date)
+                      const ex = i.status === "overdue" ? calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)) : 0
+                      return (
+                        <tr
+                          key={i.id}
+                          style={{ borderBottom: `1px solid ${c.bdl}`, cursor: "pointer" }}
+                          onClick={() => nav("detail", i.id)}
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter") nav("detail", i.id) }}
+                          className="table-row-hover"
+                        >
+                          <td style={{ padding: "10px 8px" }} onClick={e => e.stopPropagation()}>
+                            <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggleOne(i.id)} style={{ cursor: "pointer" }} />
+                          </td>
+                          <td style={{ padding: "10px 12px", fontFamily: MONO, fontSize: 11, color: c.td }}>{i.ref}</td>
+                          <td style={{ padding: "10px 12px", color: c.tx, fontWeight: 500 }}>{i.client_name || "—"}</td>
+                          <td style={{ padding: "10px 12px", fontFamily: MONO }}>{fmt(i.amount)}</td>
+                          <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600, color: ex > 0 ? c.go : c.td }}>
+                            {ex > 0 ? `+${fmt(ex)}` : "—"}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600 }}>{fmt(Number(i.amount) + ex)}</td>
+                          <td style={{ padding: "10px 12px", color: c.tm }}>{formatDate(i.due_date)}</td>
+                          <td style={{ padding: "10px 12px" }}>
+                            <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}>
+                              {i.status === "overdue" ? "being chased" : i.status}
+                            </Badge>
+                          </td>
+                          <td style={{ padding: "10px 12px", color: c.td }} aria-hidden="true">→</td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
           </>
         )}
       </div>

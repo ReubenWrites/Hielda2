@@ -11,13 +11,13 @@ const TIMELINE_STEPS = [
   { day: "Day +30", title: "Final Notice", desc: "Last formal demand. If still unpaid, we'll support you to escalate to County Court if you choose to.", col: "#7f1d1d", ico: "⚖️" },
 ]
 
-export default function HowItWorks() {
+export default function HowItWorks({ isMobile }) {
   return (
     <div>
-      <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>How It Works</h1>
+      <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>How It Works</h1>
       <p style={{ color: c.tm, margin: "0 0 22px", fontSize: 13 }}>Your rights, and how Hielda enforces them.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 22 }}>
         <Card>
           <h3 style={{ fontSize: 13, fontWeight: 700, color: c.ac, margin: "0 0 10px" }}>Your Legal Rights</h3>
           <div style={{ fontSize: 13, color: c.tm, lineHeight: 1.7 }}>
@@ -64,12 +64,17 @@ export default function HowItWorks() {
           Every step is preceded by a check-in with you. We always ask "have you been paid?" before sending anything to your client.
         </p>
         {TIMELINE_STEPS.map((s, i) => (
-          <div key={i} style={{ display: "flex", gap: 16, marginBottom: 16, paddingBottom: 16, borderBottom: i < TIMELINE_STEPS.length - 1 ? `1px solid ${c.bdl}` : "none" }}>
-            <div style={{ width: 68, flexShrink: 0 }}>
-              <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: s.col }}>{s.day}</div>
+          <div key={i} style={{
+            display: "flex", gap: isMobile ? 10 : 16,
+            marginBottom: 16, paddingBottom: 16,
+            borderBottom: i < TIMELINE_STEPS.length - 1 ? `1px solid ${c.bdl}` : "none",
+            flexWrap: isMobile ? "wrap" : "nowrap",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ fontSize: isMobile ? 16 : 20, width: isMobile ? 24 : 34, textAlign: "center" }} aria-hidden="true">{s.ico}</div>
+              <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: s.col, width: isMobile ? "auto" : 68 }}>{s.day}</div>
             </div>
-            <div style={{ fontSize: 20, width: 34, flexShrink: 0, textAlign: "center" }} aria-hidden="true">{s.ico}</div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, color: c.tx, fontSize: 13, marginBottom: 3 }}>{s.title}</div>
               <div style={{ fontSize: 12, color: c.tm, lineHeight: 1.4 }}>{s.desc}</div>
             </div>
@@ -77,7 +82,7 @@ export default function HowItWorks() {
         ))}
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginTop: isMobile ? 16 : 22 }}>
         <Card>
           <h3 style={{ fontSize: 13, fontWeight: 700, color: c.ac, margin: "0 0 12px" }}>Frequently Asked</h3>
           {[

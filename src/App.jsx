@@ -326,11 +326,11 @@ export default function App() {
                 </div>
               )}
               {view === "dash" && <Dashboard invs={invs} nav={nav} isMobile={isMobile} onUpdate={loadData} />}
-              {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} />}
+              {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} isMobile={isMobile} />}
               {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} isMobile={isMobile} />}
               {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}
-              {view === "how" && <HowItWorks />}
-              {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} />}
+              {view === "how" && <HowItWorks isMobile={isMobile} />}
+              {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />}
             </SubscriptionGate>
           </div>
         </main>

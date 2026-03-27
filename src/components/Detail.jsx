@@ -11,13 +11,11 @@ function getNextStage(currentStage) {
   if (!currentStage) return "reminder_1"
   const idx = STAGE_ORDER.indexOf(currentStage)
   if (idx === -1) return "reminder_1"
-  if (idx >= STAGE_ORDER.length - 1) return null // already at final_notice
+  if (idx >= STAGE_ORDER.length - 1) return null
   return STAGE_ORDER[idx + 1]
 }
 
 function getStageToBeSent(invoice) {
-  // The stage to send is the current stage if nothing has been sent yet,
-  // otherwise the next stage after the current one
   if (!invoice.chase_stage) return "reminder_1"
   return invoice.chase_stage
 }
@@ -65,7 +63,6 @@ function ChaseTimeline({ inv, si }) {
 
   const toggle = (label) => setExpanded((prev) => ({ ...prev, [label]: !prev[label] }))
 
-  // Auto-expand the group containing the current stage
   const currentGroup = TIMELINE_GROUPS.find((g) => g.stages.includes(inv.chase_stage))
 
   return (
@@ -103,15 +100,15 @@ function ChaseTimeline({ inv, si }) {
               }}>
                 {allPast ? "✓" : somePast ? "•" : ""}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontWeight: 600, color: allPast ? c.gn : somePast ? c.tx : c.td, fontSize: 12 }}>{group.label}</span>
                   {isCurrentGroup && <Badge color={group.col}>Active</Badge>}
                   <span style={{ fontSize: 10, color: c.td, marginLeft: "auto" }}>{groupStages.length} {groupStages.length === 1 ? "email" : "emails"}</span>
                 </div>
                 <div style={{ fontSize: 10, color: c.td, marginTop: 2 }}>{dateRange}</div>
               </div>
-              <span style={{ fontSize: 11, color: c.td, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
+              <span style={{ fontSize: 11, color: c.td, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }}>▼</span>
             </button>
 
             {isOpen && (
@@ -133,7 +130,7 @@ function ChaseTimeline({ inv, si }) {
                       </div>
                       <span style={{ fontSize: 11, fontWeight: act ? 700 : 400, color: past ? c.tx : c.td, flex: 1 }}>{stg.label}</span>
                       {act && <Badge color={stg.col}>Next</Badge>}
-                      <span style={{ fontSize: 10, color: c.td, fontFamily: MONO }}>
+                      <span style={{ fontSize: 10, color: c.td, fontFamily: MONO, flexShrink: 0 }}>
                         {stg.dfd < 0 ? `${Math.abs(stg.dfd)}d before` : stg.dfd === 0 ? "Due date" : `+${stg.dfd}d`}
                       </span>
                     </div>
@@ -148,7 +145,7 @@ function ChaseTimeline({ inv, si }) {
   )
 }
 
-export default function Detail({ inv, nav, profile, onUpdate }) {
+export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
@@ -158,9 +155,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
   const [autoChase, setAutoChase] = useState(inv?.auto_chase !== false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
-  const [sendingCheckIn, setSendingCheckIn] = useState(false)
 
-  // Load chase logs for this invoice
   useEffect(() => {
     if (!inv?.id) return
     setAutoChase(inv.auto_chase !== false)
@@ -258,7 +253,6 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
     const stage = currentSendStage
     const stageLabel = getStageLabel(stage)
 
-    // Task 4: Confirmation dialog before sending
     const confirmed = window.confirm(
       `Send ${stageLabel} email to ${inv.client_email}?`
     )
@@ -268,7 +262,6 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
     setError("")
     setSendSuccess("")
     try {
-      // Task 1: Include user token for authentication
       const { data: { session } } = await supabase.auth.getSession()
       const userToken = session?.access_token
 
@@ -285,7 +278,6 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
       if (!res.ok) throw new Error(data.error || "Failed to send")
       setSendSuccess(`${stageLabel} email sent to ${data.email_to}`)
 
-      // Task 3: Advance to the next chase stage after successful send
       const nextStage = getNextStage(stage)
       if (nextStage) {
         await supabase
@@ -294,7 +286,6 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           .eq("id", inv.id)
       }
 
-      // Refresh chase logs
       const { data: logs } = await supabase
         .from("chase_log")
         .select("*")
@@ -309,50 +300,6 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
     setSending(false)
   }
 
-  const sendCheckInEmail = async () => {
-    const stage = currentSendStage
-    const stageLabel = getStageLabel(stage)
-
-    const confirmed = window.confirm(
-      `Send a check-in email to yourself for "${stageLabel}" on invoice ${inv.ref}?\n\nYou'll receive an email asking if ${inv.client_name} has paid. You can then confirm or trigger the chase from the email.`
-    )
-    if (!confirmed) return
-
-    setSendingCheckIn(true)
-    setError("")
-    setSendSuccess("")
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const userToken = session?.access_token
-
-      const res = await fetch("/api/send-check-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoice_id: inv.id,
-          chase_stage: stage,
-          user_token: userToken,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to send check-in")
-      setSendSuccess(`Check-in email sent to ${data.email_to}`)
-
-      // Refresh chase logs
-      const { data: logs } = await supabase
-        .from("chase_log")
-        .select("*")
-        .eq("invoice_id", inv.id)
-        .order("sent_at", { ascending: false })
-      if (logs) setChaseLogs(logs)
-      onUpdate()
-      setTimeout(() => setSendSuccess(""), 5000)
-    } catch (e) {
-      setError("Failed to send check-in: " + e.message)
-    }
-    setSendingCheckIn(false)
-  }
-
   const toggleAutoChase = async () => {
     const newVal = !autoChase
     setAutoChase(newVal)
@@ -364,7 +311,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
       if (err) throw err
       onUpdate()
     } catch (e) {
-      setAutoChase(!newVal) // revert on error
+      setAutoChase(!newVal)
       setError("Failed to update auto-chase: " + e.message)
     }
   }
@@ -375,40 +322,46 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
         ← Back to Dashboard
       </button>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
-            <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: 0 }}>{inv.ref}</h1>
-            <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : c.am}>
-              {ov ? "being chased" : inv.status}
-            </Badge>
-            {inv.no_fines && <Badge color={c.td}>no fines</Badge>}
-          </div>
-          <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
+      {/* Header: title + badges */}
+      <div style={{ marginBottom: isMobile ? 14 : 22 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5, flexWrap: "wrap" }}>
+          <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, color: c.tx, margin: 0 }}>{inv.ref}</h1>
+          <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : c.am}>
+            {ov ? "being chased" : inv.status}
+          </Badge>
+          {inv.no_fines && <Badge color={c.td}>no fines</Badge>}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {inv.status !== "paid" && (
-            <Btn v="successAction" onClick={markPaid} dis={marking}>
-              {marking ? "Marking..." : "✓ Mark as Paid"}
-            </Btn>
-          )}
-          <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
-            {downloading ? "Generating..." : "📥 PDF"}
+        <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
+      </div>
+
+      {/* Action buttons — responsive */}
+      <div style={{
+        display: "flex",
+        gap: 8,
+        marginBottom: isMobile ? 14 : 22,
+        flexWrap: "wrap",
+      }}>
+        {inv.status !== "paid" && (
+          <Btn v="successAction" onClick={markPaid} dis={marking} sz={isMobile ? "sm" : undefined}>
+            {marking ? "..." : "✓ Paid"}
           </Btn>
-          {inv.status !== "paid" && inv.client_email && (
-            <Btn v="ghost" onClick={showEmailPreview} sz="sm">
-              📧 Preview
-            </Btn>
-          )}
-          {inv.status !== "paid" && inv.client_email && (
-            <Btn v="ghost" onClick={sendChaseEmail} dis={sending} sz="sm">
-              {sending ? "Sending..." : `📤 Send ${getStageLabel(currentSendStage)}`}
-            </Btn>
-          )}
-          <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
-            {deleting ? "Deleting..." : "🗑 Delete"}
+        )}
+        <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
+          {downloading ? "..." : "📥 PDF"}
+        </Btn>
+        {inv.status !== "paid" && inv.client_email && (
+          <Btn v="ghost" onClick={showEmailPreview} sz="sm">
+            📧 Preview
           </Btn>
-        </div>
+        )}
+        {inv.status !== "paid" && inv.client_email && (
+          <Btn v="ghost" onClick={sendChaseEmail} dis={sending} sz="sm">
+            {sending ? "..." : `📤 Send`}
+          </Btn>
+        )}
+        <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
+          {deleting ? "..." : "🗑 Delete"}
+        </Btn>
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
@@ -420,16 +373,24 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
       )}
 
       {ov && ex > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", background: c.god, border: `1px solid rgba(161,98,7,0.15)`, borderLeft: "3px solid #d4a017", borderRadius: "0 12px 12px 0", marginBottom: 18 }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: isMobile ? "10px 14px" : "13px 18px",
+          background: c.god, border: `1px solid rgba(161,98,7,0.15)`,
+          borderLeft: "3px solid #d4a017", borderRadius: "0 12px 12px 0",
+          marginBottom: isMobile ? 14 : 18,
+          flexWrap: isMobile ? "wrap" : "nowrap", gap: 8,
+        }}>
           <div>
             <span style={{ fontSize: 12, fontWeight: 600, color: c.go }}>Extra added by Hielda</span>
             <span style={{ fontSize: 12, color: c.tm, marginLeft: 8 }}>penalty + {dl}d interest</span>
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: c.go, fontFamily: MONO }}>+{fmt(ex)}</div>
+          <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700, color: c.go, fontFamily: MONO }}>+{fmt(ex)}</div>
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 22 }}>
+      {/* Invoice details + breakdown — stacks on mobile */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 14 : 22 }}>
         <Card>
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>Invoice details</h3>
           {[
@@ -445,7 +406,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
             .map(([k, v]) => (
               <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${c.bdl}` }}>
                 <span style={{ color: c.tm, fontSize: 13 }}>{k}</span>
-                <span style={{ color: c.tx, fontSize: 13, fontWeight: 500 }}>{v}</span>
+                <span style={{ color: c.tx, fontSize: 13, fontWeight: 500, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>{v}</span>
               </div>
             ))}
         </Card>
@@ -466,7 +427,7 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 10, borderTop: `2px solid ${c.ac}33` }}>
               <span style={{ color: c.tx, fontSize: 13, fontWeight: 700 }}>TOTAL NOW OWED</span>
-              <span style={{ color: c.ac, fontSize: 20, fontWeight: 700, fontFamily: MONO }}>{fmt(tot)}</span>
+              <span style={{ color: c.ac, fontSize: isMobile ? 17 : 20, fontWeight: 700, fontFamily: MONO }}>{fmt(tot)}</span>
             </div>
             <div style={{ fontSize: 10, color: c.td, marginTop: 5, textAlign: "right" }}>+{fmt(Number(inv.amount) * DAILY_RATE)}/day</div>
           </Card>
@@ -485,8 +446,13 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
 
       {/* Auto-chase toggle */}
       {inv.status !== "paid" && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, marginTop: 16, marginBottom: 16 }}>
-          <div>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: isMobile ? "10px 14px" : "12px 18px",
+          background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10,
+          marginTop: 16, marginBottom: 16, gap: 12,
+        }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Automatic chasing</div>
             <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
               {autoChase ? "Hielda will send chase emails automatically" : "Chase emails paused for this invoice"}
@@ -495,28 +461,16 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
           <button
             onClick={toggleAutoChase}
             style={{
-              width: 44,
-              height: 24,
-              borderRadius: 12,
-              border: "none",
+              width: 44, height: 24, borderRadius: 12, border: "none",
               background: autoChase ? c.ac : c.bd,
-              cursor: "pointer",
-              position: "relative",
-              transition: "background 0.2s",
-              flexShrink: 0,
+              cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0,
             }}
             aria-label={autoChase ? "Disable automatic chasing" : "Enable automatic chasing"}
           >
             <div style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: "#fff",
-              position: "absolute",
-              top: 3,
-              left: autoChase ? 23 : 3,
-              transition: "left 0.2s",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+              width: 18, height: 18, borderRadius: "50%", background: "#fff",
+              position: "absolute", top: 3, left: autoChase ? 23 : 3,
+              transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             }} />
           </button>
         </div>
@@ -537,7 +491,11 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
               : stg?.label || log.chase_stage
             const dotColor = isCheckIn ? c.ac : isMarkedPaid ? c.gn : stg?.col || c.ac
             return (
-              <div key={log.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${c.bdl}` }}>
+              <div key={log.id} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "8px 0", borderBottom: `1px solid ${c.bdl}`,
+                flexWrap: isMobile ? "wrap" : "nowrap", gap: isMobile ? 4 : 0,
+              }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
                   <div>
@@ -545,37 +503,40 @@ export default function Detail({ inv, nav, profile, onUpdate }) {
                     <div style={{ fontSize: 11, color: c.td }}>{isCheckIn ? "Sent to you" : `Sent to ${log.email_to}`}</div>
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: c.td }}>{formatDate(log.sent_at)}</div>
+                <div style={{ fontSize: 11, color: c.td, marginLeft: isMobile ? 16 : 0 }}>{formatDate(log.sent_at)}</div>
               </div>
             )
           })}
         </Card>
       )}
 
-      {/* Email preview modal */}
+      {/* Email preview modal — responsive */}
       {previewHtml && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div style={{ background: c.sf, borderRadius: 14, width: 680, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: isMobile ? 12 : 0 }}>
+          <div style={{
+            background: c.sf, borderRadius: 14,
+            width: isMobile ? "100%" : 680,
+            maxWidth: "100%",
+            maxHeight: isMobile ? "90vh" : "80vh",
+            overflow: "hidden", display: "flex", flexDirection: "column",
+          }}>
             <div style={{ padding: "14px 20px", borderBottom: `1px solid ${c.bd}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600, fontSize: 14, color: c.tx }}>Chase Email Preview</span>
+              <span style={{ fontWeight: 600, fontSize: 14, color: c.tx }}>Email Preview</span>
               <button onClick={() => setPreviewHtml(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: c.tm }}>×</button>
             </div>
             <iframe
               srcDoc={previewHtml}
-              style={{ flex: 1, border: "none", minHeight: 400 }}
+              style={{ flex: 1, border: "none", minHeight: isMobile ? 300 : 400 }}
               title="Email preview"
             />
-            <div style={{ padding: "12px 20px", borderTop: `1px solid ${c.bd}`, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div style={{ padding: "12px 20px", borderTop: `1px solid ${c.bd}`, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
               <Btn v="ghost" onClick={() => setPreviewHtml(null)} sz="sm">Close</Btn>
               <Btn
-                onClick={() => {
-                  setPreviewHtml(null)
-                  sendChaseEmail()
-                }}
+                onClick={() => { setPreviewHtml(null); sendChaseEmail() }}
                 dis={sending}
                 sz="sm"
               >
-                {sending ? "Sending..." : `📤 Send ${getStageLabel(currentSendStage)}`}
+                {sending ? "Sending..." : `📤 Send`}
               </Btn>
             </div>
           </div>

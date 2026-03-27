@@ -192,12 +192,13 @@ export const StatCard = ({ label, value, sub, color, borderColor }) => (
       borderRadius: "0 10px 10px 0",
       padding: "13px 14px",
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      overflow: "hidden",
     }}
   >
     <div style={{ fontSize: 10, fontWeight: 600, color: borderColor === "#d4a017" ? c.go : c.tm, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
       {label}
     </div>
-    <div style={{ fontSize: 20, fontWeight: 600, color, fontFamily: MONO }}>{value}</div>
+    <div style={{ fontSize: 18, fontWeight: 600, color, fontFamily: MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</div>
     {sub && <div style={{ fontSize: 10, color: c.td, marginTop: 3 }}>{sub}</div>}
   </div>
 )

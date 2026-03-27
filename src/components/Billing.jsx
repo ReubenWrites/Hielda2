@@ -19,7 +19,7 @@ const STATUS_LABELS = {
   expired: { label: "Expired", color: c.td },
 }
 
-export default function Billing({ subscription, userId, onUpdate }) {
+export default function Billing({ subscription, userId, onUpdate, isMobile }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -83,7 +83,7 @@ export default function Billing({ subscription, userId, onUpdate }) {
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
       {/* Current plan status */}
-      <Card style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Card style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 12 : 0 }}>
         <div>
           <div style={{ fontSize: 12, color: c.tm, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
             Current Plan
@@ -117,7 +117,7 @@ export default function Billing({ subscription, userId, onUpdate }) {
             {isTrial ? "Choose a plan before your trial ends" : "Choose a plan to continue"}
           </h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 24 }}>
             {/* Monthly */}
             <Card style={{ textAlign: "center", padding: "28px 24px" }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 12 }}>
