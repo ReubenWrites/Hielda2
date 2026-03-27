@@ -12,6 +12,7 @@ import Settings from "./components/Settings"
 import HowItWorks from "./components/HowItWorks"
 import Billing from "./components/Billing"
 import SubscriptionGate from "./components/SubscriptionGate"
+import LandingPage from "./components/LandingPage"
 
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
@@ -43,6 +44,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [dataError, setDataError] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
 
   const isMobile = useMediaQuery("(max-width: 768px)")
 
@@ -152,7 +154,10 @@ export default function App() {
     )
   }
 
-  if (!session) return <AuthScreen onAuth={handleAuth} />
+  if (!session) {
+    if (showAuth) return <AuthScreen onAuth={handleAuth} onBack={() => setShowAuth(false)} />
+    return <LandingPage onGetStarted={() => setShowAuth(true)} isMobile={isMobile} />
+  }
 
   // Show onboarding for new users who haven't completed setup
   if (!profile || !profile.onboarding_complete) {

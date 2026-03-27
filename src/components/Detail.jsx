@@ -153,12 +153,14 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [previewHtml, setPreviewHtml] = useState(null)
   const [chaseLogs, setChaseLogs] = useState([])
   const [autoChase, setAutoChase] = useState(inv?.auto_chase !== false)
+  const [noFines, setNoFines] = useState(inv?.no_fines || false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
 
   useEffect(() => {
     if (!inv?.id) return
     setAutoChase(inv.auto_chase !== false)
+    setNoFines(inv.no_fines || false)
     supabase
       .from("chase_log")
       .select("*")
@@ -316,6 +318,22 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     }
   }
 
+  const toggleNoFines = async () => {
+    const newVal = !noFines
+    setNoFines(newVal)
+    try {
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({ no_fines: newVal })
+        .eq("id", inv.id)
+      if (err) throw err
+      onUpdate()
+    } catch (e) {
+      setNoFines(!newVal)
+      setError("Failed to update fines setting: " + e.message)
+    }
+  }
+
   return (
     <div>
       <button onClick={() => nav("dash")} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontSize: 13, padding: 0, marginBottom: 18 }}>
@@ -470,6 +488,38 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             <div style={{
               width: 18, height: 18, borderRadius: "50%", background: "#fff",
               position: "absolute", top: 3, left: autoChase ? 23 : 3,
+              transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+            }} />
+          </button>
+        </div>
+      )}
+
+      {/* No-fines toggle */}
+      {inv.status !== "paid" && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: isMobile ? "10px 14px" : "12px 18px",
+          background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10,
+          marginBottom: 16, gap: 12,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Fines & interest</div>
+            <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
+              {noFines ? "Chase emails won't include statutory penalties or interest" : "Statutory penalties and interest will be applied when overdue"}
+            </div>
+          </div>
+          <button
+            onClick={toggleNoFines}
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: "none",
+              background: noFines ? c.bd : c.ac,
+              cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0,
+            }}
+            aria-label={noFines ? "Enable fines and interest" : "Disable fines and interest"}
+          >
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%", background: "#fff",
+              position: "absolute", top: 3, left: noFines ? 3 : 23,
               transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             }} />
           </button>

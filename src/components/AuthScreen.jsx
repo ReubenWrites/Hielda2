@@ -3,7 +3,7 @@ import { supabase } from "../supabase"
 import { colors as c, FONT } from "../constants"
 import { Card, Inp, Btn, ShieldLogo, ErrorBanner, InfoBanner } from "./ui"
 
-export default function AuthScreen({ onAuth }) {
+export default function AuthScreen({ onAuth, onBack }) {
   const [mode, setMode] = useState("login")
   const [email, setEmail] = useState("")
   const [pass, setPass] = useState("")
@@ -59,7 +59,12 @@ export default function AuthScreen({ onAuth }) {
   return (
     <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ position: "absolute", inset: 0, opacity: 0.25, backgroundImage: "radial-gradient(circle,#b0bcc8 0.5px,transparent 0.5px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
-      <Card style={{ width: 400, padding: "40px 36px", position: "relative", zIndex: 1 }}>
+      <Card style={{ width: "100%", maxWidth: 400, padding: window.innerWidth <= 768 ? "28px 20px" : "40px 36px", position: "relative", zIndex: 1, margin: "0 16px" }}>
+        {onBack && (
+          <button onClick={onBack} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontFamily: FONT, fontSize: 13, padding: 0, marginBottom: 12 }}>
+            ← Back
+          </button>
+        )}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <ShieldLogo size={40} />
           <div style={{ fontSize: 24, fontWeight: 700, color: c.ac, letterSpacing: "-0.02em", marginTop: 12 }}>Hielda</div>
