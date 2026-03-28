@@ -124,7 +124,7 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
                 Monthly
               </div>
               <div style={{ fontSize: 32, fontWeight: 700, color: c.tx, fontFamily: MONO, marginBottom: 4 }}>
-                £TBD
+                £6
               </div>
               <div style={{ fontSize: 12, color: c.td, marginBottom: 20 }}>per month</div>
               <Btn onClick={() => handleCheckout("monthly")} dis={loading} style={{ width: "100%", justifyContent: "center" }}>
@@ -141,9 +141,9 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
                 Annual
               </div>
               <div style={{ fontSize: 32, fontWeight: 700, color: c.tx, fontFamily: MONO, marginBottom: 4 }}>
-                £TBD
+                £39.99
               </div>
-              <div style={{ fontSize: 12, color: c.td, marginBottom: 20 }}>per year (save ~20%)</div>
+              <div style={{ fontSize: 12, color: c.td, marginBottom: 20 }}>per year (save 44%)</div>
               <Btn onClick={() => handleCheckout("annual")} dis={loading} style={{ width: "100%", justifyContent: "center" }}>
                 {loading ? "Loading..." : "Subscribe Annually"}
               </Btn>

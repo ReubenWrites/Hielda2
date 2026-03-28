@@ -10,7 +10,16 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const APP_URL = Deno.env.get("APP_URL") || "https://hielda.com"
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
+
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders })
+  }
+
   try {
     const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" })
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -58,6 +67,7 @@ serve(async (req) => {
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: price_id, quantity: 1 }],
+      allow_promotion_codes: true,
       success_url: `${APP_URL}?billing=success`,
       cancel_url: `${APP_URL}?billing=canceled`,
       subscription_data: {
@@ -66,12 +76,12 @@ serve(async (req) => {
     })
 
     return new Response(JSON.stringify({ url: session.url }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   }
 })
