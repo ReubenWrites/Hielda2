@@ -44,7 +44,7 @@ const TIMELINE_PREVIEW = [
   { day: "Day +30", label: "Final Notice", col: "#7f1d1d" },
 ]
 
-export default function LandingPage({ onGetStarted, isMobile }) {
+export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
   return (
     <div style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
       {/* Nav bar */}
@@ -385,8 +385,17 @@ export default function LandingPage({ onGetStarted, isMobile }) {
         padding: isMobile ? "24px 20px" : "24px 48px",
         borderTop: `1px solid ${c.bd}`, textAlign: "center",
         fontSize: 11, color: c.td,
+        display: "flex", flexDirection: isMobile ? "column" : "row",
+        justifyContent: "center", alignItems: "center", gap: isMobile ? 8 : 20,
       }}>
-        © {new Date().getFullYear()} Hielda. Protecting your pay.
+        <span>© {new Date().getFullYear()} Hielda. Protecting your pay.</span>
+        <button
+          onClick={onPrivacy}
+          style={{ background: "none", border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 11, color: c.td, padding: 0, textDecoration: "underline" }}
+        >
+          Privacy Policy
+        </button>
+        <a href="mailto:support@hielda.com" style={{ color: c.td, fontSize: 11 }}>support@hielda.com</a>
       </footer>
     </div>
   )

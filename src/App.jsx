@@ -13,6 +13,7 @@ import HowItWorks from "./components/HowItWorks"
 import Billing from "./components/Billing"
 import SubscriptionGate from "./components/SubscriptionGate"
 import LandingPage from "./components/LandingPage"
+import PrivacyPolicy from "./components/PrivacyPolicy"
 
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
@@ -45,6 +46,13 @@ export default function App() {
   const [dataError, setDataError] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
+
+  useEffect(() => {
+    const handler = () => setShowPrivacy(true)
+    window.addEventListener("hielda:show-privacy", handler)
+    return () => window.removeEventListener("hielda:show-privacy", handler)
+  }, [])
 
   const isMobile = useMediaQuery("(max-width: 768px)")
 
@@ -155,8 +163,9 @@ export default function App() {
   }
 
   if (!session) {
+    if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
     if (showAuth) return <AuthScreen onAuth={handleAuth} onBack={() => setShowAuth(false)} />
-    return <LandingPage onGetStarted={() => setShowAuth(true)} isMobile={isMobile} />
+    return <LandingPage onGetStarted={() => setShowAuth(true)} onPrivacy={() => setShowPrivacy(true)} isMobile={isMobile} />
   }
 
   // Show onboarding for new users who haven't completed setup
@@ -169,6 +178,8 @@ export default function App() {
       />
     )
   }
+
+  if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
 
   return (
     <div style={{ fontFamily: FONT, background: c.bg, color: c.tx, minHeight: "100vh", display: "flex" }}>

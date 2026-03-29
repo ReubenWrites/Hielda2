@@ -177,6 +177,12 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
           </div>
         ))}
       </Card>
+
+      <div style={{ marginTop: 20, textAlign: "center", fontSize: 11, color: c.td }}>
+        <a href="mailto:support@hielda.com" style={{ color: c.td }}>support@hielda.com</a>
+        {" · "}
+        <a href="/privacy" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent("hielda:show-privacy")) }} style={{ color: c.td }}>Privacy Policy</a>
+      </div>
     </div>
   )
 }
