@@ -12,7 +12,8 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
   const { overdue, pending, paid, totExtra, totOwed } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
     const pending = invs.filter((i) => i.status === "pending")
-    const paid = invs.filter((i) => i.status === "paid")
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90)
+    const paid = invs.filter((i) => i.status === "paid" && (!i.paid_date || new Date(i.paid_date) >= cutoff))
 
     const totExtra = overdue.reduce((s, i) => {
       const dl = daysLate(i.due_date)

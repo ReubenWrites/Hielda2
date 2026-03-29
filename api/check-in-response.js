@@ -236,7 +236,7 @@ export default async function handler(req, res) {
           <div style="font-size:36px;margin-bottom:16px;">&#9200;</div>
           <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">This link has expired</h2>
           <p style="color:#64748b;margin:0 0 20px;">Check-in links are valid for 7 days. Please check your Hielda dashboard to take action.</p>
-          <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+          <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
         `, '#94a3b8')
       )
     }
@@ -267,7 +267,7 @@ export default async function handler(req, res) {
           <div style="font-size:36px;margin-bottom:16px;">&#128269;</div>
           <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Invoice Not Found</h2>
           <p style="color:#64748b;margin:0 0 20px;">This invoice may have been deleted.</p>
-          <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+          <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
         `, '#94a3b8')
       )
     }
@@ -282,7 +282,7 @@ export default async function handler(req, res) {
             <h2 style="margin:0 0 8px;font-size:18px;color:#16a34a;">Already Marked as Paid</h2>
             <p style="color:#64748b;margin:0 0 4px;">Invoice <strong>${invoice.ref}</strong> was already marked as paid.</p>
             <p style="color:#94a3b8;font-size:12px;margin:0 0 20px;">No further chase emails will be sent.</p>
-            <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
           `, '#16a34a')
         )
       }
@@ -313,7 +313,7 @@ export default async function handler(req, res) {
           <p style="color:#0f172a;margin:0 0 4px;">Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong></p>
           <p style="color:#64748b;margin:0 0 4px;">Client: ${invoice.client_name}</p>
           <p style="color:#16a34a;font-weight:600;margin:0 0 20px;">No chase email will be sent. Thank you!</p>
-          <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+          <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
         `, '#16a34a')
       )
     }
@@ -335,7 +335,7 @@ export default async function handler(req, res) {
             <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
             <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Profile Not Found</h2>
             <p style="color:#64748b;margin:0 0 20px;">Could not find your business profile. Please check your Hielda settings.</p>
-            <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
           `, '#9f1239')
         )
       }
@@ -346,7 +346,7 @@ export default async function handler(req, res) {
             <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
             <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">No Client Email</h2>
             <p style="color:#64748b;margin:0 0 20px;">This invoice doesn't have a client email address. Please update it in your dashboard.</p>
-            <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
           `, '#d97706')
         )
       }
@@ -366,7 +366,7 @@ export default async function handler(req, res) {
             <div style="font-size:48px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
             <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase Already Sent</h2>
             <p style="color:#64748b;margin:0 0 20px;">A chase email for this stage was already sent to ${invoice.client_email}.</p>
-            <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
           `, '#1e5fa0')
         )
       }
@@ -402,7 +402,7 @@ export default async function handler(req, res) {
             <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
             <h2 style="margin:0 0 8px;font-size:18px;color:#9f1239;">Failed to Send Chase Email</h2>
             <p style="color:#64748b;margin:0 0 20px;">${resendData.message || 'An error occurred while sending the email. Please try again from your dashboard.'}</p>
-            <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
           `, '#9f1239')
         )
       }
@@ -431,7 +431,7 @@ export default async function handler(req, res) {
           <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase Email Sent</h2>
           <p style="color:#0f172a;margin:0 0 4px;">Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong></p>
           <p style="color:#64748b;margin:0 0 20px;">Chase email sent to <strong>${invoice.client_name}</strong> at <strong>${invoice.client_email}</strong></p>
-          <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+          <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
         `, stageColor)
       )
     }
@@ -442,7 +442,7 @@ export default async function handler(req, res) {
         <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
         <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Invalid Action</h2>
         <p style="color:#64748b;margin:0 0 20px;">The action "${action}" is not recognised. Please try again from your email.</p>
-        <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+        <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
       `, '#94a3b8')
     )
   } catch (e) {
@@ -451,7 +451,7 @@ export default async function handler(req, res) {
         <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
         <h2 style="margin:0 0 8px;font-size:18px;color:#9f1239;">Something went wrong</h2>
         <p style="color:#64748b;margin:0 0 20px;">An unexpected error occurred. Please try again or check your dashboard.</p>
-        <a href="https://hielda2.vercel.app" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+        <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
       `, '#9f1239')
     )
   }
