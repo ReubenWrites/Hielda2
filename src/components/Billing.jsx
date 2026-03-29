@@ -162,12 +162,12 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
           What's included in Hielda Pro
         </h3>
         {[
-          "Unlimited invoice tracking",
+          "Hielda chases on your behalf — you stay the good guy",
+          "19-stage escalation from friendly reminder to final notice",
+          "Statutory interest & penalty calculations (UK Late Payment Act 1998)",
           "Automatic chase emails at every stage",
-          "Statutory interest & penalty calculations",
+          "Check-in before every step — you stay in full control",
           "PDF invoice generation & download",
-          "Email preview before sending",
-          "Legal compliance (UK Late Payment Act 1998)",
           "Chase timeline & audit trail",
           "Priority email support",
         ].map((feature) => (
