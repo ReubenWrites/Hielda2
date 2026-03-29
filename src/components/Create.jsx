@@ -26,6 +26,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
   const [introMethod, setIntroMethod] = useState(null)
   const [introText, setIntroText] = useState("")
   const [introCopied, setIntroCopied] = useState(false)
+  const [showIntroInfo, setShowIntroInfo] = useState(false)
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   const due = addDays(date, effectiveDays)
@@ -244,12 +245,37 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
                   }}
                   style={{ accentColor: c.ac, width: 16, height: 16, marginTop: 2, flexShrink: 0 }}
                 />
-                <label htmlFor="sendIntro" style={{ fontSize: 13, fontWeight: 600, color: c.tx, cursor: "pointer" }}>
-                  Send {cn || "this client"} a friendly introduction to Hielda
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <label htmlFor="sendIntro" style={{ fontSize: 13, fontWeight: 600, color: c.tx, cursor: "pointer" }}>
+                      Send {cn || "this client"} a friendly introduction to Hielda
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowIntroInfo(v => !v)}
+                      style={{
+                        width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${c.bd}`,
+                        background: showIntroInfo ? c.acd : c.sf, color: showIntroInfo ? c.ac : c.td,
+                        fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
+                      }}
+                      aria-label="About this feature"
+                    >
+                      ?
+                    </button>
+                  </div>
                   <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: c.tm, marginTop: 2 }}>
-                    Let them know professionally that you're now managing invoicing through Hielda.
+                    For existing clients you now want to manage through Hielda.
                   </span>
-                </label>
+                  {showIntroInfo && (
+                    <div style={{
+                      marginTop: 8, padding: "10px 12px", background: c.acd, borderRadius: 8,
+                      border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
+                    }}>
+                      <strong style={{ color: c.ac }}>What this does:</strong> Sends a professional, friendly email to your client explaining that you've started using Hielda to manage your invoicing. It reassures them that nothing changes on their end — they'll still receive invoices and reminders as normal. This is especially useful for long-standing clients who might be surprised to receive emails from Hielda.
+                    </div>
+                  )}
+                </div>
               </div>
 
               {sendIntro && (

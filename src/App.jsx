@@ -240,6 +240,18 @@ export default function App() {
           })}
         </nav>
 
+        <a
+          href="mailto:support@hielda.com"
+          style={{
+            display: "block", textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.45)",
+            padding: "6px 8px", marginBottom: 6, borderRadius: 7, textDecoration: "none",
+            position: "relative", zIndex: 2,
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}
+          onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}
+        >
+          Contact Support
+        </a>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", padding: "0 8px", marginBottom: 8, position: "relative", zIndex: 2, textAlign: "center" }}>
           {profile?.email || user?.email}
         </div>
