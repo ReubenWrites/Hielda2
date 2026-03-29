@@ -377,6 +377,11 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             {sending ? "..." : `📤 Send`}
           </Btn>
         )}
+        {inv.status !== "paid" && !inv.client_email && (
+          <div style={{ fontSize: 11, color: c.or, padding: "6px 10px", background: c.ord, borderRadius: 7, display: "flex", alignItems: "center", gap: 5 }}>
+            ⚠ No client email — chase emails unavailable
+          </div>
+        )}
         <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
           {deleting ? "..." : "🗑 Delete"}
         </Btn>

@@ -39,7 +39,7 @@ function buildCheckInEmail(invoice, profile, stage, token) {
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const stageLabel = STAGE_LABELS[stage] || stage
   const fromName = profile.business_name || profile.full_name || 'Hielda User'
-  const baseUrl = 'https://hielda2.vercel.app/api/check-in-response'
+  const baseUrl = 'https://www.hielda.com/api/check-in-response'
 
   const paidUrl = `${baseUrl}?action=paid&invoice_id=${invoice.id}&token=${encodeURIComponent(token)}`
   const chaseUrl = `${baseUrl}?action=chase&invoice_id=${invoice.id}&stage=${stage}&token=${encodeURIComponent(token)}`

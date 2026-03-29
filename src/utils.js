@@ -8,7 +8,7 @@ export const penalty = (amount) => {
 }
 
 /** Calculate compound interest */
-export const calcInterest = (amount, days) => amount * DAILY_RATE * days
+export const calcInterest = (amount, days) => Math.round(amount * DAILY_RATE * days * 100) / 100
 
 /** Format as GBP currency */
 export const fmt = (amount) =>

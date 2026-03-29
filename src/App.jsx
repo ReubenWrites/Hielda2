@@ -331,6 +331,11 @@ export default function App() {
                 {pendingInvs.length} pending
               </div>
             )}
+            {overdueInvs.length === 0 && pendingInvs.length === 0 && !isMobile && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 500, color: c.td, border: `1px solid ${c.bd}`, background: c.sf }}>
+                <span style={{ color: c.gn }}>✓</span> All clear — no outstanding invoices
+              </div>
+            )}
           </div>
 
           {!isMobile && (
