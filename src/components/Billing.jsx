@@ -46,7 +46,11 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
         body: { price_id: priceId, user_id: userId },
       })
 
-      if (fnErr) throw fnErr
+      if (fnErr) {
+        const status = fnErr.context?.status || fnErr.status || "?"
+        const body = await fnErr.context?.text?.() || fnErr.context?.body || ""
+        throw new Error(`HTTP ${status}: ${body || fnErr.message}`)
+      }
       if (data?.url) {
         window.location.href = data.url
       }
