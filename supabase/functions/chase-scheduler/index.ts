@@ -14,22 +14,54 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!
 const CHASE_STAGES = [
   { id: "reminder_1", dfd: -5 },
   { id: "reminder_2", dfd: -1 },
+  { id: "final_warning", dfd: 0 },
   { id: "first_chase", dfd: 1 },
-  { id: "second_chase", dfd: 14 },
+  { id: "second_chase", dfd: 6 },
+  { id: "third_chase", dfd: 9 },
+  { id: "chase_4", dfd: 11 },
+  { id: "chase_5", dfd: 13 },
+  { id: "chase_6", dfd: 15 },
+  { id: "chase_7", dfd: 17 },
+  { id: "chase_8", dfd: 19 },
+  { id: "chase_9", dfd: 21 },
+  { id: "chase_10", dfd: 23 },
+  { id: "chase_11", dfd: 25 },
+  { id: "escalation_1", dfd: 26 },
+  { id: "escalation_2", dfd: 27 },
+  { id: "escalation_3", dfd: 28 },
+  { id: "escalation_4", dfd: 29 },
   { id: "final_notice", dfd: 30 },
 ]
 
 const STAGE_LABELS: Record<string, string> = {
   reminder_1: "Friendly Reminder",
   reminder_2: "Second Reminder",
+  final_warning: "Final Warning",
   first_chase: "First Chase",
-  second_chase: "Second Chase + Interest",
+  second_chase: "Second Chase",
+  third_chase: "Third Chase",
+  chase_4: "Chase 4",
+  chase_5: "Chase 5",
+  chase_6: "Chase 6",
+  chase_7: "Chase 7",
+  chase_8: "Chase 8",
+  chase_9: "Chase 9",
+  chase_10: "Chase 10",
+  chase_11: "Chase 11",
+  escalation_1: "Escalation Warning 1",
+  escalation_2: "Escalation Warning 2",
+  escalation_3: "Escalation Warning 3",
+  escalation_4: "Escalation Warning 4",
   final_notice: "Final Notice",
 }
 
 const STAGE_COLORS: Record<string, string> = {
-  reminder_1: "#1e5fa0", reminder_2: "#2d72b8", first_chase: "#d97706",
-  second_chase: "#c2410c", final_notice: "#9f1239",
+  reminder_1: "#1e5fa0", reminder_2: "#2d72b8", final_warning: "#b45309",
+  first_chase: "#d97706", second_chase: "#c2410c", third_chase: "#b91c1c",
+  chase_4: "#9f1239", chase_5: "#9f1239", chase_6: "#9f1239", chase_7: "#9f1239",
+  chase_8: "#9f1239", chase_9: "#9f1239", chase_10: "#9f1239", chase_11: "#9f1239",
+  escalation_1: "#7f1d1d", escalation_2: "#7f1d1d", escalation_3: "#7f1d1d", escalation_4: "#7f1d1d",
+  final_notice: "#7f1d1d",
 }
 
 const AUTO_ESCALATE_MS = 48 * 60 * 60 * 1000 // 48 hours
@@ -68,7 +100,7 @@ function buildCheckInEmailHtml(
   const color = STAGE_COLORS[stage] || "#1e5fa0"
   const stageLabel = STAGE_LABELS[stage] || stage
   const fromName = profile.business_name || profile.full_name || "Hielda User"
-  const baseUrl = "https://hielda2.vercel.app/api/check-in-response"
+  const baseUrl = "https://www.hielda.com/api/check-in-response"
 
   const paidUrl = `${baseUrl}?action=paid&invoice_id=${invoice.id}&token=${encodeURIComponent(token)}`
   const chaseUrl = `${baseUrl}?action=chase&invoice_id=${invoice.id}&stage=${stage}&token=${encodeURIComponent(token)}`
