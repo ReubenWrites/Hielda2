@@ -92,9 +92,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
         </h1>
         <p style={{
           fontSize: isMobile ? 15 : 17, color: c.tm, lineHeight: 1.6,
-          maxWidth: 580, margin: "0 auto 28px",
+          maxWidth: 620, margin: "0 auto 28px",
         }}>
-          Large companies deliberately delay paying freelancers. You don't push back — you can't afford to damage the relationship. Hielda chases and charges for you, so you never have to be the bad guy.
+          Large companies deliberately delay paying freelancers — using your money as their interest-free working capital. We know that as an individual or small business, it can be hard to assert your right to payment on time — or to levy the fees and fines you're entitled to — when you can't afford to damage the relationship. That's why we chase on your behalf, and if they're late paying, we add the charges for you, so you never have to be the bad guy.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <button
@@ -148,7 +148,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
             {
               ico: "😬",
               title: "You can't push back",
-              desc: "You're legally entitled to charge statutory interest and fixed penalties. But enforcing those rights risks souring the relationship — and you need the next contract. So you stay quiet.",
+              desc: "You're legally entitled to charge statutory interest and fixed penalties. But asking your client directly risks souring the relationship, losing future work, and making every future email awkward. So most freelancers stay quiet — and never see that money.",
             },
             {
               ico: "⚖️",
@@ -178,7 +178,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
             You stay the good guy. We do the rest.
           </h2>
           <p style={{ color: c.tm, fontSize: isMobile ? 14 : 16, lineHeight: 1.7, margin: "0 0 40px", maxWidth: 640, marginLeft: "auto", marginRight: "auto" }}>
-            Think about how your client works. The person who hired you and their accounts department are completely separate teams. The accounts team chases invoices — it's nothing personal, it's just process.
+            Think about how your client works. The person who hired you and their accounts department are completely separate teams. The accounts team chases invoices every day — it's nothing personal, it's just process. Now you have your own accounts department.
           </p>
           <div style={{
             display: "grid",
@@ -360,10 +360,10 @@ export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
         textAlign: "center", background: c.ac,
       }}>
         <h2 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, color: "#fff", margin: "0 0 8px" }}>
-          Stop being the bad guy. Let Hielda do it.
+          You've done the work. Let Hielda make sure you're paid for it.
         </h2>
         <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, margin: "0 0 24px" }}>
-          Protect the relationship. Enforce your rights. Get paid every penny you're owed.
+          Protect the relationship. Enforce your rights. Never leave money on the table again.
         </p>
         <button
           onClick={onGetStarted}
