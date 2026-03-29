@@ -22,6 +22,10 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
   const [error, setError] = useState("")
   const [ref, setRef] = useState(generateRef)
   const [noFines, setNoFines] = useState(false)
+  const [sendIntro, setSendIntro] = useState(false)
+  const [introMethod, setIntroMethod] = useState(null)
+  const [introText, setIntroText] = useState("")
+  const [introCopied, setIntroCopied] = useState(false)
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   const due = addDays(date, effectiveDays)
@@ -34,6 +38,12 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
   const customDaysError = terms === "-1" && (!customDays || parseInt(customDays) < 1 || parseInt(customDays) > 365) ? "Enter 1–365 days" : ""
   const canProceed = cn && ce && !emailError && amt && !amtError && desc && !customDaysError && effectiveDays > 0
 
+  const buildIntroText = () => {
+    const sender = profile?.business_name || profile?.full_name || "your contact"
+    const client = cn || "there"
+    return `Hi ${client},\n\nJust a quick note to let you know that ${sender} has recently started using Hielda to manage their invoicing and payments professionally. This has nothing to do with you specifically — it's simply good practice for independent professionals to have a dedicated system handling the admin side of things, because cashflow is critically important to individuals and small businesses.\n\nFrom now on, invoice-related communications may come via Hielda. Nothing changes on your side — you'll continue to receive invoices and payment reminders as normal. If you have any questions, please feel free to get in touch directly with ${sender}.\n\nWarm regards,\nThe Hielda team, on behalf of ${sender}`
+  }
+
   const resetForm = () => {
     setCn("")
     setCe("")
@@ -44,6 +54,10 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
     setMeth(null)
     setError("")
     setRef(generateRef())
+    setSendIntro(false)
+    setIntroMethod(null)
+    setIntroText("")
+    setIntroCopied(false)
   }
 
   const go = async () => {
@@ -71,6 +85,22 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
       })
       if (dbError) throw dbError
       onCreated()
+
+      // Send client intro email if requested
+      if (sendIntro && introMethod === "hielda") {
+        const { data: { session } } = await supabase.auth.getSession()
+        await fetch("/api/send-intro-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_name: cn,
+            client_email: ce,
+            intro_text: introText,
+            user_token: session?.access_token,
+          }),
+        })
+      }
+
       setStep(3)
     } catch (e) {
       setError("Failed to create invoice: " + e.message)
@@ -87,6 +117,40 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
         <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 6px" }}>Invoice Created</h2>
         <p style={{ color: c.tm, fontSize: 13, marginBottom: 5 }}>{ref} · {fmt(parsedAmt)} · {cn}</p>
         <p style={{ color: c.tm, fontSize: 12, marginBottom: 20 }}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
+
+        {sendIntro && introMethod === "hielda" && (
+          <div style={{ fontSize: 12, color: c.gn, marginBottom: 16, padding: "8px 16px", background: c.gnd, borderRadius: 8 }}>
+            ✓ Introduction email sent to {cn}
+          </div>
+        )}
+
+        {sendIntro && introMethod === "self" && (
+          <div style={{ width: "100%", maxWidth: 480, marginBottom: 20, textAlign: "left" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+              Copy and send this to {cn}
+            </div>
+            <textarea
+              readOnly
+              value={introText}
+              style={{
+                width: "100%", minHeight: 160, fontSize: 12, color: c.tx, fontFamily: FONT,
+                padding: 12, borderRadius: 8, border: `1px solid ${c.bd}`, background: c.bg,
+                resize: "none", boxSizing: "border-box", lineHeight: 1.6,
+              }}
+            />
+            <button
+              onClick={() => { navigator.clipboard.writeText(introText); setIntroCopied(true) }}
+              style={{
+                marginTop: 8, width: "100%", padding: "8px", borderRadius: 8, fontSize: 12,
+                fontWeight: 600, cursor: "pointer", fontFamily: FONT, border: `1.5px solid ${c.ac}`,
+                background: introCopied ? c.acd : "#fff", color: c.ac,
+              }}
+            >
+              {introCopied ? "✓ Copied!" : "Copy to clipboard"}
+            </button>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 10 }}>
           <Btn onClick={() => nav("dash")}>Dashboard</Btn>
           <Btn v="ghost" onClick={resetForm}>Create Another</Btn>
@@ -166,6 +230,74 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
               )}
             </div>
           </Card>
+          {/* Existing client intro */}
+          <div style={{ gridColumn: "1/-1" }}>
+            <Card>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <input
+                  type="checkbox"
+                  id="sendIntro"
+                  checked={sendIntro}
+                  onChange={(e) => {
+                    setSendIntro(e.target.checked)
+                    if (e.target.checked && !introText) setIntroText(buildIntroText())
+                  }}
+                  style={{ accentColor: c.ac, width: 16, height: 16, marginTop: 2, flexShrink: 0 }}
+                />
+                <label htmlFor="sendIntro" style={{ fontSize: 13, fontWeight: 600, color: c.tx, cursor: "pointer" }}>
+                  Send {cn || "this client"} a friendly introduction to Hielda
+                  <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: c.tm, marginTop: 2 }}>
+                    Let them know professionally that you're now managing invoicing through Hielda.
+                  </span>
+                </label>
+              </div>
+
+              {sendIntro && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+                    Email text — edit freely
+                  </div>
+                  <textarea
+                    value={introText}
+                    onChange={(e) => setIntroText(e.target.value)}
+                    style={{
+                      width: "100%", minHeight: 180, fontSize: 12, color: c.tx, fontFamily: FONT,
+                      padding: 12, borderRadius: 8, border: `1px solid ${c.bd}`, background: c.bg,
+                      resize: "vertical", boxSizing: "border-box", lineHeight: 1.6,
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => setIntroMethod("hielda")}
+                      style={{
+                        padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        cursor: "pointer", fontFamily: FONT, border: `1.5px solid ${introMethod === "hielda" ? c.ac : c.bd}`,
+                        background: introMethod === "hielda" ? c.acd : "#fff", color: introMethod === "hielda" ? c.ac : c.tm,
+                      }}
+                    >
+                      📧 Hielda sends it for me
+                    </button>
+                    <button
+                      onClick={() => setIntroMethod("self")}
+                      style={{
+                        padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        cursor: "pointer", fontFamily: FONT, border: `1.5px solid ${introMethod === "self" ? c.ac : c.bd}`,
+                        background: introMethod === "self" ? c.acd : "#fff", color: introMethod === "self" ? c.ac : c.tm,
+                      }}
+                    >
+                      ✍️ I'll send it myself
+                    </button>
+                  </div>
+                  {introMethod === "self" && (
+                    <div style={{ marginTop: 10, fontSize: 11, color: c.tm, padding: "8px 12px", background: c.bg, borderRadius: 8, border: `1px solid ${c.bd}` }}>
+                      We'll show you this text to copy after the invoice is created.
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
+
           <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end" }}>
             <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
           </div>
