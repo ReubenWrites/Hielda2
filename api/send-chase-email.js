@@ -453,6 +453,8 @@ export default async function handler(req, res) {
       chase_stage,
       email_to: invoice.client_email,
       status: 'sent',
+      resend_id: resendData.id || null,
+      delivery_status: 'pending',
     })
 
     // Update invoice chase stage

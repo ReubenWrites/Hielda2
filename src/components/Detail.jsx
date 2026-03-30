@@ -623,6 +623,21 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         </Card>
       )}
 
+      {/* Delivery failure warning */}
+      {chaseLogs.some(l => l.delivery_status === "bounced" || l.delivery_status === "complained") && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#991b1b", marginBottom: 2 }}>Email delivery problem</div>
+            <div style={{ fontSize: 12, color: "#7f1d1d" }}>
+              {chaseLogs.some(l => l.delivery_status === "bounced")
+                ? `One or more emails failed to reach ${inv.client_email}. The address may be incorrect — check it and contact the client directly if needed.`
+                : `An email was marked as spam by ${inv.client_email}. Consider contacting the client directly.`}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chase log */}
       {chaseLogs.length > 0 && (
         <Card style={{ marginTop: 0 }}>
@@ -637,16 +652,36 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
               ? "Marked paid via check-in"
               : stg?.label || log.chase_stage
             const dotColor = isCheckIn ? c.ac : isMarkedPaid ? c.gn : stg?.col || c.ac
+
+            const deliveryBadge = log.delivery_status === "delivered"
+              ? { label: "Delivered", color: c.gn, bg: c.gnd }
+              : log.delivery_status === "bounced"
+              ? { label: "Bounced", color: "#991b1b", bg: "#fef2f2" }
+              : log.delivery_status === "complained"
+              ? { label: "Spam report", color: "#92400e", bg: "#fffbeb" }
+              : log.delivery_status === "delayed"
+              ? { label: "Delayed", color: c.tm, bg: c.sf }
+              : log.status === "sent"
+              ? { label: "Pending", color: c.td, bg: c.sf }
+              : null
+
             return (
               <div key={log.id} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "8px 0", borderBottom: `1px solid ${c.bdl}`,
                 flexWrap: isMobile ? "wrap" : "nowrap", gap: isMobile ? 4 : 0,
               }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: c.tx }}>{statusLabel}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: c.tx }}>{statusLabel}</span>
+                      {deliveryBadge && (
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: deliveryBadge.bg, color: deliveryBadge.color }}>
+                          {deliveryBadge.label}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 11, color: c.td }}>{isCheckIn ? "Sent to you" : `Sent to ${log.email_to}`}</div>
                   </div>
                 </div>
