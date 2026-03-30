@@ -358,7 +358,7 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {view === "dash" && <Dashboard invs={invs} nav={nav} isMobile={isMobile} onUpdate={loadData} />}
+              {view === "dash" && <Dashboard invs={invs} nav={nav} isMobile={isMobile} onUpdate={loadData} profile={profile} />}
               {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} isMobile={isMobile} />}
               {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} isMobile={isMobile} />}
               {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}

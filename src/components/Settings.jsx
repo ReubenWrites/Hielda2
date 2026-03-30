@@ -22,7 +22,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
         .update({
           full_name: p.full_name,
           business_name: p.business_name,
-          phone: p.phone,
+
           address: p.address,
           account_name: p.account_name,
           bank_name: p.bank_name,
@@ -65,7 +65,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           <Inp label="Name" value={p.full_name || ""} onChange={(v) => update("full_name", v)} />
           <Inp label="Business" value={p.business_name || ""} onChange={(v) => update("business_name", v)} />
           <Inp label="Email" value={p.email || ""} onChange={() => {}} disabled />
-          <Inp label="Phone" value={p.phone || ""} onChange={(v) => update("phone", v)} />
+
           <Inp label="Address" value={p.address || ""} onChange={(v) => update("address", v)} ta />
         </Card>
         <Card>

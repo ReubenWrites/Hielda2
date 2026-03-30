@@ -4,10 +4,13 @@ import { daysLate, calcInterest, penalty, fmt, formatDate } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
 import { supabase } from "../supabase"
 
-export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
+export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [dismissedBanner, setDismissedBanner] = useState(false)
+
+  const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
 
   const { overdue, pending, paid, totExtra, totOwed } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
@@ -100,6 +103,32 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate }) {
           Your payment overview for {formatDate(new Date())}
         </p>
       </div>
+
+      {needsPaymentDetails && !dismissedBanner && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: isMobile ? "12px 14px" : "12px 18px",
+          background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 10,
+          marginBottom: isMobile ? 14 : 18, gap: 12, flexWrap: "wrap",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>💳</span>
+            <span style={{ fontSize: 13, color: c.tx }}>
+              Add your payment details so clients know where to pay.
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <Btn sz="sm" onClick={() => nav("settings")}>Add now</Btn>
+            <button
+              onClick={() => setDismissedBanner(true)}
+              style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 16, padding: "0 4px" }}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4,1fr)", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 18 : 24 }}>
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color={c.go} borderColor="#d4a017" />

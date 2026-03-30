@@ -109,6 +109,23 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
     setSaving(false)
   }
 
+  const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
+
+  if (needsPaymentDetails) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 380, textAlign: "center" }}>
+        <div style={{ width: 68, height: 68, borderRadius: "50%", background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, marginBottom: 16 }}>
+          💳
+        </div>
+        <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 6px" }}>Payment details needed</h2>
+        <p style={{ color: c.tm, fontSize: 13, marginBottom: 20, maxWidth: 360 }}>
+          Add your bank details so they appear on invoices and clients know where to pay.
+        </p>
+        <Btn onClick={() => nav("settings")}>Add Payment Details</Btn>
+      </div>
+    )
+  }
+
   if (step === 3) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 380, textAlign: "center" }}>

@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { supabase } from "../supabase"
-import { colors as c, FONT, TERMS } from "../constants"
-import { Card, Inp, Sel, Btn, ShieldLogo, ErrorBanner, Spinner } from "./ui"
+import { colors as c, FONT } from "../constants"
+import { Card, Inp, Btn, ShieldLogo, ErrorBanner } from "./ui"
 
-const STEPS = ["Welcome", "Business Details", "Payment Details"]
+const STEPS = ["Welcome", "Your Business"]
 
 export default function Onboarding({ user, profile, onComplete }) {
   const [step, setStep] = useState(0)
@@ -14,41 +14,15 @@ export default function Onboarding({ user, profile, onComplete }) {
   const [form, setForm] = useState({
     full_name: profile?.full_name || user?.user_metadata?.full_name || "",
     business_name: profile?.business_name || "",
-    phone: profile?.phone || "",
-    address: profile?.address || "",
-    account_name: profile?.account_name || "",
-    bank_name: profile?.bank_name || "",
-    sort_code: profile?.sort_code || "",
-    account_number: profile?.account_number || "",
-    vat_number: profile?.vat_number || "",
-    utr_number: profile?.utr_number || "",
-    default_payment_terms: profile?.default_payment_terms || 30,
   })
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
   const blur = (field) => setTouched((prev) => ({ ...prev, [field]: true }))
 
-  // Validation
-  const sortCodeClean = form.sort_code.replace(/[^0-9]/g, "")
-  const acctClean = form.account_number.replace(/[^0-9]/g, "")
-
   const step1Valid = form.business_name.trim().length > 0
-  const step2Valid =
-    form.account_name.trim().length > 0 &&
-    form.bank_name.trim().length > 0 &&
-    sortCodeClean.length === 6 &&
-    acctClean.length === 8
 
   const businessNameError =
     touched.business_name && form.business_name.trim().length === 0 ? "Business name is required" : ""
-  const accountNameError =
-    touched.account_name && form.account_name.trim().length === 0 ? "Account name is required" : ""
-  const bankNameError =
-    touched.bank_name && form.bank_name.trim().length === 0 ? "Bank name is required" : ""
-  const sortCodeError =
-    touched.sort_code && sortCodeClean.length !== 6 ? "Must be 6 digits" : ""
-  const acctError =
-    touched.account_number && acctClean.length !== 8 ? "Must be 8 digits" : ""
 
   const handleComplete = async () => {
     setSaving(true)
@@ -59,15 +33,6 @@ export default function Onboarding({ user, profile, onComplete }) {
         email: user.email,
         full_name: form.full_name,
         business_name: form.business_name,
-        phone: form.phone,
-        address: form.address,
-        account_name: form.account_name,
-        bank_name: form.bank_name,
-        sort_code: form.sort_code.replace(/[^0-9]/g, ""),
-        account_number: form.account_number.replace(/[^0-9]/g, ""),
-        vat_number: form.vat_number,
-        utr_number: form.utr_number,
-        default_payment_terms: parseInt(form.default_payment_terms) || 30,
         onboarding_complete: true,
       }
 
@@ -153,7 +118,7 @@ export default function Onboarding({ user, profile, onComplete }) {
           <div>
             <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 4px" }}>Your Business</h2>
             <p style={{ color: c.tm, fontSize: 13, marginBottom: 16 }}>
-              To get you paid on time, we need a few details. These auto-fill every invoice and chase email we send on your behalf.
+              Just your business name to get started. You can add payment and other details later.
             </p>
             <div style={{ background: "#f0f6ff", border: `1px solid ${c.bdl}`, borderRadius: 8, padding: "10px 14px", marginBottom: 22, display: "flex", gap: 10, alignItems: "flex-start" }}>
               <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>🔒</span>
@@ -171,72 +136,15 @@ export default function Onboarding({ user, profile, onComplete }) {
               ph="e.g. Smith Design Ltd"
               error={businessNameError}
             />
-            <Inp label="Phone" value={form.phone} onChange={(v) => update("phone", v)} ph="07xxx xxx xxx" />
-            <Inp label="Business Address" value={form.address} onChange={(v) => update("address", v)} ph="Your business address" ta />
-            <Sel
-              label="Default Payment Terms"
-              value={String(form.default_payment_terms)}
-              onChange={(v) => update("default_payment_terms", parseInt(v))}
-              opts={TERMS.filter(t => t.d !== -1).map((t) => ({ l: t.l, v: String(t.d) }))}
-            />
 
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
               <Btn v="ghost" onClick={() => setStep(0)}>← Back</Btn>
-              <Btn dis={!step1Valid} onClick={() => setStep(2)}>Next →</Btn>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Payment Details */}
-        {step === 2 && (
-          <div>
-            <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 4px" }}>Payment Details</h2>
-            <p style={{ color: c.tm, fontSize: 13, marginBottom: 16 }}>
-              These appear on your invoices so clients know where to pay. We never take money from your account.
-            </p>
-            <div style={{ background: "#f0f6ff", border: `1px solid ${c.bdl}`, borderRadius: 8, padding: "10px 14px", marginBottom: 22 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>🛡️</span>
-                <div>
-                  <p style={{ color: c.tx, fontSize: 11.5, fontWeight: 600, margin: "0 0 3px" }}>Bank-grade security</p>
-                  <p style={{ color: c.tm, fontSize: 11, lineHeight: 1.5, margin: 0 }}>
-                    Your data is protected with AES-256 encryption at rest, TLS in transit, and row-level access controls. Only you can see your details — not even our team can access them.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <Inp label="Account Name *" value={form.account_name} onChange={(v) => update("account_name", v)} onBlur={() => blur("account_name")} ph="e.g. J Smith or Smith Design Ltd" error={accountNameError} />
-            <Inp label="Bank Name *" value={form.bank_name} onChange={(v) => update("bank_name", v)} onBlur={() => blur("bank_name")} ph="e.g. Barclays" error={bankNameError} />
-            <Inp
-              label="Sort Code *"
-              value={form.sort_code}
-              onChange={(v) => update("sort_code", v)}
-              onBlur={() => blur("sort_code")}
-              ph="12-34-56"
-              mono
-              error={sortCodeError}
-            />
-            <Inp
-              label="Account Number *"
-              value={form.account_number}
-              onChange={(v) => update("account_number", v)}
-              onBlur={() => blur("account_number")}
-              ph="12345678"
-              mono
-              error={acctError}
-            />
-            <Inp label="VAT Number (optional)" value={form.vat_number} onChange={(v) => update("vat_number", v)} ph="GB 123 4567 89" mono />
-            <Inp label="UTR Number (optional)" value={form.utr_number} onChange={(v) => update("utr_number", v)} ph="12345 67890" mono />
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-              <Btn v="ghost" onClick={() => setStep(1)}>← Back</Btn>
-              <Btn dis={!step2Valid || saving} onClick={handleComplete}>
-                {saving ? "Setting up..." : "Complete Setup →"}
+              <Btn dis={!step1Valid || saving} onClick={handleComplete}>
+                {saving ? "Setting up..." : "Let's go →"}
               </Btn>
             </div>
             <p style={{ textAlign: "center", color: c.td, fontSize: 10.5, marginTop: 14, marginBottom: 0, lineHeight: 1.5 }}>
-              🔒 Encrypted & secure · No card required · 7-day free trial
+              No card required · 7-day free trial
             </p>
           </div>
         )}
