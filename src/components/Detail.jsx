@@ -417,6 +417,26 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         </div>
       )}
 
+      {/* Line items breakdown */}
+      {inv.line_items?.length > 0 && (
+        <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px" }}>Line Items</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0 6px", fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>
+            <span>Description</span><span>Amount</span>
+          </div>
+          {inv.line_items.map((li, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderTop: `1px solid ${c.bdl}` }}>
+              <span style={{ color: c.tx, fontSize: 13 }}>{li.description}</span>
+              <span style={{ color: c.tx, fontSize: 13, fontFamily: MONO, fontWeight: 500 }}>{fmt(li.amount)}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${c.ac}33`, marginTop: 2 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: c.tx }}>Total</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: c.ac, fontFamily: MONO }}>{fmt(inv.amount)}</span>
+          </div>
+        </Card>
+      )}
+
       {/* Invoice details + breakdown — stacks on mobile */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 14 : 22 }}>
         <Card>

@@ -65,6 +65,13 @@ export default async function handler(req, res) {
       .map(line => line.trim() === '' ? '<br/>' : `<p style="margin:0 0 12px;font-family:sans-serif;font-size:15px;color:#1a1a2e;line-height:1.6">${escapeHtml(line)}</p>`)
       .join('')
 
+    const lineItemRows = (invoice?.line_items?.length) ? invoice.line_items.map(li =>
+      `<tr style="border-bottom:1px solid #e8ecf0;">
+        <td style="padding:8px 0;color:#64748b;font-size:13px;">${escapeHtml(li.description)}</td>
+        <td style="padding:8px 0;font-size:13px;text-align:right;font-weight:500;font-family:monospace;color:#0f172a;">${fmt(li.amount)}</td>
+      </tr>`
+    ).join('') : ''
+
     const invoiceBlock = invoice ? `
       <div style="background:#f8fafc;border:1px solid #dce1e8;border-radius:10px;padding:20px 24px;margin:24px 0;">
         <div style="font-weight:700;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px;">Invoice Details</div>
@@ -73,14 +80,20 @@ export default async function handler(req, res) {
             <td style="padding:8px 0;color:#64748b;">Reference</td>
             <td style="padding:8px 0;font-weight:600;text-align:right;color:#0f172a;">${invoice.ref}</td>
           </tr>
-          ${invoice.description ? `<tr style="border-bottom:1px solid #e8ecf0;">
-            <td style="padding:8px 0;color:#64748b;">Description</td>
-            <td style="padding:8px 0;font-weight:500;text-align:right;color:#0f172a;">${escapeHtml(invoice.description)}</td>
-          </tr>` : ''}
           ${invoice.client_ref ? `<tr style="border-bottom:1px solid #e8ecf0;">
             <td style="padding:8px 0;color:#64748b;">Your ref</td>
             <td style="padding:8px 0;font-weight:500;text-align:right;color:#0f172a;">${escapeHtml(invoice.client_ref)}</td>
           </tr>` : ''}
+          ${lineItemRows ? `
+          <tr><td colspan="2" style="padding:8px 0 4px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Line Items</td></tr>
+          ${lineItemRows}
+          <tr style="border-bottom:1px solid #e8ecf0;">
+            <td style="padding:6px 0;color:#64748b;font-size:12px;">Subtotal</td>
+            <td style="padding:6px 0;text-align:right;font-weight:600;font-family:monospace;font-size:13px;color:#0f172a;">${fmt(invoice.amount)}</td>
+          </tr>` : (invoice.description ? `<tr style="border-bottom:1px solid #e8ecf0;">
+            <td style="padding:8px 0;color:#64748b;">Description</td>
+            <td style="padding:8px 0;font-weight:500;text-align:right;color:#0f172a;">${escapeHtml(invoice.description)}</td>
+          </tr>` : '')}
           <tr style="border-bottom:1px solid #e8ecf0;">
             <td style="padding:8px 0;color:#64748b;">Issue Date</td>
             <td style="padding:8px 0;font-weight:500;text-align:right;color:#0f172a;">${formatDate(invoice.issue_date)}</td>
@@ -90,7 +103,7 @@ export default async function handler(req, res) {
             <td style="padding:8px 0;font-weight:600;text-align:right;color:#0f172a;">${formatDate(invoice.due_date)}</td>
           </tr>
           <tr>
-            <td style="padding:10px 0 4px;font-weight:700;color:#0f172a;">Amount Due</td>
+            <td style="padding:10px 0 4px;font-weight:700;color:#0f172a;">Total Due</td>
             <td style="padding:10px 0 4px;font-weight:700;font-size:18px;text-align:right;color:#1e5fa0;">${fmt(invoice.amount)}</td>
           </tr>
         </table>

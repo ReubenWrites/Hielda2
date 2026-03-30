@@ -21,6 +21,7 @@ export function buildChaseEmail(invoice, profile, stage) {
         <p>Dear ${invoice.client_name},</p>
         <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due on <strong>${formatDate(invoice.due_date)}</strong>.</p>
         <p>Please ensure payment is made by the due date to avoid any late payment charges.</p>
+        ${lineItemsBlock(invoice)}
         ${paymentDetailsBlock(invoice, profile)}
         <p>If you've already made payment, please disregard this message.</p>
         <p>Kind regards,<br/>${fromName}</p>
@@ -32,6 +33,7 @@ export function buildChaseEmail(invoice, profile, stage) {
         <p>Dear ${invoice.client_name},</p>
         <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
         <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, interest and penalties will be applied if payment is not received by the due date.</p>
+        ${lineItemsBlock(invoice)}
         ${paymentDetailsBlock(invoice, profile)}
         <p>Kind regards,<br/>${fromName}</p>
       `,
@@ -43,6 +45,7 @@ export function buildChaseEmail(invoice, profile, stage) {
         <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due on <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
         <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, we are entitled to charge interest at <strong>${RATE}% per annum</strong> and a fixed penalty. Interest is now accruing on this debt.</p>
         <p>Please arrange payment immediately.</p>
+        ${lineItemsBlock(invoice)}
         ${paymentDetailsBlock(invoice, profile)}
         <p>Regards,<br/>${fromName}</p>
       `,
@@ -52,6 +55,7 @@ export function buildChaseEmail(invoice, profile, stage) {
       body: `
         <p>Dear ${invoice.client_name},</p>
         <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Under the Late Payment of Commercial Debts (Interest) Act 1998, the following charges have been applied:</p>
+        ${lineItemsBlock(invoice)}
         <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
           <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
           <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
@@ -70,6 +74,7 @@ export function buildChaseEmail(invoice, profile, stage) {
         <p><strong>This is a final notice before we consider further action.</strong></p>
         <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite previous communications, payment has not been received.</p>
         <p>The total amount now owed, including statutory interest and penalties under the Late Payment of Commercial Debts (Interest) Act 1998, is:</p>
+        ${lineItemsBlock(invoice)}
         <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
           <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
           <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
@@ -91,6 +96,32 @@ export function buildChaseEmail(invoice, profile, stage) {
     to: invoice.client_email,
     from_name: fromName,
   }
+}
+
+function lineItemsBlock(invoice) {
+  if (!invoice.line_items?.length) return ""
+  const rows = invoice.line_items.map(li =>
+    `<tr style="border-bottom:1px solid #e8ecf0;">
+      <td style="padding:6px 16px 6px 0;color:#374151;font-size:13px;">${li.description}</td>
+      <td style="padding:6px 0;font-size:13px;text-align:right;font-weight:500;font-family:monospace;">${fmt(li.amount)}</td>
+    </tr>`
+  ).join("")
+  return `
+    <table style="width:100%;border-collapse:collapse;margin:14px 0 8px;">
+      <thead>
+        <tr>
+          <th style="padding:4px 16px 6px 0;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;text-align:left;">Description</th>
+          <th style="padding:4px 0 6px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;text-align:right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="border-top:2px solid #dce1e8;">
+          <td style="padding:8px 0 2px;font-weight:700;font-size:13px;">Total</td>
+          <td style="padding:8px 0 2px;font-weight:700;font-size:14px;text-align:right;font-family:monospace;color:#1e5fa0;">${fmt(invoice.amount)}</td>
+        </tr>
+      </tfoot>
+    </table>`
 }
 
 function paymentDetailsBlock(invoice, profile) {

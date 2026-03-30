@@ -13,8 +13,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [cn, setCn] = useState("")
   const [ce, setCe] = useState("")
   const [ca, setCa] = useState("")
-  const [desc, setDesc] = useState("")
-  const [amt, setAmt] = useState("")
+  const [lineItems, setLineItems] = useState([{ description: "", amount: "" }])
   const [terms, setTerms] = useState(isCustomDefault ? "-1" : defaultTerms)
   const [customDays, setCustomDays] = useState(isCustomDefault ? defaultTerms : "")
   const [date, setDate] = useState(todayStr())
@@ -52,7 +51,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       const saved = localStorage.getItem(DRAFT_KEY(userId))
       if (saved) {
         const d = JSON.parse(saved)
-        if (d.cn || d.ce || d.desc || d.amt) setDraftBanner(true)
+        if (d.cn || d.ce || d.lineItems?.length || d.amt) setDraftBanner(true)
       }
     } catch {}
   }, [userId])
@@ -61,9 +60,9 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   useEffect(() => {
     if (!userId || step === 3) return
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, desc, amt, terms, customDays, date, noFines, clientRef, cc, bcc }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientRef, cc, bcc }))
     } catch {}
-  }, [cn, ce, ca, desc, amt, terms, customDays, date, noFines, clientRef, cc, bcc, userId, step])
+  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientRef, cc, bcc, userId, step])
 
   const restoreDraft = () => {
     try {
@@ -73,8 +72,6 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       if (d.cn !== undefined) setCn(d.cn)
       if (d.ce !== undefined) setCe(d.ce)
       if (d.ca !== undefined) setCa(d.ca)
-      if (d.desc !== undefined) setDesc(d.desc)
-      if (d.amt !== undefined) setAmt(d.amt)
       if (d.terms !== undefined) setTerms(d.terms)
       if (d.customDays !== undefined) setCustomDays(d.customDays)
       if (d.date !== undefined) setDate(d.date)
@@ -82,6 +79,12 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       if (d.clientRef !== undefined) setClientRef(d.clientRef)
       if (d.cc !== undefined) setCc(d.cc)
       if (d.bcc !== undefined) setBcc(d.bcc)
+      // New drafts have lineItems; legacy drafts had desc+amt — convert to single line item
+      if (d.lineItems?.length) {
+        setLineItems(d.lineItems)
+      } else if (d.amt || d.desc) {
+        setLineItems([{ description: d.desc || "", amount: d.amt || "" }])
+      }
     } catch {}
     setDraftBanner(false)
   }
@@ -103,16 +106,30 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     setBcc(inv.bcc_emails || "")
   }
 
+  const updateLineItem = (index, field, value) => {
+    setLineItems(prev => prev.map((li, i) => i === index ? { ...li, [field]: value } : li))
+  }
+  const addLineItem = () => setLineItems(prev => [...prev, { description: "", amount: "" }])
+  const removeLineItem = (index) => setLineItems(prev => prev.filter((_, i) => i !== index))
+
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   const due = addDays(date, effectiveDays)
-  const p = penalty(parseFloat(amt) || 0)
-  const parsedAmt = parseFloat(amt)
+  const parsedTotal = lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0)
+  const p = penalty(parsedTotal)
 
   // Validation
   const emailError = ce && !isValidEmail(ce) ? "Invalid email format" : ""
-  const amtError = amt && (isNaN(parsedAmt) || parsedAmt <= 0) ? "Amount must be greater than 0" : ""
+  const lineItemErrors = lineItems.map(li => {
+    if (!li.amount && !li.description) return ""
+    const v = parseFloat(li.amount)
+    if (!li.description.trim()) return "Description required"
+    if (!li.amount) return "Amount required"
+    if (isNaN(v) || v <= 0) return "Must be > 0"
+    return ""
+  })
   const customDaysError = terms === "-1" && (!customDays || parseInt(customDays) < 1 || parseInt(customDays) > 365) ? "Enter 1–365 days" : ""
-  const canProceed = cn && ce && !emailError && amt && !amtError && desc && !customDaysError && effectiveDays > 0
+  const hasValidLineItems = lineItems.some(li => li.description.trim() && parseFloat(li.amount) > 0) && !lineItemErrors.some(Boolean)
+  const canProceed = cn && ce && !emailError && hasValidLineItems && !customDaysError && effectiveDays > 0
 
   const buildIntroText = () => {
     const sender = profile?.business_name || profile?.full_name || "your contact"
@@ -125,8 +142,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     setCn("")
     setCe("")
     setCa("")
-    setDesc("")
-    setAmt("")
+    setLineItems([{ description: "", amount: "" }])
     setStep(1)
     setMeth(null)
     setError("")
@@ -147,11 +163,13 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       const dueStr = due.toISOString().split("T")[0]
       const today = todayStr()
       const isOverdue = dueStr < today
+      const validItems = lineItems.filter(li => li.description.trim() && parseFloat(li.amount) > 0)
       const { data: newInv, error: dbError } = await supabase.from("invoices").insert({
         user_id: userId,
         ref,
-        description: desc,
-        amount: parsedAmt,
+        description: validItems.map(li => li.description).join(", "),
+        amount: parsedTotal,
+        line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount) })),
         issue_date: date,
         payment_term_days: effectiveDays,
         due_date: dueStr,
@@ -217,7 +235,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
           ✓
         </div>
         <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 6px" }}>Invoice Created</h2>
-        <p style={{ color: c.tm, fontSize: 13, marginBottom: 5 }}>{ref} · {fmt(parsedAmt)} · {cn}</p>
+        <p style={{ color: c.tm, fontSize: 13, marginBottom: 5 }}>{ref} · {fmt(parsedTotal)} · {cn}</p>
         <p style={{ color: c.tm, fontSize: 12, marginBottom: 20 }}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
 
         {sendIntro && introMethod === "hielda" && (
@@ -331,9 +349,76 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
           </Card>
           <Card>
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Job</h3>
-            <Inp label="Description" value={desc} onChange={setDesc} ph="e.g. Video production" />
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, marginBottom: 8 }}>Line Items</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>
+                <span />
+              </div>
+              {lineItems.map((li, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "flex-start", marginBottom: 6 }}>
+                  <div>
+                    <input
+                      type="text"
+                      value={li.description}
+                      onChange={(e) => updateLineItem(i, "description", e.target.value)}
+                      placeholder="e.g. Video production"
+                      style={{
+                        width: "100%", padding: "9px 12px", background: c.bg,
+                        border: `1px solid ${c.bd}`, borderRadius: 8, color: c.tx,
+                        fontFamily: FONT, fontSize: 13, outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      value={li.amount}
+                      onChange={(e) => updateLineItem(i, "amount", e.target.value)}
+                      placeholder="0.00"
+                      style={{
+                        width: 90, padding: "9px 12px", background: c.bg,
+                        border: `1px solid ${lineItemErrors[i] ? c.or : c.bd}`,
+                        borderRadius: 8, color: c.tx, fontFamily: MONO, fontSize: 13,
+                        outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeLineItem(i)}
+                    disabled={lineItems.length === 1}
+                    style={{
+                      padding: "9px 11px", background: "none",
+                      border: `1px solid ${c.bd}`, borderRadius: 8, color: c.td,
+                      cursor: lineItems.length === 1 ? "not-allowed" : "pointer",
+                      fontSize: 14, fontFamily: FONT, opacity: lineItems.length === 1 ? 0.3 : 1,
+                    }}
+                    aria-label="Remove line"
+                  >×</button>
+                  {lineItemErrors[i] && (
+                    <div style={{ gridColumn: "1/-1", fontSize: 11, color: c.or, marginTop: -2, marginBottom: 2 }}>{lineItemErrors[i]}</div>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addLineItem}
+                style={{
+                  width: "100%", padding: "8px", background: "none",
+                  border: `1px dashed ${c.bd}`, borderRadius: 8, color: c.tm,
+                  cursor: "pointer", fontSize: 12, fontFamily: FONT, marginTop: 2,
+                }}
+              >+ Add line</button>
+              {parsedTotal > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 0", fontSize: 13, fontWeight: 700, borderTop: `1px solid ${c.bdl}`, marginTop: 8 }}>
+                  <span style={{ color: c.tm }}>Total</span>
+                  <span style={{ fontFamily: MONO, color: c.ac }}>{fmt(parsedTotal)}</span>
+                </div>
+              )}
+            </div>
             <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821" />
-            <Inp label="Amount (£)" value={amt} onChange={setAmt} ph="0.00" type="number" mono error={amtError} />
             <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
             {terms === "-1" && (
               <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="number" mono error={customDaysError} />
@@ -381,13 +466,13 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                 <span style={{ color: c.tm }}>Due</span>
                 <span style={{ color: c.tx, fontWeight: 500 }}>{formatDate(due)}</span>
               </div>
-              {amt && !amtError && !noFines && (
+              {parsedTotal > 0 && !noFines && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
                   <span>Late penalty</span>
                   <span>{fmt(p)} + {RATE}% p.a.</span>
                 </div>
               )}
-              {amt && !amtError && noFines && (
+              {parsedTotal > 0 && noFines && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
                   <span>Late penalty</span>
                   <span style={{ fontStyle: "italic" }}>Waived</span>
@@ -523,14 +608,19 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                 </div>
               </div>
               <div style={{ borderTop: `1px solid ${c.bdl}`, borderBottom: `1px solid ${c.bdl}`, padding: "10px 0" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}>
-                  <span style={{ color: c.tx }}>{desc}</span>
-                  <span style={{ fontWeight: 700, fontFamily: MONO }}>{fmt(parsedAmt || 0)}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0 5px", fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>
+                  <span>Description</span><span>Amount</span>
                 </div>
+                {lineItems.filter(li => li.description || li.amount).map((li, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13, borderTop: i > 0 ? `1px solid ${c.bdl}` : "none" }}>
+                    <span style={{ color: c.tx }}>{li.description || <em style={{ color: c.td }}>No description</em>}</span>
+                    <span style={{ fontFamily: MONO }}>{fmt(parseFloat(li.amount) || 0)}</span>
+                  </div>
+                ))}
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: c.tx }}>Total Due</span>
-                <span style={{ fontWeight: 700, fontSize: 18, color: c.ac, fontFamily: MONO }}>{fmt(parsedAmt || 0)}</span>
+                <span style={{ fontWeight: 700, fontSize: 18, color: c.ac, fontFamily: MONO }}>{fmt(parsedTotal)}</span>
               </div>
               <div style={{ marginTop: 14, padding: 11, background: c.bg, borderRadius: 8, fontSize: 11, color: c.tm }}>
                 <div style={{ fontWeight: 600, color: c.tx, marginBottom: 4 }}>Payment Details</div>
