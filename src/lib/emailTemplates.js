@@ -125,7 +125,7 @@ function wrapInLayout(bodyHtml, stageConfig) {
           </div>
         </div>
         <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">
-          Sent via Hielda — Protecting your pay.
+          Sent via <a href="https://hielda.com?ref=chase-email" style="color:#1e5fa0;text-decoration:none;font-weight:600;">Hielda</a> — Late payment enforcement for freelancers & SMEs.
         </div>
       </div>
     </body>
