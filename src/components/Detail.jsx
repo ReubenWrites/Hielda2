@@ -157,6 +157,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [ccEmails, setCcEmails] = useState(inv?.cc_emails || "")
   const [bccEmails, setBccEmails] = useState(inv?.bcc_emails || "")
   const [savingRecipients, setSavingRecipients] = useState(false)
+  const [showFinesInfo, setShowFinesInfo] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
 
@@ -423,6 +424,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
           {[
             ["Client", inv.client_name],
             ["Email", inv.client_email],
+            inv.client_ref ? ["Client ref / PO", inv.client_ref] : null,
             ["Original", fmt(inv.amount)],
             ["Issued", formatDate(inv.issue_date)],
             ["Terms", `${inv.payment_term_days} days`],
@@ -511,11 +513,34 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
           background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10,
           marginBottom: 16, gap: 12,
         }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Fines & interest</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Fines & interest</div>
+              <button
+                type="button"
+                onClick={() => setShowFinesInfo(v => !v)}
+                style={{
+                  width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${c.bd}`,
+                  background: showFinesInfo ? c.acd : c.sf, color: showFinesInfo ? c.ac : c.td,
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
+                }}
+                aria-label="About fines and interest"
+              >
+                ?
+              </button>
+            </div>
             <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
               {noFines ? "Chase emails won't include statutory penalties or interest" : "Statutory penalties and interest will be applied when overdue"}
             </div>
+            {showFinesInfo && (
+              <div style={{
+                marginTop: 8, padding: "10px 12px", background: c.acd, borderRadius: 8,
+                border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
+              }}>
+                <strong style={{ color: c.ac }}>Under the Late Payment of Commercial Debts (Interest) Act 1998,</strong> you're legally entitled to charge a fixed penalty (£40–£100 depending on invoice size) plus 8% interest above the Bank of England base rate on any overdue invoice. Turning this off means chase emails will still be sent, but won't reference these statutory rights — useful if you'd prefer to keep things informal with a particular client.
+              </div>
+            )}
           </div>
           <button
             onClick={toggleNoFines}

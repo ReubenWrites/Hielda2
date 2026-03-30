@@ -24,6 +24,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [error, setError] = useState("")
   const [ref, setRef] = useState(generateRef)
   const [noFines, setNoFines] = useState(false)
+  const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
   const [sendIntro, setSendIntro] = useState(false)
@@ -59,9 +60,9 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   useEffect(() => {
     if (!userId || step === 3) return
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, desc, amt, terms, customDays, date, noFines, cc, bcc }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, desc, amt, terms, customDays, date, noFines, clientRef, cc, bcc }))
     } catch {}
-  }, [cn, ce, ca, desc, amt, terms, customDays, date, noFines, cc, bcc, userId, step])
+  }, [cn, ce, ca, desc, amt, terms, customDays, date, noFines, clientRef, cc, bcc, userId, step])
 
   const restoreDraft = () => {
     try {
@@ -77,6 +78,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       if (d.customDays !== undefined) setCustomDays(d.customDays)
       if (d.date !== undefined) setDate(d.date)
       if (d.noFines !== undefined) setNoFines(d.noFines)
+      if (d.clientRef !== undefined) setClientRef(d.clientRef)
       if (d.cc !== undefined) setCc(d.cc)
       if (d.bcc !== undefined) setBcc(d.bcc)
     } catch {}
@@ -127,6 +129,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     setStep(1)
     setMeth(null)
     setError("")
+    setClientRef("")
     setCc("")
     setBcc("")
     setRef(generateRef())
@@ -158,6 +161,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
         client_name: cn,
         client_email: ce,
         client_address: ca,
+        client_ref: clientRef.trim() || null,
         cc_emails: cc.trim() || null,
         bcc_emails: bcc.trim() || null,
       })
@@ -326,6 +330,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
           <Card>
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Job</h3>
             <Inp label="Description" value={desc} onChange={setDesc} ph="e.g. Video production" />
+            <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821" />
             <Inp label="Amount (£)" value={amt} onChange={setAmt} ph="0.00" type="number" mono error={amtError} />
             <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
             {terms === "-1" && (
