@@ -1,14 +1,14 @@
-import { DAILY_RATE } from "./constants"
+import { getDailyRate } from "./constants"
 
-/** Calculate penalty based on invoice amount */
+/** Calculate penalty based on invoice amount (Late Payment Act 1998) */
 export const penalty = (amount) => {
   if (amount < 1000) return 40
   if (amount < 10000) return 70
   return 100
 }
 
-/** Calculate compound interest */
-export const calcInterest = (amount, days) => Math.round(amount * DAILY_RATE * days * 100) / 100
+/** Calculate simple interest under the Late Payment of Commercial Debts Act 1998 */
+export const calcInterest = (amount, days) => Math.round(amount * getDailyRate() * days * 100) / 100
 
 /** Format as GBP currency */
 export const fmt = (amount) =>
@@ -44,3 +44,6 @@ export const todayStr = () => new Date().toISOString().split("T")[0]
 
 /** Validate email format */
 export const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+/** Round a number to 2 decimal places (for monetary values) */
+export const round2 = (n) => Math.round(n * 100) / 100

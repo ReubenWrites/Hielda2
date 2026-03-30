@@ -1,4 +1,4 @@
-import { colors as c, BOE, RATE, MONO } from "../constants"
+import { colors as c, getRate, getBoe, MONO } from "../constants"
 import { Card } from "./ui"
 
 const TIMELINE_STEPS = [
@@ -28,8 +28,8 @@ export default function HowItWorks({ isMobile }) {
             <div style={{ padding: 10, background: c.bg, borderRadius: 8, margin: "10px 0", fontSize: 12 }}>
               <div style={{ marginBottom: 5 }}><strong style={{ color: c.tx }}>Penalty:</strong> £40 / £70 / £100</div>
               <div style={{ marginBottom: 5 }}>
-                <strong style={{ color: c.tx }}>Interest:</strong> 8% + BoE ({BOE}%) ={" "}
-                <span style={{ color: c.go, fontFamily: MONO }}>{RATE}%</span> p.a.
+                <strong style={{ color: c.tx }}>Interest:</strong> 8% + BoE ({getBoe()}%) ={" "}
+                <span style={{ color: c.go, fontFamily: MONO }}>{getRate()}%</span> p.a.
               </div>
               <div><strong style={{ color: c.tx }}>Daily</strong> from the day after due</div>
             </div>
@@ -116,7 +116,7 @@ export default function HowItWorks({ isMobile }) {
             ))}
           </div>
           <p style={{ fontSize: 11, color: c.td, margin: "12px 0 0", lineHeight: 1.5 }}>
-            Interest accrues daily at {RATE}% per annum from the day after the due date. For a £5,000 invoice, that's roughly £1.61 per day.
+            Interest accrues daily at {getRate()}% per annum from the day after the due date. For a £5,000 invoice, that's roughly £1.61 per day.
           </p>
 
           <h3 style={{ fontSize: 13, fontWeight: 700, color: c.ac, margin: "20px 0 10px" }}>Example</h3>
@@ -130,7 +130,7 @@ export default function HowItWorks({ isMobile }) {
               <span style={{ fontFamily: MONO, color: c.or }}>+ £40.00</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ color: c.tm }}>30 days interest ({RATE}% p.a.)</span>
+              <span style={{ color: c.tm }}>30 days interest ({getRate()}% p.a.)</span>
               <span style={{ fontFamily: MONO, color: c.or }}>+ £28.97</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, borderTop: `2px solid ${c.ac}` }}>

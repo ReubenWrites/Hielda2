@@ -1,9 +1,24 @@
 // ── THEME & CONSTANTS ──
 
-// Fallback values — overridden at runtime by /api/boe-rate
-export let BOE = 3.75
-export let RATE = 8 + BOE
-export let DAILY_RATE = RATE / 365 / 100
+// Rate state — updated asynchronously by loadLiveBoeRate()
+// Components should subscribe via the callback to re-render on change.
+let _boe = 3.75
+let _rate = 8 + _boe
+let _dailyRate = _rate / 365 / 100
+let _listeners = []
+
+export function getBoe() { return _boe }
+export function getRate() { return _rate }
+export function getDailyRate() { return _dailyRate }
+
+// Legacy named exports for backward compat — these update on load
+// but won't trigger re-renders. Components doing live calcs should use getRate().
+export { _boe as BOE, _rate as RATE, _dailyRate as DAILY_RATE }
+
+export function onRateChange(cb) {
+  _listeners.push(cb)
+  return () => { _listeners = _listeners.filter(l => l !== cb) }
+}
 
 // Called on app load to update with live BoE rate
 export async function loadLiveBoeRate() {
@@ -11,9 +26,10 @@ export async function loadLiveBoeRate() {
     const res = await fetch('/api/boe-rate')
     if (!res.ok) return
     const data = await res.json()
-    BOE = data.boe_rate
-    RATE = data.statutory_rate
-    DAILY_RATE = data.daily_rate
+    _boe = data.boe_rate
+    _rate = data.statutory_rate
+    _dailyRate = data.daily_rate
+    _listeners.forEach(cb => cb({ boe: _boe, rate: _rate, dailyRate: _dailyRate }))
   } catch {
     // Keep fallback values
   }

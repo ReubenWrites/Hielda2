@@ -96,6 +96,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const payBlock = paymentDetailsBlock(invoice, profile)
   const lineBlock = lineItemsBlock(invoice)
+  const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ''
 
   const interestTable = `
       ${lineBlock}
@@ -115,25 +116,25 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
       </div>`
 
   const subjects = {
-    reminder_1: `Payment reminder: Invoice ${invoice.ref} — ${fmt(invoice.amount)}`,
-    reminder_2: `Upcoming: Invoice ${invoice.ref} due tomorrow — ${fmt(invoice.amount)}`,
-    final_warning: `URGENT: Invoice ${invoice.ref} — last chance to settle at ${fmt(invoice.amount)}`,
-    first_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed`,
-    second_chase: `OVERDUE: Invoice ${invoice.ref} — ${dl} days late, ${fmt(total)} owed`,
-    third_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} outstanding`,
-    chase_4: `URGENT: Invoice ${invoice.ref} — ${fmt(total)} overdue`,
-    chase_5: `URGENT: Invoice ${invoice.ref} — immediate payment required`,
-    chase_6: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} still outstanding`,
-    chase_7: `URGENT: Invoice ${invoice.ref} — ${fmt(total)} overdue`,
-    chase_8: `OVERDUE: Invoice ${invoice.ref} — ${dl} days, ${fmt(total)} owed`,
-    chase_9: `OVERDUE: Invoice ${invoice.ref} — payment demand`,
-    chase_10: `URGENT: Invoice ${invoice.ref} — ${fmt(total)} outstanding`,
-    chase_11: `OVERDUE: Invoice ${invoice.ref} — final chase before escalation`,
-    escalation_1: `WARNING: Invoice ${invoice.ref} — escalation in 4 days`,
-    escalation_2: `WARNING: Invoice ${invoice.ref} — escalation in 3 days`,
-    escalation_3: `WARNING: Invoice ${invoice.ref} — escalation in 2 days`,
-    escalation_4: `WARNING: Invoice ${invoice.ref} — escalation tomorrow`,
-    final_notice: `FINAL NOTICE: Invoice ${invoice.ref} — ${fmt(total)} overdue. Legal action pending.`,
+    reminder_1: `Payment reminder: Invoice ${invoice.ref}${poRef} — ${fmt(invoice.amount)}`,
+    reminder_2: `Upcoming: Invoice ${invoice.ref}${poRef} due tomorrow — ${fmt(invoice.amount)}`,
+    final_warning: `URGENT: Invoice ${invoice.ref}${poRef} — last chance to settle at ${fmt(invoice.amount)}`,
+    first_chase: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} now owed`,
+    second_chase: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${dl} days late, ${fmt(total)} owed`,
+    third_chase: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} outstanding`,
+    chase_4: `URGENT: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue`,
+    chase_5: `URGENT: Invoice ${invoice.ref}${poRef} — immediate payment required`,
+    chase_6: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} still outstanding`,
+    chase_7: `URGENT: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue`,
+    chase_8: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${dl} days, ${fmt(total)} owed`,
+    chase_9: `OVERDUE: Invoice ${invoice.ref}${poRef} — payment demand`,
+    chase_10: `URGENT: Invoice ${invoice.ref}${poRef} — ${fmt(total)} outstanding`,
+    chase_11: `OVERDUE: Invoice ${invoice.ref}${poRef} — final chase before escalation`,
+    escalation_1: `WARNING: Invoice ${invoice.ref}${poRef} — escalation in 4 days`,
+    escalation_2: `WARNING: Invoice ${invoice.ref}${poRef} — escalation in 3 days`,
+    escalation_3: `WARNING: Invoice ${invoice.ref}${poRef} — escalation in 2 days`,
+    escalation_4: `WARNING: Invoice ${invoice.ref}${poRef} — escalation tomorrow`,
+    final_notice: `FINAL NOTICE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue. Legal action pending.`,
   }
 
   const bodies = {
@@ -265,7 +266,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
       <p><strong>ESCALATION NOTICE — 4 days remaining.</strong></p>
       <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>4 days</strong> to settle this debt before we pursue formal recovery.</p>
       ${totalBlock}
-      <p>Formal recovery may include referral to a debt recovery agency or County Court proceedings. A County Court Judgment (CCJ) will adversely affect your credit rating for 6 years.</p>
+      <p>Formal recovery may include referral to a debt recovery agency or County Court proceedings, which could adversely affect your credit rating.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,
@@ -283,7 +284,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
       <p><strong>ESCALATION NOTICE — 2 days remaining.</strong></p>
       <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>2 days</strong> to pay before we escalate.</p>
       ${totalBlock}
-      <p>We strongly advise you to settle this debt immediately to avoid County Court proceedings and damage to your credit rating.</p>
+      <p>We strongly advise you to settle this debt immediately to avoid formal proceedings.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,
@@ -300,7 +301,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
       <p><strong>FINAL NOTICE — This is our last communication before we pursue formal recovery.</strong></p>
       <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite numerous attempts to resolve this, payment has not been received.</p>
       ${totalBlock}
-      <p>If payment is not received within <strong>7 days</strong>, we will have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or County Court proceedings. A County Court Judgment (CCJ) will adversely affect your credit rating.</p>
+      <p>If payment is not received within <strong>7 days</strong>, the creditor may have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or County Court proceedings.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,
@@ -461,10 +462,19 @@ export default async function handler(req, res) {
       delivery_status: 'pending',
     })
 
-    // Update invoice chase stage
+    // Advance invoice to next chase stage
+    const STAGE_ORDER = [
+      "reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase",
+      "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11",
+      "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice",
+    ]
+    const currentIdx = STAGE_ORDER.indexOf(chase_stage)
+    const nextStage = currentIdx >= 0 && currentIdx < STAGE_ORDER.length - 1
+      ? STAGE_ORDER[currentIdx + 1]
+      : chase_stage
     await supabase
       .from('invoices')
-      .update({ chase_stage })
+      .update({ chase_stage: nextStage })
       .eq('id', invoice_id)
 
     return res.status(200).json({ success: true, resend_id: resendData.id, email_to: invoice.client_email })

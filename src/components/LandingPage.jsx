@@ -1,4 +1,4 @@
-import { colors as c, FONT, MONO, RATE, BOE } from "../constants"
+import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { ShieldLogo } from "./ui"
 
 const FEATURES = [
@@ -257,7 +257,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         flexWrap: "wrap",
       }}>
         {[
-          { val: `${RATE}%`, label: "Statutory interest rate" },
+          { val: `${getRate()}%`, label: "Statutory interest rate" },
           { val: "£40–100", label: "Fixed penalty per invoice" },
           { val: "19", label: "Chase stages over 30 days" },
         ].map((s) => (
@@ -352,7 +352,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           {[
             { label: "Original invoice", val: "£3,000.00", col: c.tx },
             { label: "Fixed penalty", val: "+ £40.00", col: c.or },
-            { label: `Interest (30 days at ${RATE}% p.a.)`, val: "+ £28.97", col: c.or },
+            { label: `Interest (30 days at ${getRate()}% p.a.)`, val: "+ £28.97", col: c.or },
           ].map((r) => (
             <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "12px 20px", borderBottom: `1px solid ${c.bdl}` }}>
               <span style={{ fontSize: 13, color: c.tm }}>{r.label}</span>

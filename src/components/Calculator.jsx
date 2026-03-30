@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { colors as c, FONT, MONO, RATE, BOE } from "../constants"
+import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, Btn, ShieldLogo } from "./ui"
 
@@ -121,7 +121,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
               {[
                 { label: "Original invoice", value: fmt(parsedAmt), color: c.tx },
                 { label: `Fixed penalty (invoice ${penTier} tier)`, value: `+ ${fmt(pen)}`, color: "#d97706" },
-                { label: `Interest (${parsedDays} days at ${RATE}% p.a.)`, value: `+ ${fmt(interest)}`, color: "#d97706" },
+                { label: `Interest (${parsedDays} days at ${getRate()}% p.a.)`, value: `+ ${fmt(interest)}`, color: "#d97706" },
               ].map((row) => (
                 <div key={row.label} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -167,7 +167,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
               <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>
                 <div style={{ fontWeight: 700, color: c.ac, fontSize: 13, marginBottom: 4 }}>Interest rate</div>
                 <div style={{ fontSize: 12, color: c.tm }}>
-                  Bank of England base rate ({BOE}%) + 8% = <strong style={{ color: c.tx }}>{RATE}% per annum</strong>
+                  Bank of England base rate ({getBoe()}%) + 8% = <strong style={{ color: c.tx }}>{RATE}% per annum</strong>
                 </div>
               </div>
               <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>

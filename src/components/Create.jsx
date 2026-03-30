@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { supabase } from "../supabase"
-import { colors as c, FONT, MONO, TERMS, RATE } from "../constants"
-import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail } from "../utils"
+import { colors as c, FONT, MONO, TERMS, getRate } from "../constants"
+import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
 
 const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
@@ -125,7 +125,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   const due = addDays(date, effectiveDays)
-  const parsedTotal = lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0)
+  const parsedTotal = round2(lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0))
   const p = penalty(parsedTotal)
 
   // Validation
@@ -381,8 +381,10 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             <Inp label="Company Name" value={cn} onChange={setCn} ph="e.g. Mega Corp Ltd" />
             <Inp label="Email" value={ce} onChange={setCe} ph="accounts@client.com" type="email" error={emailError} />
             <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta />
-            <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com" />
-            <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com" />
+            <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com"
+              error={cc.trim() && cc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more CC emails are invalid" : ""} />
+            <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
+              error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
             <p style={{ fontSize: 11, color: c.td, margin: "-8px 0 8px" }}>
               Separate multiple emails with a comma. You'll always be CC'd automatically.
             </p>
@@ -391,14 +393,20 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Job</h3>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, marginBottom: 8 }}>Line Items</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>
-                <span />
-              </div>
+              {!isMobile && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>
+                  <span />
+                </div>
+              )}
               {lineItems.map((li, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "flex-start", marginBottom: 6 }}>
+                <div key={i} style={isMobile
+                  ? { display: "flex", flexDirection: "column", gap: 4, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${c.bdl}` }
+                  : { display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "flex-start", marginBottom: 6 }
+                }>
                   <div>
+                    {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>}
                     <input
                       type="text"
                       value={li.description}
@@ -411,32 +419,36 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                       }}
                     />
                   </div>
-                  <div>
-                    <input
-                      type="number"
-                      value={li.amount}
-                      onChange={(e) => updateLineItem(i, "amount", e.target.value)}
-                      placeholder="0.00"
+                  <div style={isMobile ? { display: "flex", gap: 8, alignItems: "center" } : {}}>
+                    <div style={{ flex: isMobile ? 1 : undefined }}>
+                      {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>}
+                      <input
+                        type="number"
+                        value={li.amount}
+                        onChange={(e) => updateLineItem(i, "amount", e.target.value)}
+                        placeholder="0.00"
+                        style={{
+                          width: isMobile ? "100%" : 90, padding: "9px 12px", background: c.bg,
+                          border: `1px solid ${lineItemErrors[i] ? c.or : c.bd}`,
+                          borderRadius: 8, color: c.tx, fontFamily: MONO, fontSize: 13,
+                          outline: "none", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLineItem(i)}
+                      disabled={lineItems.length === 1}
                       style={{
-                        width: 90, padding: "9px 12px", background: c.bg,
-                        border: `1px solid ${lineItemErrors[i] ? c.or : c.bd}`,
-                        borderRadius: 8, color: c.tx, fontFamily: MONO, fontSize: 13,
-                        outline: "none", boxSizing: "border-box",
+                        padding: "9px 11px", background: "none",
+                        border: `1px solid ${c.bd}`, borderRadius: 8, color: c.td,
+                        cursor: lineItems.length === 1 ? "not-allowed" : "pointer",
+                        fontSize: 14, fontFamily: FONT, opacity: lineItems.length === 1 ? 0.3 : 1,
+                        flexShrink: 0,
                       }}
-                    />
+                      aria-label="Remove line"
+                    >×</button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeLineItem(i)}
-                    disabled={lineItems.length === 1}
-                    style={{
-                      padding: "9px 11px", background: "none",
-                      border: `1px solid ${c.bd}`, borderRadius: 8, color: c.td,
-                      cursor: lineItems.length === 1 ? "not-allowed" : "pointer",
-                      fontSize: 14, fontFamily: FONT, opacity: lineItems.length === 1 ? 0.3 : 1,
-                    }}
-                    aria-label="Remove line"
-                  >×</button>
                   {lineItemErrors[i] && (
                     <div style={{ gridColumn: "1/-1", fontSize: 11, color: c.or, marginTop: -2, marginBottom: 2 }}>{lineItemErrors[i]}</div>
                   )}
@@ -509,7 +521,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
               {parsedTotal > 0 && !noFines && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
                   <span>Late penalty</span>
-                  <span>{fmt(p)} + {RATE}% p.a.</span>
+                  <span>{fmt(p)} + {getRate()}% p.a.</span>
                 </div>
               )}
               {parsedTotal > 0 && noFines && (
@@ -621,6 +633,11 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
 
       {step === 2 && (
         <div>
+          {due < new Date(todayStr()) && (
+            <div style={{ padding: "10px 14px", background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 8, fontSize: 12, color: c.tx, marginBottom: 14, lineHeight: 1.5 }}>
+              ⚠️ <strong>This invoice is already overdue.</strong> Hielda will begin chasing immediately after creation.
+            </div>
+          )}
           <Card style={{ marginBottom: 16, background: "#fff", borderRadius: 12 }}>
             <div style={{ padding: "18px 26px 14px", borderBottom: `2px solid ${c.ac}` }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>

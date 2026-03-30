@@ -35,11 +35,26 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' })
   }
 
-  // Find the user being looked up by email
-  const { data: { users }, error: listErr } = await supabase.auth.admin.listUsers()
-  if (listErr) return res.status(500).json({ error: listErr.message })
+  // Find the user being looked up by email (filtered server-side)
+  const { data: { users }, error: listErr } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1,
+  })
 
-  const targetUser = users.find(u => u.email?.toLowerCase() === lookup_email.toLowerCase())
+  // Supabase admin API doesn't support email filter directly, so search all users
+  // but use a targeted approach for small user bases
+  let targetUser = null
+  let page = 1
+  const perPage = 100
+  while (!targetUser) {
+    const { data: { users: batch }, error: batchErr } = await supabase.auth.admin.listUsers({ page, perPage })
+    if (batchErr) return res.status(500).json({ error: batchErr.message })
+    if (!batch || batch.length === 0) break
+    targetUser = batch.find(u => u.email?.toLowerCase() === lookup_email.toLowerCase())
+    if (batch.length < perPage) break
+    page++
+  }
+
   if (!targetUser) {
     return res.status(404).json({ error: 'No user found with that email address' })
   }

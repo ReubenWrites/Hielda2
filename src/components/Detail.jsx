@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../supabase"
-import { colors as c, MONO, RATE, CHASE_STAGES, DAILY_RATE, FONT } from "../constants"
+import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
@@ -290,14 +290,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       if (!res.ok) throw new Error(data.error || "Failed to send")
       setSendSuccess(`${stageLabel} email sent to ${data.email_to}`)
 
-      const nextStage = getNextStage(stage)
-      if (nextStage) {
-        await supabase
-          .from("invoices")
-          .update({ chase_stage: nextStage })
-          .eq("id", inv.id)
-      }
-
+      // Server handles chase_stage advancement — just refresh
       const { data: logs } = await supabase
         .from("chase_log")
         .select("*")
@@ -314,6 +307,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
 
   const toggleAutoChase = async () => {
     const newVal = !autoChase
+    if (!newVal && !window.confirm("Pause automatic chasing for this invoice? You can resume it at any time.")) return
     setAutoChase(newVal)
     try {
       const { error: err } = await supabase
@@ -635,7 +629,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
               <span style={{ color: c.tx, fontSize: 13, fontWeight: 700 }}>TOTAL NOW OWED</span>
               <span style={{ color: c.ac, fontSize: isMobile ? 17 : 20, fontWeight: 700, fontFamily: MONO }}>{fmt(tot)}</span>
             </div>
-            <div style={{ fontSize: 10, color: c.td, marginTop: 5, textAlign: "right" }}>+{fmt(Number(inv.amount) * DAILY_RATE)}/day</div>
+            <div style={{ fontSize: 10, color: c.td, marginTop: 5, textAlign: "right" }}>+{fmt(Number(inv.amount) * getDailyRate())}/day</div>
           </Card>
         )}
 
@@ -649,6 +643,25 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       </div>
 
       <ChaseTimeline inv={inv} si={si} />
+
+      {/* Post-final-notice guidance */}
+      {inv.chase_stage === "final_notice" && inv.status !== "paid" && si >= CHASE_STAGES.length - 1 && (
+        <Card style={{ marginTop: 16, background: "#fef2f2", borderColor: "#fca5a540" }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: "#991b1b", margin: "0 0 8px" }}>All chase stages complete</h3>
+          <p style={{ fontSize: 12, color: c.tx, lineHeight: 1.6, margin: "0 0 10px" }}>
+            Hielda has sent all automated chase emails for this invoice. If payment still hasn't been received, here are your next steps:
+          </p>
+          <ul style={{ fontSize: 12, color: c.tx, lineHeight: 1.8, margin: "0 0 0 16px", padding: 0 }}>
+            <li><strong>Contact the client directly</strong> — a phone call can sometimes resolve things faster.</li>
+            <li><strong>Send a Letter Before Action (LBA)</strong> — a formal letter giving 14 days to pay before court proceedings. Templates are available online.</li>
+            <li><strong>Small Claims Court</strong> — for debts under £10,000 in England/Wales, you can file a claim online at <span style={{ fontFamily: MONO, fontSize: 11 }}>gov.uk/make-money-claim</span> for a small fee.</li>
+            <li><strong>Debt recovery agency</strong> — for larger amounts, consider instructing a commercial debt recovery service.</li>
+          </ul>
+          <p style={{ fontSize: 11, color: c.tm, margin: "10px 0 0" }}>
+            Interest and penalties continue to accrue. You can reference the total amount shown above in any formal correspondence.
+          </p>
+        </Card>
+      )}
 
       {/* Auto-chase toggle */}
       {inv.status !== "paid" && (
@@ -682,7 +695,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         </div>
       )}
 
-      {/* No-fines toggle */}
+      {/* Fines toggle — ON (blue) = fines applied, OFF (grey) = no fines */}
       {inv.status !== "paid" && (
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -692,7 +705,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Fines & interest</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Apply statutory penalties</div>
               <button
                 type="button"
                 onClick={() => setShowFinesInfo(v => !v)}
@@ -702,20 +715,20 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
                   fontSize: 11, fontWeight: 700, cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
                 }}
-                aria-label="About fines and interest"
+                aria-label="About statutory penalties"
               >
                 ?
               </button>
             </div>
             <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
-              {noFines ? "Chase emails won't include statutory penalties or interest" : "Statutory penalties and interest will be applied when overdue"}
+              {noFines ? "Chase emails won't include fines or interest — chasing only" : "Statutory interest and a fixed penalty will be applied when overdue"}
             </div>
             {showFinesInfo && (
               <div style={{
                 marginTop: 8, padding: "10px 12px", background: c.acd, borderRadius: 8,
                 border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
               }}>
-                Hielda will still chase this invoice on your behalf and send all the usual reminder and chase emails — but the emails won't reference any additional fines or interest on top of the original invoice amount. Useful if you'd prefer to keep things informal with a particular client.
+                When enabled, overdue chase emails will include statutory interest and a fixed penalty under the Late Payment Act. When disabled, Hielda will still chase this invoice but emails won't mention any additional charges. Useful if you'd prefer to keep things informal with a particular client.
               </div>
             )}
           </div>
@@ -726,7 +739,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
               background: noFines ? c.bd : c.ac,
               cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0,
             }}
-            aria-label={noFines ? "Enable fines and interest" : "Disable fines and interest"}
+            aria-label={noFines ? "Enable statutory penalties" : "Disable statutory penalties"}
           >
             <div style={{
               width: 18, height: 18, borderRadius: "50%", background: "#fff",
