@@ -363,7 +363,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                 marginTop: 4, marginBottom: 4, padding: "10px 12px", background: c.acd, borderRadius: 8,
                 border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
               }}>
-                <strong style={{ color: c.ac }}>Under the Late Payment of Commercial Debts (Interest) Act 1998,</strong> you're legally entitled to charge a fixed penalty (£40–£100 depending on invoice size) plus 8% interest above the Bank of England base rate on any overdue invoice. Tick this box to chase without referencing those rights — useful if you'd prefer to keep things informal with a particular client.
+                Hielda will still chase this invoice on your behalf and send all the usual reminder and chase emails — but the emails won't reference any additional fines or interest on top of the original invoice amount. Useful if you'd prefer to keep things informal with a particular client.
               </div>
             )}
             {noFines && !showNoFinesInfo && (
