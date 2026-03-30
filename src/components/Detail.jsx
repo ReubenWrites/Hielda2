@@ -378,13 +378,19 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     setSavingClient(false)
   }
 
-  const resendLastEmail = async () => {
-    const lastLog = chaseLogs[0]
-    if (!lastLog) return
-    const stage = lastLog.chase_stage || lastLog.status
+  const resendEmail = async (stage, resetChase) => {
     setResending(true)
     setError("")
     try {
+      // If restarting from day 1, reset the chase_stage on the invoice first
+      if (resetChase) {
+        const { error: resetErr } = await supabase
+          .from("invoices")
+          .update({ chase_stage: "reminder_1" })
+          .eq("id", inv.id)
+        if (resetErr) throw resetErr
+      }
+
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch("/api/send-chase-email", {
         method: "POST",
@@ -394,9 +400,18 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to send")
       setEmailChanged(false)
-      setSendSuccess(`Resent ${getStageLabel(stage)} to ${data.email_to}`)
+
+      if (resetChase) {
+        // Advance to reminder_2 after sending reminder_1
+        await supabase.from("invoices").update({ chase_stage: "reminder_2" }).eq("id", inv.id)
+        setSendSuccess(`Chase restarted — sent ${getStageLabel(stage)} to ${data.email_to}`)
+      } else {
+        setSendSuccess(`Resent ${getStageLabel(stage)} to ${data.email_to}`)
+      }
+
       const { data: logs } = await supabase.from("chase_log").select("*").eq("invoice_id", inv.id).order("sent_at", { ascending: false })
       if (logs) setChaseLogs(logs)
+      onUpdate()
       setTimeout(() => setSendSuccess(""), 5000)
     } catch (e) {
       setError("Failed to resend: " + e.message)
@@ -466,10 +481,20 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       )}
 
       {emailChanged && (
-        <div style={{ padding: "12px 16px", background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 8, fontSize: 12, marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ color: c.tx }}>📬 Client email updated — resend the last chase email to the new address?</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn sz="sm" onClick={resendLastEmail} dis={resending}>{resending ? "Sending…" : "Resend now"}</Btn>
+        <div style={{ padding: "14px 16px", background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>
+          <div style={{ fontWeight: 600, color: c.tx, marginBottom: 8 }}>📬 Client email updated</div>
+          <div style={{ color: c.tm, marginBottom: 12, lineHeight: 1.5 }}>
+            The new recipient hasn't received any previous emails. What would you like to do?
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Btn sz="sm" onClick={() => resendEmail("reminder_1", true)} dis={resending}>
+              {resending ? "Sending…" : "Restart from day 1"}
+            </Btn>
+            {chaseLogs.length > 0 && (
+              <Btn sz="sm" v="ghost" onClick={() => resendEmail(chaseLogs[0].chase_stage || chaseLogs[0].status, false)} dis={resending}>
+                Resend last email only
+              </Btn>
+            )}
             <button onClick={() => setEmailChanged(false)} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Dismiss</button>
           </div>
         </div>
