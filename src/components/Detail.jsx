@@ -165,6 +165,9 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [savingClient, setSavingClient] = useState(false)
   const [emailChanged, setEmailChanged] = useState(false)
   const [resending, setResending] = useState(false)
+  const [showPartialPayment, setShowPartialPayment] = useState(false)
+  const [partialAmount, setPartialAmount] = useState("")
+  const [savingPartial, setSavingPartial] = useState(false)
 
   useEffect(() => {
     if (!inv?.id) return
@@ -413,6 +416,36 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     setResending(false)
   }
 
+  const recordPartialPayment = async () => {
+    const amount = parseFloat(partialAmount)
+    if (!amount || amount <= 0) return
+    setSavingPartial(true)
+    setError("")
+    try {
+      const newPaid = Math.round(((Number(inv.amount_paid) || 0) + amount) * 100) / 100
+      const fullyPaid = newPaid >= Number(inv.amount)
+      const updates = { amount_paid: newPaid }
+      if (fullyPaid) {
+        updates.status = "paid"
+        updates.paid_date = new Date().toISOString().split("T")[0]
+        updates.chase_stage = null
+      }
+      const { error: err } = await supabase.from("invoices").update(updates).eq("id", inv.id)
+      if (err) throw err
+      setShowPartialPayment(false)
+      setPartialAmount("")
+      setSendSuccess(fullyPaid ? "Invoice fully paid!" : `Recorded ${fmt(amount)} partial payment`)
+      onUpdate()
+      setTimeout(() => setSendSuccess(""), 5000)
+    } catch (e) {
+      setError("Failed to record payment: " + e.message)
+    }
+    setSavingPartial(false)
+  }
+
+  const amountPaid = Number(inv.amount_paid) || 0
+  const amountRemaining = Math.round((Number(inv.amount) - amountPaid) * 100) / 100
+
   return (
     <div>
       <button onClick={() => nav("dash")} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontSize: 13, padding: 0, marginBottom: 18 }}>
@@ -443,6 +476,22 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             {marking ? "..." : "✓ Paid"}
           </Btn>
         )}
+        {inv.status !== "paid" && (
+          <Btn v="ghost" onClick={() => setShowPartialPayment(v => !v)} sz="sm">
+            💰 Part Paid
+          </Btn>
+        )}
+        <Btn v="ghost" onClick={() => {
+          try { localStorage.setItem("hielda_clone", JSON.stringify({
+            cn: inv.client_name, ce: inv.client_email, ca: inv.client_address || "",
+            lineItems: inv.line_items?.length ? inv.line_items : [{ description: inv.description || "", amount: String(inv.amount) }],
+            clientRef: inv.client_ref || "", cc: inv.cc_emails || "", bcc: inv.bcc_emails || "",
+            terms: String(inv.payment_term_days || 30), noFines: inv.no_fines || false,
+          })) } catch {}
+          nav("create")
+        }} sz="sm">
+          📋 Clone
+        </Btn>
         <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
           {downloading ? "..." : "📥 PDF"}
         </Btn>
@@ -467,6 +516,50 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
+
+      {/* Partial payment form */}
+      {showPartialPayment && inv.status !== "paid" && (
+        <div style={{ padding: "14px 16px", background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 8 }}>Record a partial payment</div>
+          {amountPaid > 0 && (
+            <div style={{ fontSize: 11, color: c.tm, marginBottom: 8 }}>
+              Already received: <strong>{fmt(amountPaid)}</strong> of {fmt(inv.amount)} · Remaining: <strong>{fmt(amountRemaining)}</strong>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="number"
+              value={partialAmount}
+              onChange={e => setPartialAmount(e.target.value)}
+              placeholder={`Up to ${fmt(amountRemaining)}`}
+              step="0.01"
+              max={amountRemaining}
+              style={{ flex: 1, maxWidth: 160, padding: "8px 10px", border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: MONO, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+            />
+            <Btn sz="sm" onClick={recordPartialPayment} dis={savingPartial || !partialAmount || parseFloat(partialAmount) <= 0}>
+              {savingPartial ? "..." : "Record"}
+            </Btn>
+            <button onClick={() => setShowPartialPayment(false)} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Cancel</button>
+          </div>
+          {parseFloat(partialAmount) >= amountRemaining && partialAmount && (
+            <div style={{ fontSize: 11, color: c.gn, marginTop: 6 }}>This will mark the invoice as fully paid.</div>
+          )}
+        </div>
+      )}
+
+      {/* Partial payment progress */}
+      {amountPaid > 0 && inv.status !== "paid" && (
+        <div style={{ padding: "10px 14px", background: c.gnd, border: `1px solid ${c.gn}20`, borderRadius: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: c.gn }}>Partial payment received</span>
+            <span style={{ fontSize: 12, fontFamily: MONO, color: c.gn, fontWeight: 600 }}>{fmt(amountPaid)} / {fmt(inv.amount)}</span>
+          </div>
+          <div style={{ height: 6, background: `${c.gn}20`, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", background: c.gn, borderRadius: 3, width: `${Math.min(100, (amountPaid / Number(inv.amount)) * 100)}%`, transition: "width 0.3s" }} />
+          </div>
+          <div style={{ fontSize: 10, color: c.tm, marginTop: 4 }}>{fmt(amountRemaining)} still outstanding</div>
+        </div>
+      )}
 
       {sendSuccess && (
         <div style={{ padding: "10px 14px", background: c.gnd, color: c.gn, borderRadius: 8, fontSize: 12, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>

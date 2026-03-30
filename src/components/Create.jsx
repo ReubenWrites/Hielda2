@@ -21,7 +21,11 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [meth, setMeth] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-  const [ref, setRef] = useState(generateRef)
+  const [ref, setRef] = useState(() => {
+    const prefix = profile?.invoice_prefix || "INV"
+    const num = profile?.next_invoice_number || 1
+    return `${prefix}-${String(num).padStart(4, "0")}`
+  })
   const [noFines, setNoFines] = useState(false)
   const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
@@ -55,9 +59,29 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       .filter(i => !hiddenClients.includes(i.client_email))
   }, [invs, hiddenClients])
 
-  // Check for saved draft on mount
+  // Check for clone data or saved draft on mount
   useEffect(() => {
     if (!userId) return
+    try {
+      const clone = localStorage.getItem("hielda_clone")
+      if (clone) {
+        const d = JSON.parse(clone)
+        localStorage.removeItem("hielda_clone")
+        if (d.cn) setCn(d.cn)
+        if (d.ce) setCe(d.ce)
+        if (d.ca) setCa(d.ca)
+        if (d.lineItems?.length) setLineItems(d.lineItems)
+        if (d.clientRef) setClientRef(d.clientRef)
+        if (d.cc) setCc(d.cc)
+        if (d.bcc) setBcc(d.bcc)
+        if (d.terms) setTerms(d.terms)
+        if (d.noFines) setNoFines(d.noFines)
+        const prefix = profile?.invoice_prefix || "INV"
+        const num = profile?.next_invoice_number || 1
+        setRef(`${prefix}-${String(num).padStart(4, "0")}`)
+        return // Skip draft check if cloning
+      }
+    } catch {}
     try {
       const saved = localStorage.getItem(DRAFT_KEY(userId))
       if (saved) {
@@ -160,7 +184,9 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     setClientRef("")
     setCc("")
     setBcc("")
-    setRef(generateRef())
+    const rPrefix = profile?.invoice_prefix || "INV"
+    const rNum = (profile?.next_invoice_number || 1) + 1
+    setRef(`${rPrefix}-${String(rNum).padStart(4, "0")}`)
     setSendIntro(false)
     setIntroMethod(null)
     setIntroText("")
@@ -197,6 +223,11 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       }).select().single()
       if (dbError) throw dbError
       clearDraft()
+
+      // Increment sequential invoice number
+      const nextNum = (profile?.next_invoice_number || 1) + 1
+      await supabase.from("profiles").update({ next_invoice_number: nextNum }).eq("id", userId)
+
       onCreated()
 
       // Send client intro email if requested

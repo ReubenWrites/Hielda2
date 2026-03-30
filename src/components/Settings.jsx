@@ -34,6 +34,9 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           account_number: p.account_number,
           vat_number: p.vat_number,
           utr_number: p.utr_number,
+          company_reg_number: p.company_reg_number,
+          invoice_prefix: p.invoice_prefix || "INV",
+          next_invoice_number: p.next_invoice_number || 1,
           default_payment_terms: p.default_payment_terms ? parseInt(p.default_payment_terms) : 30,
         })
         .eq("id", p.id)
@@ -97,6 +100,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
             error={p.account_number && p.account_number.length !== 8 ? "Must be 8 digits" : ""}
           />
           <Inp label="VAT (optional)" value={p.vat_number || ""} onChange={(v) => update("vat_number", v)} mono />
+          <Inp label="Company Reg No. (optional)" value={p.company_reg_number || ""} onChange={(v) => update("company_reg_number", v)} mono ph="e.g. 12345678" />
           <Inp label="UTR (optional)" value={p.utr_number || ""} onChange={(v) => update("utr_number", v)} mono />
           <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 4px" }}>Unique Taxpayer Reference — your 10-digit HMRC number for self-assessment.</p>
           <div style={{ marginTop: 14, padding: 12, background: c.acd, borderRadius: 8 }}>
@@ -112,6 +116,13 @@ export default function Settings({ profile, onUpdate, isMobile }) {
       <div style={{ marginTop: 16 }}>
         <Card>
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Defaults</h3>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <Inp label="Invoice Prefix" value={p.invoice_prefix || "INV"} onChange={(v) => update("invoice_prefix", v.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10))} ph="INV" mono />
+            <Inp label="Next Invoice Number" value={String(p.next_invoice_number || 1)} onChange={(v) => update("next_invoice_number", parseInt(v.replace(/[^0-9]/g, "")) || 1)} ph="1" mono />
+          </div>
+          <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 14px" }}>
+            Your next invoice will be: <strong style={{ fontFamily: "monospace" }}>{(p.invoice_prefix || "INV")}-{String(p.next_invoice_number || 1).padStart(4, "0")}</strong>
+          </p>
           <div style={{ maxWidth: 320 }}>
             <Sel
               label="Default Payment Terms"

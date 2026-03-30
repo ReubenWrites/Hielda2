@@ -6,6 +6,9 @@ import { supabase } from "../supabase"
 
 export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("created_at")
+  const [sortDir, setSortDir] = useState("desc")
   const [selected, setSelected] = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
   const [dismissedBanner, setDismissedBanner] = useState(false)
@@ -32,14 +35,48 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
   }, [invs])
 
   const filtered = useMemo(() => {
-    if (!search) return invs
-    const q = search.toLowerCase()
-    return invs.filter((i) =>
-      [i.client_name, i.ref, i.description, String(i.amount)].some(
-        (s) => s && s.toLowerCase().includes(q)
+    let result = invs
+
+    // Status filter
+    if (statusFilter !== "all") {
+      result = result.filter(i => i.status === statusFilter)
+    }
+
+    // Search
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter((i) =>
+        [i.client_name, i.ref, i.description, String(i.amount), i.client_email].some(
+          (s) => s && s.toLowerCase().includes(q)
+        )
       )
-    )
-  }, [invs, search])
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let va, vb
+      if (sortBy === "amount") { va = Number(a.amount); vb = Number(b.amount) }
+      else if (sortBy === "due_date") { va = a.due_date; vb = b.due_date }
+      else if (sortBy === "client_name") { va = (a.client_name || "").toLowerCase(); vb = (b.client_name || "").toLowerCase() }
+      else { va = a.created_at; vb = b.created_at }
+      if (va < vb) return sortDir === "asc" ? -1 : 1
+      if (va > vb) return sortDir === "asc" ? 1 : -1
+      return 0
+    })
+
+    return result
+  }, [invs, search, statusFilter, sortBy, sortDir])
+
+  const toggleSort = (col) => {
+    if (sortBy === col) { setSortDir(d => d === "asc" ? "desc" : "asc") }
+    else { setSortBy(col); setSortDir("asc") }
+  }
+
+  const SortIcon = ({ col }) => (
+    <span style={{ fontSize: 9, marginLeft: 3, color: sortBy === col ? c.ac : c.td }}>
+      {sortBy === col ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+    </span>
+  )
 
   useEffect(() => { setSelected(new Set()) }, [invs])
 
@@ -229,6 +266,28 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
           </div>
           <Btn sz="sm" onClick={() => nav("create")}>+ New</Btn>
         </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+          {[
+            { id: "all", label: "All", count: invs.length },
+            { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
+            { id: "pending", label: "Pending", count: pending.length, color: c.am },
+            { id: "paid", label: "Paid", count: paid.length, color: c.gn },
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setStatusFilter(f.id)}
+              style={{
+                padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600,
+                border: `1px solid ${statusFilter === f.id ? (f.color || c.ac) : c.bd}`,
+                background: statusFilter === f.id ? (f.color || c.ac) + "12" : c.sf,
+                color: statusFilter === f.id ? (f.color || c.ac) : c.tm,
+                cursor: "pointer", fontFamily: FONT,
+              }}
+            >
+              {f.label} ({f.count})
+            </button>
+          ))}
+        </div>
 
         {invs.length === 0 ? (
           <Card style={{ textAlign: "center", padding: isMobile ? "30px 20px" : "40px 24px" }}>
@@ -324,9 +383,21 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                     <th style={{ padding: "10px 8px", width: 36 }}>
                       <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} style={{ cursor: "pointer" }} />
                     </th>
-                    {["Ref", "Client", "Amount", "Extra", "Total", "Due", "Status"].map((h) => (
-                      <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: c.tm, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                        {h}
+                    {[
+                      { label: "Ref", col: null },
+                      { label: "Client", col: "client_name" },
+                      { label: "Amount", col: "amount" },
+                      { label: "Extra", col: null },
+                      { label: "Total", col: null },
+                      { label: "Due", col: "due_date" },
+                      { label: "Status", col: null },
+                    ].map((h) => (
+                      <th
+                        key={h.label}
+                        onClick={h.col ? () => toggleSort(h.col) : undefined}
+                        style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: c.tm, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em", cursor: h.col ? "pointer" : "default", userSelect: "none" }}
+                      >
+                        {h.label}{h.col && <SortIcon col={h.col} />}
                       </th>
                     ))}
                     <th style={{ width: 30 }}><span className="sr-only">View</span></th>

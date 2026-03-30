@@ -16,6 +16,7 @@ import LandingPage from "./components/LandingPage"
 import Calculator from "./components/Calculator"
 import PrivacyPolicy from "./components/PrivacyPolicy"
 import AdminDashboard from "./components/AdminDashboard"
+import OnboardingTour, { shouldShowTour } from "./components/OnboardingTour"
 
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
@@ -50,6 +51,7 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showCalculator, setShowCalculator] = useState(false)
+  const [showTour, setShowTour] = useState(false)
 
   useEffect(() => {
     const handler = () => setShowPrivacy(true)
@@ -90,7 +92,7 @@ export default function App() {
     try {
       const [{ data: profs, error: profErr }, { data: invoices, error: invErr }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id),
-        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,payment_term_days,send_method").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
+        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,amount_paid,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,payment_term_days,send_method,line_items,client_ref,cc_emails,bcc_emails,paid_date").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
       ])
 
       if (profErr) throw profErr
@@ -124,6 +126,7 @@ export default function App() {
       console.error("Data load error:", e)
     }
     setLoading(false)
+    if (user && shouldShowTour(user.id)) setShowTour(true)
   }, [user])
 
   useEffect(() => {
@@ -371,6 +374,7 @@ export default function App() {
               {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />}
               {view === "admin" && isAdmin && <AdminDashboard isMobile={isMobile} />}
             </SubscriptionGate>
+            {showTour && <OnboardingTour userId={user?.id} onDone={() => setShowTour(false)} />}
           </div>
         </main>
       </div>
