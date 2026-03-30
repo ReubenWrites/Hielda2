@@ -32,6 +32,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [introText, setIntroText] = useState("")
   const [introCopied, setIntroCopied] = useState(false)
   const [showIntroInfo, setShowIntroInfo] = useState(false)
+  const [showNoFinesInfo, setShowNoFinesInfo] = useState(false)
   const [draftBanner, setDraftBanner] = useState(false)
 
   // Deduplicate clients from past invoices (most recent per email)
@@ -343,8 +344,29 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
               <label htmlFor="noFines" style={{ fontSize: 12, color: c.tm, cursor: "pointer" }}>
                 Chase without fines or interest
               </label>
+              <button
+                type="button"
+                onClick={() => setShowNoFinesInfo(v => !v)}
+                style={{
+                  width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${c.bd}`,
+                  background: showNoFinesInfo ? c.acd : c.sf, color: showNoFinesInfo ? c.ac : c.td,
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
+                }}
+                aria-label="About this option"
+              >
+                ?
+              </button>
             </div>
-            {noFines && (
+            {showNoFinesInfo && (
+              <div style={{
+                marginTop: 4, marginBottom: 4, padding: "10px 12px", background: c.acd, borderRadius: 8,
+                border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
+              }}>
+                <strong style={{ color: c.ac }}>Under the Late Payment of Commercial Debts (Interest) Act 1998,</strong> you're legally entitled to charge a fixed penalty (£40–£100 depending on invoice size) plus 8% interest above the Bank of England base rate on any overdue invoice. Tick this box to chase without referencing those rights — useful if you'd prefer to keep things informal with a particular client.
+              </div>
+            )}
+            {noFines && !showNoFinesInfo && (
               <div style={{ fontSize: 11, color: c.td, marginBottom: 4, paddingLeft: 24 }}>
                 We'll still send chase emails, but won't add statutory penalties or interest.
               </div>
