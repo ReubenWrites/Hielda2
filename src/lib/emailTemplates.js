@@ -20,7 +20,9 @@ export function buildChaseEmail(invoice, profile, stage) {
       body: `
         <p>Dear ${invoice.client_name},</p>
         <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due on <strong>${formatDate(invoice.due_date)}</strong>.</p>
-        <p>Please ensure payment is made by the due date to avoid any late payment charges.</p>
+        <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
+          <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+        </div>
         ${lineItemsBlock(invoice)}
         ${paymentDetailsBlock(invoice, profile)}
         <p>If you've already made payment, please disregard this message.</p>
@@ -32,7 +34,9 @@ export function buildChaseEmail(invoice, profile, stage) {
       body: `
         <p>Dear ${invoice.client_name},</p>
         <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
-        <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, interest and penalties will be applied if payment is not received by the due date.</p>
+        <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
+          <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+        </div>
         ${lineItemsBlock(invoice)}
         ${paymentDetailsBlock(invoice, profile)}
         <p>Kind regards,<br/>${fromName}</p>
