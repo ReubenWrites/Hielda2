@@ -15,6 +15,7 @@ import SubscriptionGate from "./components/SubscriptionGate"
 import LandingPage from "./components/LandingPage"
 import Calculator from "./components/Calculator"
 import PrivacyPolicy from "./components/PrivacyPolicy"
+import AdminDashboard from "./components/AdminDashboard"
 
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
@@ -57,6 +58,7 @@ export default function App() {
   }, [])
 
   const isMobile = useMediaQuery("(max-width: 768px)")
+  const isAdmin = (profile?.email || user?.email) === import.meta.env.VITE_ADMIN_EMAIL
 
   // Load live BoE rate on mount
   useEffect(() => { loadLiveBoeRate() }, [])
@@ -220,7 +222,7 @@ export default function App() {
         </div>
 
         <nav style={{ flex: 1, position: "relative", zIndex: 2, marginTop: 28 }} aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => {
+          {[...NAV_ITEMS, ...(isAdmin ? [{ id: "admin", l: "Support", i: "🛠" }] : [])].map((item) => {
             const active = view === item.id || (item.id === "dash" && view === "detail")
             return (
               <button
@@ -367,6 +369,7 @@ export default function App() {
               {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}
               {view === "how" && <HowItWorks isMobile={isMobile} />}
               {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />}
+              {view === "admin" && isAdmin && <AdminDashboard isMobile={isMobile} />}
             </SubscriptionGate>
           </div>
         </main>
