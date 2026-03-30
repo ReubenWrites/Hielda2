@@ -59,7 +59,7 @@ function paymentDetailsBlock(invoice, profile) {
         Bank: ${profile.bank_name || '—'}<br/>
         Sort Code: ${profile.sort_code || '—'}<br/>
         Account: ${profile.account_number || '—'}<br/>
-        Reference: ${invoice.ref}
+        Reference: ${invoice.ref}${invoice.client_ref ? `<br/>Your ref: ${invoice.client_ref}` : ''}
       </div>
     </div>
   `
@@ -287,7 +287,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
           </div>
         </div>
         <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">
-          Sent via Hielda — Protecting your pay.
+          Sent via <a href="https://hielda.com?ref=chase-email" style="color:#1e5fa0;text-decoration:none;font-weight:600;">Hielda</a> — Late payment enforcement for freelancers &amp; SMEs.
         </div>
       </div>
     </body>

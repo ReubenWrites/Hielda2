@@ -38,9 +38,10 @@ export default async function handler(req, res) {
 
     const senderName = profile?.business_name || profile?.full_name || 'Your contact'
 
+    const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
     const htmlBody = intro_text
       .split('\n')
-      .map(line => line.trim() === '' ? '<br/>' : `<p style="margin:0 0 12px;font-family:sans-serif;font-size:15px;color:#1a1a2e;line-height:1.6">${line}</p>`)
+      .map(line => line.trim() === '' ? '<br/>' : `<p style="margin:0 0 12px;font-family:sans-serif;font-size:15px;color:#1a1a2e;line-height:1.6">${escapeHtml(line)}</p>`)
       .join('')
 
     const resendRes = await fetch('https://api.resend.com/emails', {

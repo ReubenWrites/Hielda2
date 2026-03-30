@@ -102,7 +102,7 @@ function paymentDetailsBlock(invoice, profile) {
         Bank: ${profile.bank_name || "—"}<br/>
         Sort Code: ${profile.sort_code || "—"}<br/>
         Account: ${profile.account_number || "—"}<br/>
-        Reference: ${invoice.ref}
+        Reference: ${invoice.ref}${invoice.client_ref ? `<br/>Your ref: ${invoice.client_ref}` : ""}
       </div>
     </div>
   `
