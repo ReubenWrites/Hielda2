@@ -378,19 +378,34 @@ export default async function handler(req, res) {
     // Build email
     const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total)
 
+    // Build CC list: always include the freelancer, plus any custom CC on the invoice
+    const ccList = [profile.email].filter(Boolean)
+    if (invoice.cc_emails) {
+      invoice.cc_emails.split(',').map(e => e.trim()).filter(Boolean).forEach(e => ccList.push(e))
+    }
+
+    // Build BCC list from invoice
+    const bccList = invoice.bcc_emails
+      ? invoice.bcc_emails.split(',').map(e => e.trim()).filter(Boolean)
+      : []
+
     // Send via Resend
+    const resendPayload = {
+      from: `${email.fromName} via Hielda <chase@hielda.com>`,
+      to: [invoice.client_email],
+      subject: email.subject,
+      html: email.html,
+    }
+    if (ccList.length > 0) resendPayload.cc = ccList
+    if (bccList.length > 0) resendPayload.bcc = bccList
+
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: `${email.fromName} via Hielda <chase@hielda.com>`,
-        to: [invoice.client_email],
-        subject: email.subject,
-        html: email.html,
-      }),
+      body: JSON.stringify(resendPayload),
     })
 
     const resendData = await resendRes.json()

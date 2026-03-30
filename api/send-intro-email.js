@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     // Get freelancer profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name, business_name')
+      .select('full_name, business_name, email')
       .eq('id', user.id)
       .single()
 
@@ -52,6 +52,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: `${senderName} via Hielda <hello@hielda.com>`,
         to: [client_email],
+        ...(profile?.email ? { cc: [profile.email] } : {}),
         subject: `A quick note from ${senderName}`,
         html: `<div style="max-width:580px;margin:0 auto;padding:32px 24px">${htmlBody}</div>`,
       }),

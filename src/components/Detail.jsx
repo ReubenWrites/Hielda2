@@ -154,6 +154,9 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [chaseLogs, setChaseLogs] = useState([])
   const [autoChase, setAutoChase] = useState(inv?.auto_chase !== false)
   const [noFines, setNoFines] = useState(inv?.no_fines || false)
+  const [ccEmails, setCcEmails] = useState(inv?.cc_emails || "")
+  const [bccEmails, setBccEmails] = useState(inv?.bcc_emails || "")
+  const [savingRecipients, setSavingRecipients] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
 
@@ -255,8 +258,9 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     const stage = currentSendStage
     const stageLabel = getStageLabel(stage)
 
+    const ccList = ccEmails.trim() ? `, CC: ${ccEmails.trim()}` : ""
     const confirmed = window.confirm(
-      `Send ${stageLabel} email to ${inv.client_email}?`
+      `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be CC'd automatically.`
     )
     if (!confirmed) return
 
@@ -529,6 +533,49 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             }} />
           </button>
         </div>
+      )}
+
+      {/* CC / BCC recipients */}
+      {inv.status !== "paid" && (
+        <Card style={{ marginTop: 0, marginBottom: 16 }}>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>Email recipients</h3>
+          <p style={{ fontSize: 11, color: c.td, margin: "0 0 14px" }}>You're always CC'd automatically. Add others below.</p>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: c.tx, display: "block", marginBottom: 5 }}>CC (optional)</label>
+              <input
+                value={ccEmails}
+                onChange={(e) => setCcEmails(e.target.value)}
+                placeholder="sarah@company.com, boss@company.com"
+                style={{ width: "100%", padding: "9px 12px", border: `1px solid ${c.bd}`, borderRadius: 8, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: c.tx, display: "block", marginBottom: 5 }}>BCC (optional)</label>
+              <input
+                value={bccEmails}
+                onChange={(e) => setBccEmails(e.target.value)}
+                placeholder="accountant@mine.com"
+                style={{ width: "100%", padding: "9px 12px", border: `1px solid ${c.bd}`, borderRadius: 8, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+          </div>
+          <Btn sz="sm" dis={savingRecipients} onClick={async () => {
+            setSavingRecipients(true)
+            try {
+              await supabase.from("invoices").update({
+                cc_emails: ccEmails.trim() || null,
+                bcc_emails: bccEmails.trim() || null,
+              }).eq("id", inv.id)
+              onUpdate()
+            } catch (e) {
+              setError("Failed to save recipients: " + e.message)
+            }
+            setSavingRecipients(false)
+          }}>
+            {savingRecipients ? "Saving..." : "Save"}
+          </Btn>
+        </Card>
       )}
 
       {/* Chase log */}

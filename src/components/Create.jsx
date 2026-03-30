@@ -1,10 +1,12 @@
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { supabase } from "../supabase"
 import { colors as c, FONT, MONO, TERMS, RATE } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail } from "../utils"
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
 
-export default function Create({ profile, nav, userId, onCreated, isMobile }) {
+const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
+
+export default function Create({ profile, nav, userId, onCreated, isMobile, invs }) {
   const defaultTerms = profile?.default_payment_terms ? String(profile.default_payment_terms) : "30"
   const isCustomDefault = !TERMS.slice(0, -1).some(t => String(t.d) === defaultTerms)
 
@@ -22,11 +24,81 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
   const [error, setError] = useState("")
   const [ref, setRef] = useState(generateRef)
   const [noFines, setNoFines] = useState(false)
+  const [cc, setCc] = useState("")
+  const [bcc, setBcc] = useState("")
   const [sendIntro, setSendIntro] = useState(false)
   const [introMethod, setIntroMethod] = useState(null)
   const [introText, setIntroText] = useState("")
   const [introCopied, setIntroCopied] = useState(false)
   const [showIntroInfo, setShowIntroInfo] = useState(false)
+  const [draftBanner, setDraftBanner] = useState(false)
+
+  // Deduplicate clients from past invoices (most recent per email)
+  const recentClients = useMemo(() => {
+    if (!invs?.length) return []
+    const seen = new Set()
+    return invs
+      .filter(i => i.client_email && i.client_name)
+      .filter(i => { if (seen.has(i.client_email)) return false; seen.add(i.client_email); return true })
+      .slice(0, 8)
+  }, [invs])
+
+  // Check for saved draft on mount
+  useEffect(() => {
+    if (!userId) return
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY(userId))
+      if (saved) {
+        const d = JSON.parse(saved)
+        if (d.cn || d.ce || d.desc || d.amt) setDraftBanner(true)
+      }
+    } catch {}
+  }, [userId])
+
+  // Auto-save draft whenever form changes
+  useEffect(() => {
+    if (!userId || step === 3) return
+    try {
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, desc, amt, terms, customDays, date, noFines, cc, bcc }))
+    } catch {}
+  }, [cn, ce, ca, desc, amt, terms, customDays, date, noFines, cc, bcc, userId, step])
+
+  const restoreDraft = () => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY(userId))
+      if (!saved) return
+      const d = JSON.parse(saved)
+      if (d.cn !== undefined) setCn(d.cn)
+      if (d.ce !== undefined) setCe(d.ce)
+      if (d.ca !== undefined) setCa(d.ca)
+      if (d.desc !== undefined) setDesc(d.desc)
+      if (d.amt !== undefined) setAmt(d.amt)
+      if (d.terms !== undefined) setTerms(d.terms)
+      if (d.customDays !== undefined) setCustomDays(d.customDays)
+      if (d.date !== undefined) setDate(d.date)
+      if (d.noFines !== undefined) setNoFines(d.noFines)
+      if (d.cc !== undefined) setCc(d.cc)
+      if (d.bcc !== undefined) setBcc(d.bcc)
+    } catch {}
+    setDraftBanner(false)
+  }
+
+  const discardDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY(userId)) } catch {}
+    setDraftBanner(false)
+  }
+
+  const clearDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY(userId)) } catch {}
+  }
+
+  const fillClient = (inv) => {
+    setCn(inv.client_name || "")
+    setCe(inv.client_email || "")
+    setCa(inv.client_address || "")
+    setCc(inv.cc_emails || "")
+    setBcc(inv.bcc_emails || "")
+  }
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   const due = addDays(date, effectiveDays)
@@ -46,6 +118,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
   }
 
   const resetForm = () => {
+    clearDraft()
     setCn("")
     setCe("")
     setCa("")
@@ -54,6 +127,8 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
     setStep(1)
     setMeth(null)
     setError("")
+    setCc("")
+    setBcc("")
     setRef(generateRef())
     setSendIntro(false)
     setIntroMethod(null)
@@ -83,8 +158,11 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
         client_name: cn,
         client_email: ce,
         client_address: ca,
+        cc_emails: cc.trim() || null,
+        bcc_emails: bcc.trim() || null,
       })
       if (dbError) throw dbError
+      clearDraft()
       onCreated()
 
       // Send client intro email if requested
@@ -196,13 +274,54 @@ export default function Create({ profile, nav, userId, onCreated, isMobile }) {
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
+      {draftBanner && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 16px", background: "#fffbeb", border: "1px solid #f59e0b40",
+          borderRadius: 10, marginBottom: 16, gap: 12, flexWrap: "wrap",
+        }}>
+          <span style={{ fontSize: 13, color: c.tx }}>📝 You have a saved draft — want to restore it?</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn sz="sm" onClick={restoreDraft}>Restore</Btn>
+            <button onClick={discardDraft} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Discard</button>
+          </div>
+        </div>
+      )}
+
       {step === 1 && (
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 18 }}>
           <Card>
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Client</h3>
+            {recentClients.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: c.td, marginBottom: 6 }}>Recent clients</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {recentClients.map(inv => (
+                    <button
+                      key={inv.client_email}
+                      onClick={() => fillClient(inv)}
+                      style={{
+                        padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500,
+                        border: `1px solid ${cn === inv.client_name && ce === inv.client_email ? c.ac : c.bd}`,
+                        background: cn === inv.client_name && ce === inv.client_email ? c.acd : c.sf,
+                        color: cn === inv.client_name && ce === inv.client_email ? c.ac : c.tm,
+                        cursor: "pointer", fontFamily: FONT,
+                      }}
+                    >
+                      {inv.client_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <Inp label="Company Name" value={cn} onChange={setCn} ph="e.g. Mega Corp Ltd" />
             <Inp label="Email" value={ce} onChange={setCe} ph="accounts@client.com" type="email" error={emailError} />
             <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta />
+            <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com" />
+            <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com" />
+            <p style={{ fontSize: 11, color: c.td, margin: "-8px 0 8px" }}>
+              Separate multiple emails with a comma. You'll always be CC'd automatically.
+            </p>
           </Card>
           <Card>
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Job</h3>
