@@ -33,16 +33,27 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [showIntroInfo, setShowIntroInfo] = useState(false)
   const [showNoFinesInfo, setShowNoFinesInfo] = useState(false)
   const [draftBanner, setDraftBanner] = useState(false)
+  const [clientSearch, setClientSearch] = useState("")
+  const [hiddenClients, setHiddenClients] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`hielda_hidden_clients_${userId}`) || "[]") } catch { return [] }
+  })
 
-  // Deduplicate clients from past invoices (most recent per email)
+  const hideClient = (email, e) => {
+    e.stopPropagation()
+    const updated = [...new Set([...hiddenClients, email])]
+    setHiddenClients(updated)
+    try { localStorage.setItem(`hielda_hidden_clients_${userId}`, JSON.stringify(updated)) } catch {}
+  }
+
+  // Deduplicate clients from past invoices (most recent per email), excluding hidden
   const recentClients = useMemo(() => {
     if (!invs?.length) return []
     const seen = new Set()
     return invs
       .filter(i => i.client_email && i.client_name)
       .filter(i => { if (seen.has(i.client_email)) return false; seen.add(i.client_email); return true })
-      .slice(0, 8)
-  }, [invs])
+      .filter(i => !hiddenClients.includes(i.client_email))
+  }, [invs, hiddenClients])
 
   // Check for saved draft on mount
   useEffect(() => {
@@ -319,22 +330,51 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             {recentClients.length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, color: c.td, marginBottom: 6 }}>Recent clients</div>
+                {recentClients.length > 6 && (
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={e => setClientSearch(e.target.value)}
+                    placeholder="Search clients…"
+                    style={{
+                      width: "100%", padding: "7px 10px", marginBottom: 8,
+                      border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: FONT,
+                      fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+                )}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {recentClients.map(inv => (
-                    <button
-                      key={inv.client_email}
-                      onClick={() => fillClient(inv)}
-                      style={{
-                        padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500,
-                        border: `1px solid ${cn === inv.client_name && ce === inv.client_email ? c.ac : c.bd}`,
-                        background: cn === inv.client_name && ce === inv.client_email ? c.acd : c.sf,
-                        color: cn === inv.client_name && ce === inv.client_email ? c.ac : c.tm,
-                        cursor: "pointer", fontFamily: FONT,
-                      }}
-                    >
-                      {inv.client_name}
-                    </button>
-                  ))}
+                  {recentClients
+                    .filter(i => !clientSearch || i.client_name.toLowerCase().includes(clientSearch.toLowerCase()) || i.client_email.toLowerCase().includes(clientSearch.toLowerCase()))
+                    .map(inv => {
+                      const active = cn === inv.client_name && ce === inv.client_email
+                      return (
+                        <div
+                          key={inv.client_email}
+                          style={{ display: "flex", alignItems: "center", borderRadius: 999, overflow: "hidden", border: `1px solid ${active ? c.ac : c.bd}` }}
+                        >
+                          <button
+                            onClick={() => fillClient(inv)}
+                            style={{
+                              padding: "5px 10px 5px 12px", background: active ? c.acd : c.sf,
+                              color: active ? c.ac : c.tm, border: "none",
+                              fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: FONT,
+                            }}
+                          >
+                            {inv.client_name}
+                          </button>
+                          <button
+                            onClick={(e) => hideClient(inv.client_email, e)}
+                            title="Remove from recent clients"
+                            style={{
+                              padding: "5px 8px", background: active ? c.acd : c.sf,
+                              color: active ? c.ac : c.td, border: "none", borderLeft: `1px solid ${active ? c.ac + "40" : c.bd}`,
+                              fontSize: 11, cursor: "pointer", fontFamily: FONT, lineHeight: 1,
+                            }}
+                          >×</button>
+                        </div>
+                      )
+                    })}
                 </div>
               </div>
             )}

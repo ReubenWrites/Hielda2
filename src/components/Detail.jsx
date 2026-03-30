@@ -160,6 +160,11 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [showFinesInfo, setShowFinesInfo] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
+  const [editingClient, setEditingClient] = useState(false)
+  const [clientEdit, setClientEdit] = useState({ name: "", email: "", address: "", ref: "" })
+  const [savingClient, setSavingClient] = useState(false)
+  const [emailChanged, setEmailChanged] = useState(false)
+  const [resending, setResending] = useState(false)
 
   useEffect(() => {
     if (!inv?.id) return
@@ -339,6 +344,66 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     }
   }
 
+  const startEditClient = () => {
+    setClientEdit({
+      name: inv.client_name || "",
+      email: inv.client_email || "",
+      address: inv.client_address || "",
+      ref: inv.client_ref || "",
+    })
+    setEditingClient(true)
+  }
+
+  const saveClientDetails = async () => {
+    setSavingClient(true)
+    setError("")
+    try {
+      const emailHasChanged = clientEdit.email.trim().toLowerCase() !== (inv.client_email || "").toLowerCase()
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({
+          client_name: clientEdit.name.trim(),
+          client_email: clientEdit.email.trim(),
+          client_address: clientEdit.address.trim() || null,
+          client_ref: clientEdit.ref.trim() || null,
+        })
+        .eq("id", inv.id)
+      if (err) throw err
+      setEditingClient(false)
+      setEmailChanged(emailHasChanged && chaseLogs.length > 0)
+      onUpdate()
+    } catch (e) {
+      setError("Failed to save: " + e.message)
+    }
+    setSavingClient(false)
+  }
+
+  const resendLastEmail = async () => {
+    const lastLog = chaseLogs[0]
+    if (!lastLog) return
+    const stage = lastLog.chase_stage || lastLog.status
+    setResending(true)
+    setError("")
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch("/api/send-chase-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: inv.id, chase_stage: stage, user_token: session?.access_token }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to send")
+      setEmailChanged(false)
+      setSendSuccess(`Resent ${getStageLabel(stage)} to ${data.email_to}`)
+      const { data: logs } = await supabase.from("chase_log").select("*").eq("invoice_id", inv.id).order("sent_at", { ascending: false })
+      if (logs) setChaseLogs(logs)
+      setTimeout(() => setSendSuccess(""), 5000)
+    } catch (e) {
+      setError("Failed to resend: " + e.message)
+    }
+    setResending(false)
+  }
+
   return (
     <div>
       <button onClick={() => nav("dash")} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontSize: 13, padding: 0, marginBottom: 18 }}>
@@ -400,6 +465,16 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         </div>
       )}
 
+      {emailChanged && (
+        <div style={{ padding: "12px 16px", background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 8, fontSize: 12, marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ color: c.tx }}>📬 Client email updated — resend the last chase email to the new address?</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn sz="sm" onClick={resendLastEmail} dis={resending}>{resending ? "Sending…" : "Resend now"}</Btn>
+            <button onClick={() => setEmailChanged(false)} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Dismiss</button>
+          </div>
+        </div>
+      )}
+
       {ov && ex > 0 && (
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -440,24 +515,81 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       {/* Invoice details + breakdown — stacks on mobile */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 14 : 22 }}>
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>Invoice details</h3>
-          {[
-            ["Client", inv.client_name],
-            ["Email", inv.client_email],
-            inv.client_ref ? ["Client ref / PO", inv.client_ref] : null,
-            ["Original", fmt(inv.amount)],
-            ["Issued", formatDate(inv.issue_date)],
-            ["Terms", `${inv.payment_term_days} days`],
-            ["Due", formatDate(inv.due_date)],
-            inv.paid_date ? ["Paid", formatDate(inv.paid_date)] : null,
-          ]
-            .filter(Boolean)
-            .map(([k, v]) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${c.bdl}` }}>
-                <span style={{ color: c.tm, fontSize: 13 }}>{k}</span>
-                <span style={{ color: c.tx, fontSize: 13, fontWeight: 500, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>{v}</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>Invoice details</h3>
+            {!editingClient && inv.status !== "paid" && (
+              <button
+                onClick={startEditClient}
+                title="Edit client details"
+                style={{ background: "none", border: `1px solid ${c.bd}`, borderRadius: 6, cursor: "pointer", fontSize: 12, color: c.tm, padding: "3px 10px", fontFamily: FONT }}
+              >
+                ✏ Edit
+              </button>
+            )}
+          </div>
+
+          {editingClient ? (
+            <div>
+              {[
+                { label: "Client name", key: "name", ph: "e.g. Mega Corp Ltd" },
+                { label: "Client email", key: "email", ph: "accounts@client.com", type: "email" },
+                { label: "Address", key: "address", ph: "Full address", ta: true },
+                { label: "Client ref / PO", key: "ref", ph: "Optional PO number" },
+              ].map(({ label, key, ph, type, ta }) => (
+                <div key={key} style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: c.tm, display: "block", marginBottom: 4 }}>{label}</label>
+                  {ta ? (
+                    <textarea
+                      value={clientEdit[key]}
+                      onChange={e => setClientEdit(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={ph}
+                      rows={2}
+                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                    />
+                  ) : (
+                    <input
+                      type={type || "text"}
+                      value={clientEdit[key]}
+                      onChange={e => setClientEdit(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={ph}
+                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+                    />
+                  )}
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <Btn onClick={saveClientDetails} dis={savingClient || !clientEdit.name.trim() || !clientEdit.email.trim()} sz="sm">
+                  {savingClient ? "Saving…" : "Save"}
+                </Btn>
+                <button
+                  onClick={() => setEditingClient(false)}
+                  style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}
+                >
+                  Cancel
+                </button>
               </div>
-            ))}
+            </div>
+          ) : (
+            <>
+              {[
+                ["Client", inv.client_name],
+                ["Email", inv.client_email],
+                inv.client_ref ? ["Client ref / PO", inv.client_ref] : null,
+                ["Original", fmt(inv.amount)],
+                ["Issued", formatDate(inv.issue_date)],
+                ["Terms", `${inv.payment_term_days} days`],
+                ["Due", formatDate(inv.due_date)],
+                inv.paid_date ? ["Paid", formatDate(inv.paid_date)] : null,
+              ]
+                .filter(Boolean)
+                .map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${c.bdl}` }}>
+                    <span style={{ color: c.tm, fontSize: 13 }}>{k}</span>
+                    <span style={{ color: c.tx, fontSize: 13, fontWeight: 500, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>{v}</span>
+                  </div>
+                ))}
+            </>
+          )}
         </Card>
 
         {ov && (
