@@ -147,7 +147,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       const dueStr = due.toISOString().split("T")[0]
       const today = todayStr()
       const isOverdue = dueStr < today
-      const { error: dbError } = await supabase.from("invoices").insert({
+      const { data: newInv, error: dbError } = await supabase.from("invoices").insert({
         user_id: userId,
         ref,
         description: desc,
@@ -165,7 +165,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
         client_ref: clientRef.trim() || null,
         cc_emails: cc.trim() || null,
         bcc_emails: bcc.trim() || null,
-      })
+      }).select().single()
       if (dbError) throw dbError
       clearDraft()
       onCreated()
@@ -180,6 +180,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             client_name: cn,
             client_email: ce,
             intro_text: introText,
+            invoice_id: newInv.id,
             user_token: session?.access_token,
           }),
         })
