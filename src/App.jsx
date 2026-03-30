@@ -13,6 +13,7 @@ import HowItWorks from "./components/HowItWorks"
 import Billing from "./components/Billing"
 import SubscriptionGate from "./components/SubscriptionGate"
 import LandingPage from "./components/LandingPage"
+import Calculator from "./components/Calculator"
 import PrivacyPolicy from "./components/PrivacyPolicy"
 
 const NAV_ITEMS = [
@@ -47,6 +48,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [showCalculator, setShowCalculator] = useState(false)
 
   useEffect(() => {
     const handler = () => setShowPrivacy(true)
@@ -164,8 +166,9 @@ export default function App() {
 
   if (!session) {
     if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
+    if (showCalculator) return <Calculator onBack={() => setShowCalculator(false)} onGetStarted={() => { setShowCalculator(false); setShowAuth(true) }} isMobile={isMobile} />
     if (showAuth) return <AuthScreen onAuth={handleAuth} onBack={() => setShowAuth(false)} />
-    return <LandingPage onGetStarted={() => setShowAuth(true)} onPrivacy={() => setShowPrivacy(true)} isMobile={isMobile} />
+    return <LandingPage onGetStarted={() => setShowAuth(true)} onPrivacy={() => setShowPrivacy(true)} onCalculator={() => setShowCalculator(true)} isMobile={isMobile} />
   }
 
   // Show onboarding for new users who haven't completed setup

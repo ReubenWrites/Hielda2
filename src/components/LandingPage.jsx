@@ -44,7 +44,7 @@ const TIMELINE_PREVIEW = [
   { day: "Day +30", label: "Final Notice", col: "#7f1d1d" },
 ]
 
-export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
+export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isMobile }) {
   return (
     <div style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
       {/* Nav bar */}
@@ -59,16 +59,28 @@ export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
           <ShieldLogo size={28} />
           <span style={{ fontSize: 20, fontWeight: 700, color: c.ac, letterSpacing: "-0.02em" }}>Hielda</span>
         </div>
-        <button
-          onClick={onGetStarted}
-          style={{
-            background: c.ac, color: "#fff", border: "none", borderRadius: 8,
-            padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-            fontFamily: FONT,
-          }}
-        >
-          Log In
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={onCalculator}
+            style={{
+              background: "none", color: c.ac, border: "none",
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+              fontFamily: FONT, padding: "8px 4px",
+            }}
+          >
+            Calculator
+          </button>
+          <button
+            onClick={onGetStarted}
+            style={{
+              background: c.ac, color: "#fff", border: "none", borderRadius: 8,
+              padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            Log In
+          </button>
+        </div>
       </nav>
 
       {/* Hero */}
@@ -352,6 +364,16 @@ export default function LandingPage({ onGetStarted, onPrivacy, isMobile }) {
             <span style={{ fontSize: 18, fontWeight: 700, fontFamily: MONO, color: c.ac }}>£3,068.97</span>
           </div>
         </div>
+        <button
+          onClick={onCalculator}
+          style={{
+            display: "block", margin: "16px auto 0", background: "none", border: `1.5px solid ${c.ac}`,
+            borderRadius: 10, padding: "10px 24px", fontSize: 13, fontWeight: 600,
+            color: c.ac, cursor: "pointer", fontFamily: FONT,
+          }}
+        >
+          Try our free calculator with your own invoices →
+        </button>
       </section>
 
       {/* CTA */}
