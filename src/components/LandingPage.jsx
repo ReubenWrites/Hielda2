@@ -27,6 +27,18 @@ const LANDING_FAQS = [
     q: "Does the Late Payment Act apply to my invoices?",
     a: "The Act applies to business-to-business (B2B) transactions — both parties must be acting in the course of a business. It does not cover invoices to consumers. It applies throughout the UK and covers most commercial contracts, including freelance and contractor work.",
   },
+  {
+    q: "Why is Hielda better than just chasing clients myself?",
+    a: "When you chase a client yourself, you're asking a favour from someone you need to maintain a relationship with. Every chaser email you send puts you in an awkward position — too soft and they ignore it, too firm and you risk the relationship. Hielda removes you from the equation entirely. Your client receives formal notices from an automated system, which carries far more weight and creates no personal friction. You stay professional, they feel the pressure, and you never have to have an uncomfortable conversation.",
+  },
+  {
+    q: "How does Hielda protect me from blowback from my client?",
+    a: "Hielda's chase emails are sent on your behalf but framed as automated system notifications — not personal requests. This gives your client a face-saving way to pay without either of you having to acknowledge an awkward dynamic. The language escalates gradually and professionally, mirroring how a large company's accounts department would operate. If a client pushes back, you can truthfully say 'our system applies these charges automatically' — taking the heat off you entirely.",
+  },
+  {
+    q: "Is it true that companies really delay payment on purpose?",
+    a: "Yes — and it's well documented. Large companies routinely use extended payment terms (60, 90, even 120 days) as a cash flow management strategy, effectively using suppliers as interest-free lenders. A 2023 report by the Federation of Small Businesses found that 52% of UK small businesses were paid late, with the average overdue amount exceeding £8,500. For large businesses, delaying payment to freelancers and SMEs is a deliberate financial decision made by accounts departments — the person who hired you often has no idea it's happening.",
+  },
 ]
 
 const FEATURES = [
