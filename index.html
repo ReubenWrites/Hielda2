@@ -54,6 +54,72 @@
       * { box-sizing: border-box; margin: 0; }
       body { font-family: 'DM Sans', system-ui, -apple-system, sans-serif; }
     </style>
+    <!-- ============================================================
+         RETARGETING PIXELS
+         Instructions: uncomment each block and replace the placeholder
+         IDs with your own. Get them from each ad platform's setup guide.
+         ============================================================ -->
+
+    <!-- Google Analytics 4 + Google Ads
+         1. Go to Google Analytics > Admin > Data Streams > your stream > Measurement ID (G-XXXXXXXXXX)
+         2. For Google Ads conversion tracking, also get your AW-XXXXXXXXXX tag from Google Ads > Tools > Tag
+         Replace G-XXXXXXXXXX below with your Measurement ID.
+    -->
+    <!--
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+      // If also running Google Ads: gtag('config', 'AW-XXXXXXXXXX');
+    </script>
+    -->
+
+    <!-- Meta (Facebook/Instagram) Pixel
+         1. Go to Meta Business Suite > Events Manager > Connect Data Sources > Web > Meta Pixel
+         2. Get your Pixel ID (a 15-16 digit number)
+         Replace YOUR_PIXEL_ID below.
+    -->
+    <!--
+    <script>
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+      document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', 'YOUR_PIXEL_ID');
+      fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID&ev=PageView&noscript=1"/></noscript>
+    -->
+
+    <!-- LinkedIn Insight Tag
+         1. Go to LinkedIn Campaign Manager > Account Assets > Insight Tag
+         2. Get your Partner ID (a 7-digit number)
+         Replace YOUR_PARTNER_ID below.
+    -->
+    <!--
+    <script type="text/javascript">
+      _linkedin_partner_id = "YOUR_PARTNER_ID";
+      window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
+      window._linkedin_data_partner_ids.push(_linkedin_partner_id);
+    </script>
+    <script type="text/javascript">
+      (function(l) {
+        if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
+        window.lintrk.q=[]}
+        var s = document.getElementsByTagName("script")[0];
+        var b = document.createElement("script");
+        b.type = "text/javascript";b.async = true;
+        b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
+        s.parentNode.insertBefore(b, s);})(window.lintrk);
+    </script>
+    <noscript><img height="1" width="1" style="display:none;" alt=""
+      src="https://px.ads.linkedin.com/collect/?pid=YOUR_PARTNER_ID&fmt=gif" /></noscript>
+    -->
+
   </head>
   <body>
     <div id="root"></div>

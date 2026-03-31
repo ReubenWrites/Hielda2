@@ -763,9 +763,27 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                   </div>
                 ))}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
-                <span style={{ fontWeight: 700, fontSize: 13, color: c.tx }}>Total Due</span>
-                <span style={{ fontWeight: 700, fontSize: 18, color: c.ac, fontFamily: MONO }}>{fmt(parsedTotal)}</span>
+              {isVatRegistered && totalVat > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${c.bdl}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 3 }}>
+                    <span>Subtotal (ex. VAT)</span>
+                    <span style={{ fontFamily: MONO }}>{fmt(parsedTotal)}</span>
+                  </div>
+                  {Object.entries(vatBreakdown).filter(([, v]) => v > 0).map(([rate, amount]) => (
+                    <div key={rate} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 3 }}>
+                      <span>VAT @ {rate}%</span>
+                      <span style={{ fontFamily: MONO }}>+{fmt(amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: isVatRegistered && totalVat > 0 ? 6 : 12 }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: c.tx }}>
+                  {isVatRegistered && totalVat > 0 ? "Total (inc. VAT)" : "Total Due"}
+                </span>
+                <span style={{ fontWeight: 700, fontSize: 18, color: c.ac, fontFamily: MONO }}>
+                  {fmt(isVatRegistered ? totalWithVat : parsedTotal)}
+                </span>
               </div>
               <div style={{ marginTop: 14, padding: 11, background: c.bg, borderRadius: 8, fontSize: 11, color: c.tm }}>
                 <div style={{ fontWeight: 600, color: c.tx, marginBottom: 4 }}>Payment Details</div>

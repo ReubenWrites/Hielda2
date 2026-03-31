@@ -46,4 +46,13 @@ export function trackPageView(viewName) {
 export function trackEvent(name, props) {
   if (!initialized) return
   posthog.capture(name, props)
+  // Fire retargeting pixel conversion events on key actions
+  if (name === "sign_up_completed") {
+    if (window.gtag) window.gtag("event", "conversion", { send_to: "AW-XXXXXXXXXX" })
+    if (window.fbq) window.fbq("track", "CompleteRegistration")
+    if (window.lintrk) window.lintrk("track", { conversion_id: 0 })
+  }
+  if (name === "invoice_created") {
+    if (window.fbq) window.fbq("track", "Lead")
+  }
 }
