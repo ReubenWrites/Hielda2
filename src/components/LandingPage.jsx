@@ -385,7 +385,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           Simple, transparent pricing
         </h2>
         <p style={{ color: c.tm, fontSize: 14, margin: "0 0 32px" }}>
-          One late payment fee covers months of Hielda. Everything after that is pure recovery.
+          One late fee more than covers a year's subscription. Everything after that is profit.
         </p>
         <div style={{
           display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
