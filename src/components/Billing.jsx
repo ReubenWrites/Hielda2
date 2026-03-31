@@ -128,7 +128,7 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
                 Monthly
               </div>
               <div style={{ fontSize: 32, fontWeight: 700, color: c.tx, fontFamily: MONO, marginBottom: 4 }}>
-                £4.99
+                £3.99
               </div>
               <div style={{ fontSize: 12, color: c.td, marginBottom: 20 }}>per month</div>
               <Btn onClick={() => handleCheckout("monthly")} dis={loading} style={{ width: "100%", justifyContent: "center" }}>
@@ -145,9 +145,9 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
                 Annual
               </div>
               <div style={{ fontSize: 32, fontWeight: 700, color: c.tx, fontFamily: MONO, marginBottom: 4 }}>
-                £39.99
+                £34.99
               </div>
-              <div style={{ fontSize: 12, color: c.td, marginBottom: 8 }}>per year (save 33%)</div>
+              <div style={{ fontSize: 12, color: c.td, marginBottom: 8 }}>per year (save 27%)</div>
               <div style={{ fontSize: 12, color: "#16a34a", marginBottom: 20, fontStyle: "italic" }}>One late payment fee covers your entire year. Everything else is profit.</div>
               <Btn onClick={() => handleCheckout("annual")} dis={loading} style={{ width: "100%", justifyContent: "center" }}>
                 {loading ? "Loading..." : "Subscribe Annually"}

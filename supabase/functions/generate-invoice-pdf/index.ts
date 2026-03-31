@@ -25,10 +25,29 @@ function formatDate(d: string): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
 
+async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const buffer = await res.arrayBuffer()
+    const bytes = new Uint8Array(buffer)
+    let binary = ""
+    bytes.forEach(b => binary += String.fromCharCode(b))
+    const b64 = btoa(binary)
+    const ct = res.headers.get("content-type") || "image/png"
+    const format = ct.includes("jpeg") || ct.includes("jpg") ? "JPEG"
+      : ct.includes("png") ? "PNG"
+      : ct.includes("gif") ? "GIF"
+      : ct.includes("webp") ? "WEBP"
+      : "PNG"
+    return { data: b64, format }
+  } catch {
+    return null
+  }
+}
+
 serve(async (req) => {
   try {
-    // Support both authenticated and service-role calls
-    const authHeader = req.headers.get("Authorization")
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     const { invoice_id } = await req.json()
@@ -83,6 +102,9 @@ serve(async (req) => {
       }
     }
 
+    // Fetch logo if available
+    const logoImg = profile.logo_url ? await fetchImageAsBase64(profile.logo_url) : null
+
     // Build PDF
     const doc = new jsPDF()
     const blue = "#1e5fa0"
@@ -90,7 +112,28 @@ serve(async (req) => {
     const dark = "#0f172a"
     let y = 20
 
-    // Header
+    // Logo or business name in top-right
+    const bizName = profile.business_name || profile.full_name || ""
+    if (logoImg) {
+      try {
+        // Add logo — max 50mm wide, 20mm tall, right-aligned
+        doc.addImage(`data:image/${logoImg.format.toLowerCase()};base64,${logoImg.data}`, logoImg.format, 140, y - 5, 50, 20, undefined, "FAST")
+        y += 5
+      } catch {
+        // Fallback to text if image fails
+        doc.setFontSize(10)
+        doc.setTextColor(dark)
+        doc.setFont("helvetica", "bold")
+        doc.text(bizName, 190, y, { align: "right" })
+      }
+    } else {
+      doc.setFontSize(10)
+      doc.setTextColor(dark)
+      doc.setFont("helvetica", "bold")
+      doc.text(bizName, 190, y, { align: "right" })
+    }
+
+    // Invoice label + ref (top left)
     doc.setFontSize(10)
     doc.setTextColor(blue)
     doc.setFont("helvetica", "bold")
@@ -99,27 +142,22 @@ serve(async (req) => {
     doc.setFontSize(22)
     doc.text(invoice.ref, 20, y + 10)
 
-    // Business info (right side)
-    doc.setFontSize(10)
-    doc.setTextColor(dark)
-    doc.setFont("helvetica", "bold")
-    const bizName = profile.business_name || profile.full_name || ""
-    doc.text(bizName, 190, y, { align: "right" })
-
+    // Business info (right side, below logo/name)
+    const infoTop = logoImg ? y + 16 : y + 5
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(gray)
     if (profile.address) {
       const addrLines = profile.address.split("\n")
       addrLines.forEach((line: string, i: number) => {
-        doc.text(line.trim(), 190, y + 5 + i * 4, { align: "right" })
+        doc.text(line.trim(), 190, infoTop + i * 4, { align: "right" })
       })
     }
-    if (profile.phone) {
-      doc.text(profile.phone, 190, y + 20, { align: "right" })
-    }
     if (profile.email) {
-      doc.text(profile.email, 190, y + 25, { align: "right" })
+      doc.text(profile.email, 190, infoTop + 20, { align: "right" })
+    }
+    if (profile.website_url) {
+      doc.text(profile.website_url.replace(/^https?:\/\//, ""), 190, infoTop + 25, { align: "right" })
     }
 
     // Blue line
@@ -279,14 +317,32 @@ serve(async (req) => {
       doc.setFont("helvetica", "bold")
       doc.text("TOTAL DUE", 120, y)
       doc.text(fmt(netAmount), 190, y, { align: "right" })
-    } else {
-      // Has VAT, not overdue — total already shown above
     }
+    // If has VAT and not overdue, total already shown above
 
     // Payment details box
     y += 16
+
+    // Build payment lines
+    const payLines: string[] = []
+    const hasBankDetails = profile.bank_name || profile.sort_code || profile.account_number
+    const hasIntlDetails = profile.swift_bic || profile.iban
+
+    if (hasBankDetails) {
+      payLines.push(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Acct: ${profile.account_number || "—"}`)
+    }
+    if (hasIntlDetails) {
+      const intlParts: string[] = []
+      if (profile.swift_bic) intlParts.push(`SWIFT/BIC: ${profile.swift_bic}`)
+      if (profile.iban) intlParts.push(`IBAN: ${profile.iban}`)
+      payLines.push(intlParts.join("    "))
+    }
+    payLines.push(`Reference: ${invoice.ref}`)
+    if (profile.vat_number) payLines.push(`VAT Reg: ${profile.vat_number}`)
+
+    const boxH = 14 + payLines.length * 5.5
     doc.setFillColor("#f1f3f6")
-    doc.roundedRect(20, y, 170, 30, 3, 3, "F")
+    doc.roundedRect(20, y, 170, boxH, 3, 3, "F")
 
     y += 8
     doc.setFontSize(9)
@@ -294,25 +350,34 @@ serve(async (req) => {
     doc.setFont("helvetica", "bold")
     doc.text("Payment Details", 28, y)
 
-    y += 6
     doc.setFont("helvetica", "normal")
     doc.setTextColor(gray)
-    doc.text(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Account: ${profile.account_number || "—"}`, 28, y)
+    for (const line of payLines) {
+      y += 5.5
+      doc.text(line, 28, y)
+    }
 
-    y += 5
-    doc.text(`Reference: ${invoice.ref}`, 28, y)
-    if (profile.vat_number) {
-      doc.text(`VAT: ${profile.vat_number}`, 120, y)
+    // Custom signoff
+    if (profile.invoice_signoff) {
+      y += 12
+      doc.setFontSize(9)
+      doc.setTextColor(gray)
+      doc.setFont("helvetica", "italic")
+      const signoffLines = doc.splitTextToSize(profile.invoice_signoff, 160)
+      doc.text(signoffLines, 20, y)
+      y += signoffLines.length * 5
     }
 
     // Footer
+    const footerY = 280
     doc.setFontSize(8)
+    doc.setFont("helvetica", "normal")
     doc.setTextColor("#94a3b8")
-    doc.text("Generated by Hielda — Protecting your pay.", 105, 280, { align: "center" })
+    doc.text("Generated by Hielda — Protecting your pay.", 105, footerY, { align: "center" })
 
     if (isOverdue) {
       doc.setFontSize(7)
-      doc.text("Late payment charges applied under the Late Payment of Commercial Debts (Interest) Act 1998.", 105, 285, { align: "center" })
+      doc.text("Late payment charges applied under the Late Payment of Commercial Debts (Interest) Act 1998.", 105, footerY + 5, { align: "center" })
     }
 
     // Output

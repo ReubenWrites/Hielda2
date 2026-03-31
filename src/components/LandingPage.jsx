@@ -376,6 +376,98 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         </button>
       </section>
 
+      {/* Pricing */}
+      <section style={{
+        padding: isMobile ? "40px 20px" : "64px 48px",
+        maxWidth: 700, margin: "0 auto", textAlign: "center",
+      }}>
+        <h2 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, margin: "0 0 8px" }}>
+          Simple, transparent pricing
+        </h2>
+        <p style={{ color: c.tm, fontSize: 14, margin: "0 0 32px" }}>
+          One late payment fee covers months of Hielda. Everything after that is pure recovery.
+        </p>
+        <div style={{
+          display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: 16, textAlign: "left",
+        }}>
+          {/* Monthly */}
+          <div style={{
+            background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 16,
+            padding: "28px 24px",
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Monthly</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+              <span style={{ fontSize: 38, fontWeight: 700, color: c.tx, fontFamily: MONO }}>£3.99</span>
+              <span style={{ fontSize: 13, color: c.td }}>/month</span>
+            </div>
+            <p style={{ fontSize: 12, color: c.tm, margin: "0 0 20px", lineHeight: 1.5 }}>
+              Cancel anytime. No lock-in.
+            </p>
+            <button onClick={onGetStarted} style={{
+              width: "100%", background: c.ac, color: "#fff", border: "none", borderRadius: 10,
+              padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+            }}>
+              Start 7-day free trial
+            </button>
+          </div>
+
+          {/* Annual */}
+          <div style={{
+            background: "#fff", border: `2px solid ${c.ac}`, borderRadius: 16,
+            padding: "28px 24px", position: "relative",
+          }}>
+            <div style={{
+              position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)",
+              background: c.ac, color: "#fff", fontSize: 10, fontWeight: 700,
+              padding: "4px 14px", borderRadius: 999, textTransform: "uppercase", letterSpacing: "0.05em",
+              whiteSpace: "nowrap",
+            }}>
+              Best value
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>Annual</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+              <span style={{ fontSize: 38, fontWeight: 700, color: c.tx, fontFamily: MONO }}>£34.99</span>
+              <span style={{ fontSize: 13, color: c.td }}>/year</span>
+            </div>
+            <p style={{ fontSize: 12, color: c.tm, margin: "0 0 4px" }}>
+              Just £2.92/month — save 27%
+            </p>
+            <p style={{ fontSize: 12, color: "#16a34a", margin: "0 0 20px", fontStyle: "italic" }}>
+              One recovered penalty covers your whole year.
+            </p>
+            <button onClick={onGetStarted} style={{
+              width: "100%", background: c.ac, color: "#fff", border: "none", borderRadius: 10,
+              padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+            }}>
+              Start 7-day free trial
+            </button>
+          </div>
+        </div>
+
+        {/* Included features */}
+        <div style={{ marginTop: 20, padding: "20px 24px", background: c.sf, borderRadius: 12, textAlign: "left" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: c.tx, marginBottom: 12 }}>Everything included in both plans:</div>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "6px 20px" }}>
+            {[
+              "19-stage automated chase sequence",
+              "Statutory interest & penalty enforcement",
+              "PDF invoice generation",
+              "Chase history & audit trail",
+              "You stay in full control — we check in first",
+              "Email support",
+            ].map(f => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: c.tx }}>
+                <span style={{ color: c.gn, fontWeight: 700, flexShrink: 0 }}>✓</span> {f}
+              </div>
+            ))}
+          </div>
+        </div>
+        <p style={{ fontSize: 11, color: c.td, marginTop: 14 }}>
+          No credit card required to start · Cancel any time · UK businesses only
+        </p>
+      </section>
+
       {/* CTA */}
       <section style={{
         padding: isMobile ? "40px 20px" : "64px 48px",

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../supabase"
 import { colors as c, TERMS, getBoe, getRate, onRateChange } from "../constants"
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
@@ -8,6 +8,8 @@ export default function Settings({ profile, onUpdate, isMobile }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef(null)
 
   const [rateInfo, setRateInfo] = useState({ boe: getBoe(), rate: getRate() })
 
@@ -40,6 +42,12 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           invoice_prefix: p.invoice_prefix || "INV",
           next_invoice_number: p.next_invoice_number || 1,
           default_payment_terms: p.default_payment_terms ? parseInt(p.default_payment_terms) : 30,
+          swift_bic: p.swift_bic || null,
+          iban: p.iban || null,
+          logo_url: p.logo_url || null,
+          invoice_signoff: p.invoice_signoff || null,
+          website_url: p.website_url || null,
+          payment_terms_note: p.payment_terms_note || null,
         })
         .eq("id", p.id)
       if (dbError) throw dbError
@@ -53,6 +61,36 @@ export default function Settings({ profile, onUpdate, isMobile }) {
   }
 
   const update = (field, value) => setP((prev) => ({ ...prev, [field]: value }))
+
+  const uploadLogo = async (file) => {
+    if (!file || !p.id) return
+    const ext = file.name.split(".").pop().toLowerCase()
+    if (!["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
+      setError("Logo must be a PNG, JPG, GIF, WebP, or SVG file.")
+      return
+    }
+    setLogoUploading(true)
+    setError("")
+    try {
+      const path = `${p.id}/logo.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from("logos")
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) throw new Error(upErr.message)
+      const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path)
+      update("logo_url", urlData.publicUrl)
+    } catch (e) {
+      setError("Logo upload failed: " + e.message + ". Make sure the 'logos' storage bucket exists in Supabase with public access.")
+    }
+    setLogoUploading(false)
+  }
+
+  const removeLogo = async () => {
+    if (!p.id || !p.logo_url) return
+    const path = p.logo_url.split("/logos/").pop()
+    await supabase.storage.from("logos").remove([path])
+    update("logo_url", null)
+  }
 
   return (
     <div>
@@ -135,6 +173,92 @@ export default function Settings({ profile, onUpdate, isMobile }) {
             <div style={{ fontSize: 11, color: c.tm, lineHeight: 1.5 }}>
               BoE: {rateInfo.boe}% · Interest: {rateInfo.rate}% p.a.<br />
               Penalties: £40 / £70 / £100
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginTop: 16 }}>
+        {/* International banking */}
+        <Card>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>International Banking</h3>
+          <p style={{ fontSize: 11, color: c.td, margin: "-6px 0 12px", lineHeight: 1.5 }}>
+            For overseas clients. Shown on invoices alongside your UK sort code and account number.
+          </p>
+          <Inp label="SWIFT / BIC" value={p.swift_bic || ""} onChange={(v) => update("swift_bic", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} mono ph="e.g. HBUKGB4B" />
+          <Inp label="IBAN" value={p.iban || ""} onChange={(v) => update("iban", v.toUpperCase().replace(/\s/g, "").slice(0, 34))} mono ph="e.g. GB29NWBK60161331926819" />
+        </Card>
+
+        {/* Branding */}
+        <Card>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Branding</h3>
+          <Inp label="Website (optional)" value={p.website_url || ""} onChange={(v) => update("website_url", v)} ph="https://yoursite.com" />
+
+          {/* Logo upload */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 6 }}>
+              Company Logo
+            </label>
+            {p.logo_url ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <img src={p.logo_url} alt="Logo" style={{ height: 48, maxWidth: 120, objectFit: "contain", borderRadius: 4, border: `1px solid ${c.bd}`, padding: 4, background: "#fff" }} />
+                <button onClick={removeLogo} style={{ fontSize: 11, color: c.or, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                  onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+                  style={{ display: "none" }}
+                />
+                <button
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoUploading}
+                  style={{
+                    padding: "8px 16px", background: c.bg, border: `1px dashed ${c.bd}`,
+                    borderRadius: 8, fontSize: 12, color: c.tm, cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {logoUploading ? "Uploading..." : "Upload logo (PNG, JPG, SVG)"}
+                </button>
+                <p style={{ fontSize: 10, color: c.td, margin: "4px 0 0" }}>
+                  Recommended: PNG with transparent background, min 200px wide.
+                  Requires a "logos" bucket in Supabase Storage with public access.
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Card>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Personalisation</h3>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+            <div>
+              <Inp
+                label="Custom signoff (optional)"
+                value={p.invoice_signoff || ""}
+                onChange={(v) => update("invoice_signoff", v.slice(0, 200))}
+                ta
+                ph="e.g. Thank you for your business — we look forward to working with you again."
+              />
+              <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 0" }}>Printed at the bottom of every invoice.</p>
+            </div>
+            <div>
+              <Inp
+                label="Payment terms note (optional)"
+                value={p.payment_terms_note || ""}
+                onChange={(v) => update("payment_terms_note", v.slice(0, 500))}
+                ta
+                ph="e.g. Payment is due within 30 days of invoice date. Late payments are subject to statutory interest under the Late Payment of Commercial Debts Act 1998."
+              />
+              <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 0" }}>Included in your first invoice email to every client.</p>
             </div>
           </div>
         </Card>
