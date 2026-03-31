@@ -62,6 +62,52 @@ export default function App() {
     return () => window.removeEventListener("hielda:show-privacy", handler)
   }, [])
 
+  // Sync page title + meta description with current view
+  useEffect(() => {
+    if (session) return
+    let title, desc
+    if (showCalculator) {
+      title = "UK Late Payment Calculator — Hielda"
+      desc = "Calculate the statutory interest and fixed penalties you're legally owed on overdue B2B invoices. Free calculator for UK freelancers and SMEs under the Late Payment Act 1998."
+    } else if (showPrivacy) {
+      title = "Privacy Policy — Hielda"
+      desc = "Hielda privacy policy — how we collect, use, and protect your data."
+    } else if (showAuth) {
+      title = "Start Free Trial — Hielda"
+      desc = "Start your free 7-day trial of Hielda. Automatic invoice chasing and late payment enforcement for UK freelancers. No credit card required."
+    } else {
+      title = "Hielda — Automatic Invoice Chasing & Late Payment Enforcement for UK Freelancers"
+      desc = "Hielda automatically chases late invoices and enforces statutory interest and penalties under the UK Late Payment of Commercial Debts Act 1998. Built for freelancers and SMEs."
+    }
+    document.title = title
+    const metaDesc = document.querySelector('meta[name="description"]')
+    if (metaDesc) metaDesc.setAttribute("content", desc)
+  }, [showCalculator, showPrivacy, showAuth, session])
+
+  // Sync URL with pre-auth view state
+  useEffect(() => {
+    if (session) return
+    if (showCalculator && window.location.pathname !== "/calculator") {
+      window.history.pushState(null, "", "/calculator")
+    } else if (showPrivacy && window.location.pathname !== "/privacy") {
+      window.history.pushState(null, "", "/privacy")
+    } else if (!showCalculator && !showPrivacy && !showAuth && window.location.pathname !== "/") {
+      window.history.pushState(null, "", "/")
+    }
+  }, [showCalculator, showPrivacy, showAuth, session])
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handler = () => {
+      const path = window.location.pathname
+      if (path === "/calculator") { setShowCalculator(true); setShowPrivacy(false); setShowAuth(false) }
+      else if (path === "/privacy") { setShowPrivacy(true); setShowCalculator(false); setShowAuth(false) }
+      else { setShowCalculator(false); setShowPrivacy(false); setShowAuth(false) }
+    }
+    window.addEventListener("popstate", handler)
+    return () => window.removeEventListener("popstate", handler)
+  }, [])
+
   const isMobile = useMediaQuery("(max-width: 768px)")
   const isAdmin = (profile?.email || user?.email) === import.meta.env.VITE_ADMIN_EMAIL
 
@@ -80,8 +126,12 @@ export default function App() {
       trackEvent("utm_visit", utms)
     }
 
-    // Detect referral code in URL (/ref/{code}) and store it
+    // Detect pre-auth routes on direct load
     const path = window.location.pathname
+    if (path === "/calculator") setShowCalculator(true)
+    else if (path === "/privacy") setShowPrivacy(true)
+
+    // Detect referral code in URL (/ref/{code}) and store it
     const match = path.match(/^\/ref\/([A-Za-z0-9-]+)$/)
     if (match) {
       localStorage.setItem("hielda_referral_code", match[1])
