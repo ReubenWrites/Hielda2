@@ -240,7 +240,6 @@ export default function Settings({ profile, onUpdate, isMobile }) {
                 </button>
                 <p style={{ fontSize: 10, color: c.td, margin: "4px 0 0" }}>
                   Recommended: PNG with transparent background, min 200px wide.
-                  Requires a "logos" bucket in Supabase Storage with public access.
                 </p>
               </div>
             )}
