@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, Btn, ShieldLogo } from "./ui"
+import { trackEvent } from "../posthog"
 
 export default function Calculator({ onBack, onGetStarted, isMobile }) {
   const [amount, setAmount] = useState("")
@@ -10,6 +11,10 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
   const parsedAmt = parseFloat(amount) || 0
   const parsedDays = parseInt(daysOverdue) || 0
   const hasInput = parsedAmt > 0 && parsedDays > 0
+
+  const trackCalc = useCallback(() => {
+    if (parsedAmt > 0 && parsedDays > 0) trackEvent("calculator_used", { amount: parsedAmt, days: parsedDays })
+  }, [parsedAmt, parsedDays])
 
   const interest = hasInput ? calcInterest(parsedAmt, parsedDays) : 0
   const pen = hasInput ? penalty(parsedAmt) : 0
@@ -58,10 +63,10 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
           fontSize: isMobile ? 26 : 36, fontWeight: 700, color: c.tx,
           lineHeight: 1.15, margin: "0 0 10px", letterSpacing: "-0.02em",
         }}>
-          Late Payment Calculator
+          UK Late Payment Calculator
         </h1>
         <p style={{ fontSize: isMobile ? 14 : 16, color: c.tm, lineHeight: 1.6, margin: "0 0 6px" }}>
-          Find out what you're legally owed on overdue invoices under UK law.
+          Calculate the statutory interest and penalties you're legally owed on overdue B2B invoices under UK law.
         </p>
         <p style={{ fontSize: 12, color: c.td }}>
           Based on the Late Payment of Commercial Debts (Interest) Act 1998
@@ -104,6 +109,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 type="number"
                 value={daysOverdue}
                 onChange={(e) => setDaysOverdue(e.target.value)}
+                onBlur={trackCalc}
                 placeholder="e.g. 30"
                 style={{
                   width: "100%", padding: "12px 14px",
@@ -167,7 +173,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
               <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>
                 <div style={{ fontWeight: 700, color: c.ac, fontSize: 13, marginBottom: 4 }}>Interest rate</div>
                 <div style={{ fontSize: 12, color: c.tm }}>
-                  Bank of England base rate ({getBoe()}%) + 8% = <strong style={{ color: c.tx }}>{RATE}% per annum</strong>
+                  Bank of England base rate ({getBoe()}%) + 8% = <strong style={{ color: c.tx }}>{getRate()}% per annum</strong>
                 </div>
               </div>
               <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>

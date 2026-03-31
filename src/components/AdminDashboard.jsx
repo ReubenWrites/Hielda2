@@ -3,6 +3,9 @@ import { supabase } from "../supabase"
 import { colors as c, FONT, MONO } from "../constants"
 import { fmt, formatDate } from "../utils"
 import { Card, Btn, Spinner } from "./ui"
+import AdminMetrics from "./admin/AdminMetrics"
+import AdminReferrals from "./admin/AdminReferrals"
+import AdminRevenue from "./admin/AdminRevenue"
 
 const CHASE_STAGE_LABELS = {
   reminder_1: "Friendly Reminder", reminder_2: "Second Reminder", final_warning: "Final Warning",
@@ -30,7 +33,15 @@ function Row({ label, value, mono }) {
   )
 }
 
+const ADMIN_TABS = [
+  { id: "users", label: "Users" },
+  { id: "metrics", label: "Metrics" },
+  { id: "referrals", label: "Referrals" },
+  { id: "revenue", label: "Revenue" },
+]
+
 export default function AdminDashboard({ isMobile }) {
+  const [tab, setTab] = useState("users")
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -95,9 +106,31 @@ export default function AdminDashboard({ isMobile }) {
 
   return (
     <div>
-      <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 4px" }}>Support Dashboard</h1>
-      <p style={{ color: c.tm, fontSize: 13, margin: "0 0 24px" }}>Look up any user account by email address.</p>
+      <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 4px" }}>Admin Dashboard</h1>
+      <p style={{ color: c.tm, fontSize: 13, margin: "0 0 16px" }}>Manage users, track metrics, and oversee referrals.</p>
 
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${c.bd}`, paddingBottom: 0 }}>
+        {ADMIN_TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "8px 16px", background: "none", border: "none", borderBottom: `2px solid ${tab === t.id ? c.ac : "transparent"}`,
+              color: tab === t.id ? c.ac : c.tm, fontFamily: FONT, fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
+              cursor: "pointer", marginBottom: -1,
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "metrics" && <AdminMetrics isMobile={isMobile} />}
+      {tab === "referrals" && <AdminReferrals isMobile={isMobile} />}
+      {tab === "revenue" && <AdminRevenue isMobile={isMobile} />}
+
+      {tab === "users" && <>
       {/* Search */}
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -261,6 +294,7 @@ export default function AdminDashboard({ isMobile }) {
           </Card>
         </div>
       )}
+      </>}
     </div>
   )
 }

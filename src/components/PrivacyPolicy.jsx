@@ -94,8 +94,9 @@ export default function PrivacyPolicy({ onBack }) {
               { name: "Stripe", role: "Subscription billing and payment processing", location: "EU / US" },
               { name: "Resend", role: "Transactional email delivery (chase emails, notifications)", location: "EU / US" },
               { name: "Vercel", role: "Web hosting and serverless API functions", location: "EU" },
+              { name: "PostHog", role: "Product analytics and session recording (privacy-focused)", location: "EU" },
             ].map((p, i) => (
-              <div key={p.name} style={{ display: "grid", gridTemplateColumns: "120px 1fr 100px", gap: 12, padding: "10px 14px", borderBottom: i < 3 ? `1px solid ${c.bdl}` : "none", fontSize: 12 }}>
+              <div key={p.name} style={{ display: "grid", gridTemplateColumns: "120px 1fr 100px", gap: 12, padding: "10px 14px", borderBottom: i < 4 ? `1px solid ${c.bdl}` : "none", fontSize: 12 }}>
                 <span style={{ fontWeight: 600, color: c.tx }}>{p.name}</span>
                 <span style={{ color: c.tm }}>{p.role}</span>
                 <span style={{ color: c.td, textAlign: "right" }}>{p.location}</span>
@@ -139,7 +140,7 @@ export default function PrivacyPolicy({ onBack }) {
         </Section>
 
         <Section title="Cookies">
-          <p>Hielda uses only essential cookies — specifically a session cookie managed by Supabase to keep you logged in. We do not use advertising or tracking cookies. No third-party analytics tools are used.</p>
+          <p>Hielda uses only essential cookies — specifically a session cookie managed by Supabase to keep you logged in. We do not use advertising or tracking cookies. We use PostHog (EU-hosted) for privacy-focused product analytics and session recording to improve the service. PostHog does not share data with third parties, and all analytics data is stored in the EU. No personal data is shared for marketing purposes.</p>
         </Section>
 
         <Section title="Changes to This Policy">

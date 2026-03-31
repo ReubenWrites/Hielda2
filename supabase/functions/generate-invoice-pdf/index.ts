@@ -63,9 +63,25 @@ serve(async (req) => {
     const now = new Date()
     const daysOverdue = Math.max(0, Math.floor((now.getTime() - dueDate.getTime()) / 864e5))
     const isOverdue = invoice.status === "overdue" || dueDate < now
-    const interest = isOverdue ? Number(invoice.amount) * DAILY_RATE * daysOverdue : 0
-    const pen = isOverdue ? penalty(Number(invoice.amount)) : 0
-    const total = Number(invoice.amount) + interest + pen
+    const netAmount = Number(invoice.amount)
+    const vatAmount = Number(invoice.vat_amount) || 0
+    const invoiceTotal = Number(invoice.total_with_vat) || netAmount
+    const hasVat = vatAmount > 0
+    const interest = isOverdue ? netAmount * DAILY_RATE * daysOverdue : 0
+    const pen = isOverdue ? penalty(netAmount) : 0
+    const total = invoiceTotal + interest + pen
+
+    // Build VAT breakdown from line items
+    const vatBreakdown: Record<string, number> = {}
+    if (hasVat && invoice.line_items) {
+      for (const li of invoice.line_items) {
+        const amt = parseFloat(li.amount) || 0
+        const rate = li.vatRate || "0"
+        if (rate === "exempt" || rate === "0") continue
+        const rateNum = parseFloat(rate) || 0
+        vatBreakdown[rate] = (vatBreakdown[rate] || 0) + Math.round(amt * rateNum / 100 * 100) / 100
+      }
+    }
 
     // Build PDF
     const doc = new jsPDF()
@@ -163,26 +179,78 @@ serve(async (req) => {
     doc.setFontSize(8)
     doc.setTextColor(gray)
     doc.text("DESCRIPTION", 20, y)
+    if (hasVat) doc.text("VAT", 150, y, { align: "right" })
     doc.text("AMOUNT", 190, y, { align: "right" })
 
-    y += 8
-    doc.setFontSize(10)
-    doc.setTextColor(dark)
-    doc.text(invoice.description || "Services rendered", 20, y)
-    doc.setFont("helvetica", "bold")
-    doc.text(fmt(Number(invoice.amount)), 190, y, { align: "right" })
+    y += 2
+    doc.line(20, y, 190, y)
+
+    // Render individual line items if available
+    if (invoice.line_items?.length) {
+      for (const li of invoice.line_items) {
+        y += 7
+        doc.setFontSize(10)
+        doc.setTextColor(dark)
+        doc.setFont("helvetica", "normal")
+        doc.text(li.description || "—", 20, y)
+        if (hasVat) {
+          doc.setFontSize(9)
+          doc.setTextColor(gray)
+          const rateLabel = li.vatRate === "exempt" ? "Exempt" : `${li.vatRate || 0}%`
+          doc.text(rateLabel, 150, y, { align: "right" })
+        }
+        doc.setFontSize(10)
+        doc.setTextColor(dark)
+        doc.text(fmt(parseFloat(li.amount) || 0), 190, y, { align: "right" })
+      }
+    } else {
+      y += 7
+      doc.setFontSize(10)
+      doc.setTextColor(dark)
+      doc.text(invoice.description || "Services rendered", 20, y)
+      doc.text(fmt(netAmount), 190, y, { align: "right" })
+    }
 
     // Totals
-    y += 14
+    y += 10
+    doc.setDrawColor("#dce1e8")
+    doc.setLineWidth(0.3)
     doc.line(120, y, 190, y)
+
+    if (hasVat) {
+      y += 7
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.setTextColor(gray)
+      doc.text("Subtotal (ex. VAT)", 120, y)
+      doc.text(fmt(netAmount), 190, y, { align: "right" })
+
+      for (const [rate, amount] of Object.entries(vatBreakdown)) {
+        if (amount <= 0) continue
+        y += 6
+        doc.text(`VAT @ ${rate}%`, 120, y)
+        doc.text(fmt(amount), 190, y, { align: "right" })
+      }
+
+      y += 6
+      doc.setTextColor(dark)
+      doc.setFont("helvetica", "bold")
+      doc.text("Total (inc. VAT)", 120, y)
+      doc.text(fmt(invoiceTotal), 190, y, { align: "right" })
+    }
 
     if (isOverdue && daysOverdue > 0) {
       y += 8
       doc.setFont("helvetica", "normal")
       doc.setFontSize(9)
+      doc.setDrawColor("#dce1e8")
+      doc.setLineWidth(0.3)
+      doc.line(120, y, 190, y)
+
+      y += 7
       doc.setTextColor(gray)
-      doc.text("Original amount", 120, y)
-      doc.text(fmt(Number(invoice.amount)), 190, y, { align: "right" })
+      doc.text(hasVat ? "Invoice total" : "Original amount", 120, y)
+      doc.text(fmt(invoiceTotal), 190, y, { align: "right" })
 
       y += 6
       doc.setTextColor("#a16207")
@@ -204,13 +272,15 @@ serve(async (req) => {
       doc.setFont("helvetica", "bold")
       doc.text("TOTAL NOW OWED", 120, y)
       doc.text(fmt(total), 190, y, { align: "right" })
-    } else {
+    } else if (!hasVat) {
       y += 8
       doc.setFontSize(11)
       doc.setTextColor(blue)
       doc.setFont("helvetica", "bold")
       doc.text("TOTAL DUE", 120, y)
-      doc.text(fmt(Number(invoice.amount)), 190, y, { align: "right" })
+      doc.text(fmt(netAmount), 190, y, { align: "right" })
+    } else {
+      // Has VAT, not overdue — total already shown above
     }
 
     // Payment details box

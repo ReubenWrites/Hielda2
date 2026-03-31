@@ -46,7 +46,7 @@ const TIMELINE_PREVIEW = [
 
 export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isMobile }) {
   return (
-    <div style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
+    <main style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
       {/* Nav bar */}
       <nav style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -419,6 +419,6 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         </button>
         <a href="mailto:support@hielda.com" style={{ color: c.td, fontSize: 11 }}>support@hielda.com</a>
       </footer>
-    </div>
+    </main>
   )
 }

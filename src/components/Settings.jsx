@@ -35,6 +35,8 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           vat_number: p.vat_number,
           utr_number: p.utr_number,
           company_reg_number: p.company_reg_number,
+          vat_registered: p.vat_registered || false,
+          default_vat_rate: p.default_vat_rate || "20",
           invoice_prefix: p.invoice_prefix || "INV",
           next_invoice_number: p.next_invoice_number || 1,
           default_payment_terms: p.default_payment_terms ? parseInt(p.default_payment_terms) : 30,
@@ -99,7 +101,32 @@ export default function Settings({ profile, onUpdate, isMobile }) {
             mono
             error={p.account_number && p.account_number.length !== 8 ? "Must be 8 digits" : ""}
           />
-          <Inp label="VAT (optional)" value={p.vat_number || ""} onChange={(v) => update("vat_number", v)} mono />
+          <Inp label="VAT Number (optional)" value={p.vat_number || ""} onChange={(v) => update("vat_number", v)} mono />
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: c.tx }}>
+              <input
+                type="checkbox"
+                checked={p.vat_registered || false}
+                onChange={(e) => update("vat_registered", e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: c.ac }}
+              />
+              VAT Registered
+            </label>
+            <p style={{ fontSize: 10, color: c.td, margin: "4px 0 0 24px" }}>Enable to add VAT to invoices.</p>
+          </div>
+          {p.vat_registered && (
+            <Sel
+              label="Default VAT Rate"
+              value={p.default_vat_rate || "20"}
+              onChange={(v) => update("default_vat_rate", v)}
+              opts={[
+                { l: "20% Standard", v: "20" },
+                { l: "5% Reduced", v: "5" },
+                { l: "0% Zero-rated", v: "0" },
+                { l: "Exempt", v: "exempt" },
+              ]}
+            />
+          )}
           <Inp label="Company Reg No. (optional)" value={p.company_reg_number || ""} onChange={(v) => update("company_reg_number", v)} mono ph="e.g. 12345678" />
           <Inp label="UTR (optional)" value={p.utr_number || ""} onChange={(v) => update("utr_number", v)} mono />
           <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 4px" }}>Unique Taxpayer Reference — your 10-digit HMRC number for self-assessment.</p>

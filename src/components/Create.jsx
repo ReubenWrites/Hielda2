@@ -3,6 +3,7 @@ import { supabase } from "../supabase"
 import { colors as c, FONT, MONO, TERMS, getRate } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
+import { trackEvent } from "../posthog"
 
 const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
 
@@ -13,7 +14,8 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [cn, setCn] = useState("")
   const [ce, setCe] = useState("")
   const [ca, setCa] = useState("")
-  const [lineItems, setLineItems] = useState([{ description: "", amount: "" }])
+  const defaultVatRate = profile?.vat_registered ? (profile?.default_vat_rate || "20") : "0"
+  const [lineItems, setLineItems] = useState([{ description: "", amount: "", vatRate: defaultVatRate }])
   const [terms, setTerms] = useState(isCustomDefault ? "-1" : defaultTerms)
   const [customDays, setCustomDays] = useState(isCustomDefault ? defaultTerms : "")
   const [date, setDate] = useState(todayStr())
@@ -144,12 +146,26 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const updateLineItem = (index, field, value) => {
     setLineItems(prev => prev.map((li, i) => i === index ? { ...li, [field]: value } : li))
   }
-  const addLineItem = () => setLineItems(prev => [...prev, { description: "", amount: "" }])
+  const addLineItem = () => setLineItems(prev => [...prev, { description: "", amount: "", vatRate: defaultVatRate }])
   const removeLineItem = (index) => setLineItems(prev => prev.filter((_, i) => i !== index))
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   const due = addDays(date, effectiveDays)
   const parsedTotal = round2(lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0))
+  const isVatRegistered = profile?.vat_registered
+
+  // VAT calculation per rate
+  const vatBreakdown = lineItems.reduce((acc, li) => {
+    const amt = parseFloat(li.amount) || 0
+    const rate = li.vatRate || "0"
+    if (rate === "exempt") return acc
+    const rateNum = parseFloat(rate) || 0
+    if (rateNum === 0 && rate !== "0") return acc
+    acc[rate] = (acc[rate] || 0) + round2(amt * rateNum / 100)
+    return acc
+  }, {})
+  const totalVat = isVatRegistered ? round2(Object.values(vatBreakdown).reduce((s, v) => s + v, 0)) : 0
+  const totalWithVat = round2(parsedTotal + totalVat)
   const p = penalty(parsedTotal)
 
   // Validation
@@ -177,7 +193,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     setCn("")
     setCe("")
     setCa("")
-    setLineItems([{ description: "", amount: "" }])
+    setLineItems([{ description: "", amount: "", vatRate: defaultVatRate }])
     setStep(1)
     setMeth(null)
     setError("")
@@ -206,7 +222,10 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
         ref,
         description: validItems.map(li => li.description).join(", "),
         amount: parsedTotal,
-        line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount) })),
+        subtotal: parsedTotal,
+        vat_amount: totalVat,
+        total_with_vat: totalWithVat,
+        line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount), vatRate: li.vatRate || "0" })),
         issue_date: date,
         payment_term_days: effectiveDays,
         due_date: dueStr,
@@ -223,6 +242,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       }).select().single()
       if (dbError) throw dbError
       clearDraft()
+      trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: meth })
 
       // Increment sequential invoice number
       const nextNum = (profile?.next_invoice_number || 1) + 1
@@ -277,7 +297,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
           ✓
         </div>
         <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 6px" }}>Invoice Created</h2>
-        <p style={{ color: c.tm, fontSize: 13, marginBottom: 5 }}>{ref} · {fmt(parsedTotal)} · {cn}</p>
+        <p style={{ color: c.tm, fontSize: 13, marginBottom: 5 }}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
         <p style={{ color: c.tm, fontSize: 12, marginBottom: 20 }}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
 
         {sendIntro && introMethod === "hielda" && (
@@ -425,16 +445,17 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, marginBottom: 8 }}>Line Items</div>
               {!isMobile && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isVatRegistered ? "1fr auto auto auto" : "1fr auto auto", gap: "4px 8px", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>
+                  {isVatRegistered && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>VAT</span>}
                   <span />
                 </div>
               )}
               {lineItems.map((li, i) => (
                 <div key={i} style={isMobile
                   ? { display: "flex", flexDirection: "column", gap: 4, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${c.bdl}` }
-                  : { display: "grid", gridTemplateColumns: "1fr auto auto", gap: "4px 8px", alignItems: "flex-start", marginBottom: 6 }
+                  : { display: "grid", gridTemplateColumns: isVatRegistered ? "1fr auto auto auto" : "1fr auto auto", gap: "4px 8px", alignItems: "flex-start", marginBottom: 6 }
                 }>
                   <div>
                     {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>}
@@ -466,6 +487,26 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                         }}
                       />
                     </div>
+                    {isVatRegistered && (
+                      <div style={{ flex: isMobile ? 1 : undefined }}>
+                        {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>VAT Rate</span>}
+                        <select
+                          value={li.vatRate || "20"}
+                          onChange={(e) => updateLineItem(i, "vatRate", e.target.value)}
+                          style={{
+                            width: isMobile ? "100%" : 90, padding: "9px 8px", background: c.bg,
+                            border: `1px solid ${c.bd}`, borderRadius: 8, color: c.tx,
+                            fontFamily: FONT, fontSize: 12, outline: "none", boxSizing: "border-box",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="20">20%</option>
+                          <option value="5">5%</option>
+                          <option value="0">0%</option>
+                          <option value="exempt">Exempt</option>
+                        </select>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => removeLineItem(i)}
@@ -495,9 +536,25 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                 }}
               >+ Add line</button>
               {parsedTotal > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 0", fontSize: 13, fontWeight: 700, borderTop: `1px solid ${c.bdl}`, marginTop: 8 }}>
-                  <span style={{ color: c.tm }}>Total</span>
-                  <span style={{ fontFamily: MONO, color: c.ac }}>{fmt(parsedTotal)}</span>
+                <div style={{ borderTop: `1px solid ${c.bdl}`, marginTop: 8, paddingTop: 8 }}>
+                  {isVatRegistered && totalVat > 0 && (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 4 }}>
+                        <span>Subtotal (ex. VAT)</span>
+                        <span style={{ fontFamily: MONO }}>{fmt(parsedTotal)}</span>
+                      </div>
+                      {Object.entries(vatBreakdown).filter(([, v]) => v > 0).map(([rate, amount]) => (
+                        <div key={rate} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 4 }}>
+                          <span>VAT @ {rate}%</span>
+                          <span style={{ fontFamily: MONO }}>{fmt(amount)}</span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700 }}>
+                    <span style={{ color: c.tm }}>{isVatRegistered && totalVat > 0 ? "Total (inc. VAT)" : "Total"}</span>
+                    <span style={{ fontFamily: MONO, color: c.ac }}>{fmt(isVatRegistered ? totalWithVat : parsedTotal)}</span>
+                  </div>
                 </div>
               )}
             </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "./supabase"
 import { colors as c, FONT, MONO, loadLiveBoeRate } from "./constants"
 import { fmt, todayStr } from "./utils"
+import { identifyUser, resetUser, trackPageView, trackEvent } from "./posthog"
 import { ShieldLogo, Spinner } from "./components/ui"
 import AuthScreen from "./components/AuthScreen"
 import Onboarding from "./components/Onboarding"
@@ -16,11 +17,13 @@ import LandingPage from "./components/LandingPage"
 import Calculator from "./components/Calculator"
 import PrivacyPolicy from "./components/PrivacyPolicy"
 import AdminDashboard from "./components/AdminDashboard"
+import Referrals from "./components/Referrals"
 import OnboardingTour, { shouldShowTour } from "./components/OnboardingTour"
 
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
   { id: "create", l: "New Invoice", i: "+" },
+  { id: "referrals", l: "Refer & Earn", i: "🎁" },
   { id: "how", l: "How It Works", i: "?" },
   { id: "settings", l: "Your Details", i: "⚙" },
   { id: "billing", l: "Your Account", i: "○" },
@@ -65,6 +68,17 @@ export default function App() {
   // Load live BoE rate on mount
   useEffect(() => { loadLiveBoeRate() }, [])
 
+  // Detect referral code in URL (/ref/{code}) and store it
+  useEffect(() => {
+    const path = window.location.pathname
+    const match = path.match(/^\/ref\/([A-Za-z0-9-]+)$/)
+    if (match) {
+      localStorage.setItem("hielda_referral_code", match[1])
+      window.history.replaceState(null, "", "/")
+      trackEvent("referral_link_visited", { code: match[1] })
+    }
+  }, [])
+
   // Check for existing session on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -92,13 +106,16 @@ export default function App() {
     try {
       const [{ data: profs, error: profErr }, { data: invoices, error: invErr }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id),
-        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,amount_paid,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,payment_term_days,send_method,line_items,client_ref,cc_emails,bcc_emails,paid_date").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
+        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,amount_paid,subtotal,vat_amount,total_with_vat,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,payment_term_days,send_method,line_items,client_ref,cc_emails,bcc_emails,paid_date").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
       ])
 
       if (profErr) throw profErr
       if (invErr) throw invErr
 
-      if (profs?.[0]) setProfile(profs[0])
+      if (profs?.[0]) {
+        setProfile(profs[0])
+        identifyUser(profs[0])
+      }
 
       const today = todayStr()
       setInvs(
@@ -136,16 +153,19 @@ export default function App() {
   const handleAuth = (sess, usr) => {
     setSession(sess)
     setUser(usr)
+    trackEvent("login")
   }
 
   const nav = (v, id) => {
     setView(v)
     setSelId(id || null)
     if (isMobile) setSidebarOpen(false)
+    trackPageView(v)
   }
 
   const logout = async () => {
     await supabase.auth.signOut()
+    resetUser()
     setSession(null)
     setUser(null)
     setProfile(null)
@@ -173,7 +193,7 @@ export default function App() {
     if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
     if (showCalculator) return <Calculator onBack={() => setShowCalculator(false)} onGetStarted={() => { setShowCalculator(false); setShowAuth(true) }} isMobile={isMobile} />
     if (showAuth) return <AuthScreen onAuth={handleAuth} onBack={() => setShowAuth(false)} />
-    return <LandingPage onGetStarted={() => setShowAuth(true)} onPrivacy={() => setShowPrivacy(true)} onCalculator={() => setShowCalculator(true)} isMobile={isMobile} />
+    return <LandingPage onGetStarted={() => { trackPageView("auth"); setShowAuth(true) }} onPrivacy={() => { trackPageView("privacy"); setShowPrivacy(true) }} onCalculator={() => { trackPageView("calculator"); setShowCalculator(true) }} isMobile={isMobile} />
   }
 
   // Show onboarding for new users who haven't completed setup
@@ -371,6 +391,7 @@ export default function App() {
               {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} isMobile={isMobile} invs={invs} />}
               {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}
               {view === "how" && <HowItWorks isMobile={isMobile} />}
+              {view === "referrals" && <Referrals profile={profile} userId={user?.id} isMobile={isMobile} />}
               {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />}
               {view === "admin" && isAdmin && <AdminDashboard isMobile={isMobile} />}
             </SubscriptionGate>

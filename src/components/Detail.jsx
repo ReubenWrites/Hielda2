@@ -4,6 +4,7 @@ import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "..
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
+import { trackEvent } from "../posthog"
 
 const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"]
 
@@ -197,11 +198,25 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const dl = daysLate(inv.due_date)
   const ov = inv.status === "overdue"
   const finesEnabled = !inv.no_fines
-  const interest = ov && finesEnabled ? calcInterest(Number(inv.amount), dl) : 0
-  const pen = ov && finesEnabled ? penalty(Number(inv.amount)) : 0
+  const netAmount = Number(inv.amount)
+  const vatAmount = Number(inv.vat_amount) || 0
+  const invoiceTotal = Number(inv.total_with_vat) || netAmount
+  const hasVat = vatAmount > 0
+  const interest = ov && finesEnabled ? calcInterest(netAmount, dl) : 0
+  const pen = ov && finesEnabled ? penalty(netAmount) : 0
   const ex = interest + pen
-  const tot = Number(inv.amount) + ex
+  const tot = invoiceTotal + ex
   const si = CHASE_STAGES.findIndex((s) => s.id === inv.chase_stage)
+
+  // VAT breakdown from line items
+  const vatBreakdown = hasVat && inv.line_items ? inv.line_items.reduce((acc, li) => {
+    const amt = parseFloat(li.amount) || 0
+    const rate = li.vatRate || "0"
+    if (rate === "exempt" || rate === "0") return acc
+    const rateNum = parseFloat(rate) || 0
+    acc[rate] = (acc[rate] || 0) + Math.round(amt * rateNum / 100 * 100) / 100
+    return acc
+  }, {}) : {}
 
   const downloadPdf = async () => {
     setDownloading(true)
@@ -218,6 +233,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       a.download = `${inv.ref}.pdf`
       a.click()
       URL.revokeObjectURL(url)
+      trackEvent("pdf_downloaded", { ref: inv.ref })
     } catch (e) {
       setError("PDF generation failed: " + e.message)
     }
@@ -255,6 +271,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], chase_stage: null })
         .eq("id", inv.id)
       if (err) throw err
+      trackEvent("invoice_paid", { amount: Number(inv.amount), ref: inv.ref })
       onUpdate()
       nav("dash")
     } catch (e) {
@@ -292,6 +309,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to send")
       setSendSuccess(`${stageLabel} email sent to ${data.email_to}`)
+      trackEvent("chase_sent", { stage, ref: inv.ref })
 
       // Server handles chase_stage advancement — just refresh
       const { data: logs } = await supabase
@@ -608,19 +626,41 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       {inv.line_items?.length > 0 && (
         <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px" }}>Line Items</h3>
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0 6px", fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>
-            <span>Description</span><span>Amount</span>
+          <div style={{ display: "grid", gridTemplateColumns: hasVat ? "1fr auto auto" : "1fr auto", gap: 8, padding: "4px 0 6px", fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>
+            <span>Description</span>
+            {hasVat && <span style={{ textAlign: "right" }}>VAT</span>}
+            <span style={{ textAlign: "right" }}>Amount</span>
           </div>
           {inv.line_items.map((li, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderTop: `1px solid ${c.bdl}` }}>
+            <div key={i} style={{ display: "grid", gridTemplateColumns: hasVat ? "1fr auto auto" : "1fr auto", gap: 8, padding: "7px 0", borderTop: `1px solid ${c.bdl}` }}>
               <span style={{ color: c.tx, fontSize: 13 }}>{li.description}</span>
-              <span style={{ color: c.tx, fontSize: 13, fontFamily: MONO, fontWeight: 500 }}>{fmt(li.amount)}</span>
+              {hasVat && <span style={{ color: c.td, fontSize: 12, textAlign: "right", minWidth: 50 }}>{li.vatRate === "exempt" ? "Exempt" : `${li.vatRate || 0}%`}</span>}
+              <span style={{ color: c.tx, fontSize: 13, fontFamily: MONO, fontWeight: 500, textAlign: "right" }}>{fmt(li.amount)}</span>
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${c.ac}33`, marginTop: 2 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: c.tx }}>Total</span>
-            <span style={{ fontSize: 15, fontWeight: 700, color: c.ac, fontFamily: MONO }}>{fmt(inv.amount)}</span>
-          </div>
+          {hasVat ? (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", borderTop: `1px solid ${c.bd}`, marginTop: 2 }}>
+                <span style={{ fontSize: 12, color: c.tm }}>Subtotal (ex. VAT)</span>
+                <span style={{ fontSize: 13, fontFamily: MONO, color: c.tx }}>{fmt(netAmount)}</span>
+              </div>
+              {Object.entries(vatBreakdown).filter(([, v]) => v > 0).map(([rate, amount]) => (
+                <div key={rate} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                  <span style={{ fontSize: 12, color: c.tm }}>VAT @ {rate}%</span>
+                  <span style={{ fontSize: 13, fontFamily: MONO, color: c.tx }}>{fmt(amount)}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${c.ac}33`, marginTop: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: c.tx }}>Total (inc. VAT)</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: c.ac, fontFamily: MONO }}>{fmt(invoiceTotal)}</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${c.ac}33`, marginTop: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: c.tx }}>Total</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: c.ac, fontFamily: MONO }}>{fmt(netAmount)}</span>
+            </div>
+          )}
         </Card>
       )}
 
@@ -687,7 +727,9 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
                 ["Client", inv.client_name],
                 ["Email", inv.client_email],
                 inv.client_ref ? ["Client ref / PO", inv.client_ref] : null,
-                ["Original", fmt(inv.amount)],
+                hasVat ? ["Net amount", fmt(netAmount)] : ["Original", fmt(netAmount)],
+                hasVat ? ["VAT", fmt(vatAmount)] : null,
+                hasVat ? ["Total (inc. VAT)", fmt(invoiceTotal)] : null,
                 ["Issued", formatDate(inv.issue_date)],
                 ["Terms", `${inv.payment_term_days} days`],
                 ["Due", formatDate(inv.due_date)],
@@ -709,7 +751,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>What they now owe you</h3>
             <div style={{ fontSize: 10, color: c.td, marginBottom: 12 }}>Late Payment of Commercial Debts (Interest) Act 1998</div>
             {[
-              ["Original invoice", fmt(inv.amount), c.tx],
+              [hasVat ? "Invoice (inc. VAT)" : "Original invoice", fmt(invoiceTotal), c.tx],
               ["Fixed penalty", `+${fmt(pen)}`, c.go],
               [`Interest (${dl}d)`, `+${fmt(interest)}`, c.go],
             ].map(([k, v, cl]) => (
@@ -722,7 +764,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
               <span style={{ color: c.tx, fontSize: 13, fontWeight: 700 }}>TOTAL NOW OWED</span>
               <span style={{ color: c.ac, fontSize: isMobile ? 17 : 20, fontWeight: 700, fontFamily: MONO }}>{fmt(tot)}</span>
             </div>
-            <div style={{ fontSize: 10, color: c.td, marginTop: 5, textAlign: "right" }}>+{fmt(Number(inv.amount) * getDailyRate())}/day</div>
+            <div style={{ fontSize: 10, color: c.td, marginTop: 5, textAlign: "right" }}>+{fmt(netAmount * getDailyRate())}/day interest</div>
           </Card>
         )}
 

@@ -75,6 +75,19 @@ export const MONO = `'JetBrains Mono','Fira Code',monospace`
 
 export const TRIAL_DAYS = 7
 
+export const REFERRAL_STATUSES = {
+  link_sent: { label: "Invite Sent", color: "#94a3b8", desc: "Hasn't signed up yet" },
+  signed_up: { label: "Signed Up", color: "#1e5fa0", desc: "Not yet subscribed" },
+  subscribed: { label: "Subscribed", color: "#b45309", desc: "Building toward threshold" },
+  eligible: { label: "Eligible", color: "#16a34a", desc: "Payout pending" },
+  paid_out: { label: "Paid", color: "#16a34a", desc: "Payout complete" },
+}
+
+export const REFERRAL_THRESHOLD = 10
+export const REFERRAL_REWARD = 10
+export const REFERRAL_BONUS_COUNT = 10
+export const REFERRAL_BONUS_AMOUNT = 50
+
 export const colors = {
   bg: "#f1f3f6",
   sf: "#fff",

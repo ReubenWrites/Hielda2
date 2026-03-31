@@ -90,6 +90,93 @@ serve(async (req) => {
         break
       }
 
+      case "invoice.payment_succeeded": {
+        // Track referral spend: when a referred user pays, update their referral record
+        const paidInvoice = event.data.object as Stripe.Invoice
+        if (paidInvoice.subscription) {
+          const sub = await stripe.subscriptions.retrieve(paidInvoice.subscription as string)
+          const paidUserId = sub.metadata.supabase_user_id
+
+          if (paidUserId) {
+            // Check if this user was referred
+            const { data: referral } = await supabase
+              .from("referrals")
+              .select("*")
+              .eq("referred_user_id", paidUserId)
+              .in("status", ["signed_up", "subscribed"])
+              .single()
+
+            if (referral) {
+              // amount_paid is in cents, convert to pounds
+              const amountPaid = (paidInvoice.amount_paid || 0) / 100
+              const newTotal = Number(referral.total_spent) + amountPaid
+
+              // Update status
+              let newStatus = "subscribed"
+              if (newTotal >= Number(referral.spend_threshold)) {
+                newStatus = "eligible"
+              }
+
+              await supabase
+                .from("referrals")
+                .update({
+                  total_spent: newTotal,
+                  status: newStatus,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", referral.id)
+
+              // If newly eligible, create payout record
+              if (newStatus === "eligible" && referral.status !== "eligible") {
+                // Get referrer's bank details for payout snapshot
+                const { data: referrerProfile } = await supabase
+                  .from("profiles")
+                  .select("account_name,bank_name,sort_code,account_number")
+                  .eq("id", referral.referrer_id)
+                  .single()
+
+                await supabase.from("referral_payouts").insert({
+                  referrer_id: referral.referrer_id,
+                  referral_id: referral.id,
+                  amount: 10,
+                  payout_type: "referral",
+                  status: "pending",
+                  bank_details: referrerProfile || {},
+                })
+
+                // Check if referrer now has 10 eligible referrals (bonus!)
+                const { count } = await supabase
+                  .from("referrals")
+                  .select("id", { count: "exact", head: true })
+                  .eq("referrer_id", referral.referrer_id)
+                  .in("status", ["eligible", "paid_out"])
+
+                if (count && count >= 10) {
+                  // Check if bonus already awarded
+                  const { data: existingBonus } = await supabase
+                    .from("referral_payouts")
+                    .select("id")
+                    .eq("referrer_id", referral.referrer_id)
+                    .eq("payout_type", "bonus")
+                    .limit(1)
+
+                  if (!existingBonus?.length) {
+                    await supabase.from("referral_payouts").insert({
+                      referrer_id: referral.referrer_id,
+                      amount: 50,
+                      payout_type: "bonus",
+                      status: "pending",
+                      bank_details: referrerProfile || {},
+                    })
+                  }
+                }
+              }
+            }
+          }
+        }
+        break
+      }
+
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice
         if (invoice.subscription) {

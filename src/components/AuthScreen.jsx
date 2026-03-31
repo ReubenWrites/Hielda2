@@ -2,6 +2,7 @@ import { useState } from "react"
 import { supabase } from "../supabase"
 import { colors as c, FONT } from "../constants"
 import { Card, Inp, Btn, ShieldLogo, ErrorBanner, InfoBanner } from "./ui"
+import { trackEvent } from "../posthog"
 
 export default function AuthScreen({ onAuth, onBack }) {
   const [mode, setMode] = useState("login")
@@ -11,6 +12,43 @@ export default function AuthScreen({ onAuth, onBack }) {
   const [err, setErr] = useState("")
   const [info, setInfo] = useState("")
   const [loading, setLoading] = useState(false)
+
+  const linkReferral = async (newUserId) => {
+    try {
+      const storedCode = localStorage.getItem("hielda_referral_code")
+      if (!storedCode || !newUserId) return
+      // Find the referral record by code and update with referred_user_id
+      const { data: refs } = await supabase
+        .from("referrals")
+        .select("id")
+        .eq("referral_code", storedCode)
+        .is("referred_user_id", null)
+        .limit(1)
+      if (refs?.length) {
+        await supabase.from("referrals").update({ referred_user_id: newUserId, status: "signed_up" }).eq("id", refs[0].id)
+      } else {
+        // No existing invite record — look up the referrer by their profile code
+        const { data: referrer } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("referral_code", storedCode)
+          .single()
+        if (referrer) {
+          await supabase.from("referrals").insert({
+            referrer_id: referrer.id,
+            referral_code: storedCode,
+            referred_email: email,
+            referred_user_id: newUserId,
+            status: "signed_up",
+          })
+        }
+      }
+      localStorage.removeItem("hielda_referral_code")
+      trackEvent("referral_signed_up", { code: storedCode })
+    } catch {
+      // Silently fail — referral tracking is non-critical
+    }
+  }
 
   const switchMode = (m) => {
     setMode(m)
@@ -26,6 +64,7 @@ export default function AuthScreen({ onAuth, onBack }) {
 
     try {
       if (mode === "signup") {
+        trackEvent("sign_up_started")
         if (pass.length < 6) {
           setErr("Password must be at least 6 characters.")
           setLoading(false)
@@ -38,8 +77,11 @@ export default function AuthScreen({ onAuth, onBack }) {
         })
         if (error) throw error
         if (data.session) {
+          trackEvent("sign_up_completed")
+          await linkReferral(data.user?.id)
           onAuth(data.session, data.user)
         } else {
+          trackEvent("sign_up_completed")
           setInfo("Check your email to confirm your account, then log in.")
           switchMode("login")
         }
