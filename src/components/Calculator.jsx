@@ -216,10 +216,10 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
               {!leadSent ? (
                 <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 16 }}>
                   <p style={{ fontSize: 12, color: c.tx, fontWeight: 600, margin: "0 0 4px" }}>
-                    Get this calculation emailed to you
+                    Save this calculation
                   </p>
                   <p style={{ fontSize: 11, color: c.tm, margin: "0 0 10px" }}>
-                    We'll send a summary you can forward to your client, plus tips on claiming what you're owed.
+                    Enter your email and we'll save your result so you can refer back to it — plus tips on exactly what to say to your client.
                   </p>
                   <div style={{ display: "flex", gap: 8 }}>
                     <input
@@ -251,7 +251,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 </div>
               ) : (
                 <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 14, textAlign: "center" }}>
-                  <span style={{ fontSize: 13, color: c.gn, fontWeight: 600 }}>✓ Sent! Check your inbox.</span>
+                  <span style={{ fontSize: 13, color: c.gn, fontWeight: 600 }}>✓ Saved. We'll be in touch.</span>
                 </div>
               )}
             </div>

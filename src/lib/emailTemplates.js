@@ -307,15 +307,15 @@ function wrapInLayout(bodyHtml, stageConfig) {
 }
 
 /**
- * Get the next chase stage for an invoice based on days overdue.
+ * Get the appropriate chase stage for an invoice based on days from due date.
+ * daysOverdue is negative before due, 0 on due date, positive after.
+ * Returns the highest stage whose dfd (days from due) is <= daysOverdue.
  */
-export function getChaseStageForDays(daysOverdue, dueDate) {
-  // Pre-due reminders
-  if (daysOverdue <= -5) return "reminder_1"
-  if (daysOverdue <= -1) return "reminder_2"
-  // Post-due chasing
-  if (daysOverdue >= 30) return "final_notice"
-  if (daysOverdue >= 14) return "second_chase"
-  if (daysOverdue >= 1) return "first_chase"
-  return null
+export function getChaseStageForDays(daysOverdue) {
+  let result = null
+  for (const stage of CHASE_STAGES) {
+    if (stage.dfd <= daysOverdue) result = stage.id
+    else break
+  }
+  return result
 }

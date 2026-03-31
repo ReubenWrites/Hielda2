@@ -23,7 +23,7 @@ import OnboardingTour, { shouldShowTour } from "./components/OnboardingTour"
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉" },
   { id: "create", l: "New Invoice", i: "+" },
-  { id: "referrals", l: "Refer & Earn", i: "🎁" },
+  { id: "referrals", l: "Refer & Earn", i: "♦" },
   { id: "how", l: "How It Works", i: "?" },
   { id: "settings", l: "Your Details", i: "⚙" },
   { id: "billing", l: "Your Account", i: "○" },

@@ -36,6 +36,10 @@ const LANDING_FAQS = [
     a: "Hielda acts as your outsourced accounts team — a third party that handles all the chasing and applies charges on your behalf. Your client receives formal notices from that third party, not from you personally. This gives them a face-saving way to pay without either of you having to acknowledge an awkward dynamic. If a client pushes back, you can truthfully say 'my outsourced accounting team applies those charges automatically to anyone who pays late — it's nothing personal.' That's a very different conversation from having to ask for your money yourself.",
   },
   {
+    q: "I invoice both businesses and homeowners — can Hielda help with both?",
+    a: "Yes. Hielda supports both B2B and consumer invoicing. For business clients, the full Late Payment Act applies automatically — statutory interest and fixed penalties. For consumer clients (individuals, homeowners), you can toggle 'Consumer' when creating an invoice and Hielda will add contractual payment terms to the invoice, including interest at the same rate. The chase sequence runs identically — your client still receives the full escalation sequence. This is particularly useful for tradespeople, contractors, and anyone who works for both companies and individuals.",
+  },
+  {
     q: "Is it true that companies really delay payment on purpose?",
     a: "Yes — and it's well documented. Large companies routinely use extended payment terms (60, 90, even 120 days) as a cash flow management strategy, effectively using suppliers as interest-free lenders. A 2023 report by the Federation of Small Businesses found that 52% of UK small businesses were paid late, with the average overdue amount exceeding £8,500. For large businesses, delaying payment to freelancers and SMEs is a deliberate financial decision made by accounts departments — the person who hired you often has no idea it's happening.",
   },
@@ -137,7 +141,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               fontFamily: FONT,
             }}
           >
-            Log In
+            Start Free Trial
           </button>
         </div>
       </nav>
@@ -224,7 +228,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
             {
               ico: "⚖️",
               title: "The law is on your side",
-              desc: "Under the Late Payment of Commercial Debts Act 1998, every overdue B2B invoice automatically accrues interest at 11.75% p.a. plus a fixed penalty of £40–£100. Most freelancers never claim it.",
+              desc: `Under the Late Payment of Commercial Debts Act 1998, every overdue B2B invoice automatically accrues interest at ${getRate()}% p.a. plus a fixed penalty of £40–£100. Most freelancers never claim it.`,
             },
           ].map((f) => (
             <div key={f.title} style={{
@@ -467,7 +471,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               width: "100%", background: c.ac, color: "#fff", border: "none", borderRadius: 10,
               padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
             }}>
-              Start 7-day free trial
+              Start Free Trial
             </button>
           </div>
 
@@ -499,7 +503,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               width: "100%", background: c.ac, color: "#fff", border: "none", borderRadius: 10,
               padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
             }}>
-              Start 7-day free trial
+              Start Free Trial
             </button>
           </div>
         </div>
@@ -523,7 +527,10 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           </div>
         </div>
         <p style={{ fontSize: 11, color: c.td, marginTop: 14 }}>
-          No credit card required to start · Cancel any time · UK businesses only
+          Full access during your 7-day trial — no card needed, no auto-charge · Cancel any time · UK businesses only
+        </p>
+        <p style={{ fontSize: 12, color: c.tm, marginTop: 10, textAlign: "center" }}>
+          Know a freelancer who'd benefit? <button onClick={onGetStarted} style={{ background: "none", border: "none", color: c.ac, fontWeight: 600, cursor: "pointer", fontFamily: FONT, fontSize: 12, padding: 0 }}>Sign up</button> and refer friends to earn £10 per referral.
         </p>
       </section>
 

@@ -37,7 +37,7 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
       const priceId = import.meta.env[priceIdKey]
 
       if (!priceId) {
-        setError("Stripe is not configured yet. Please set up your Stripe price IDs in .env")
+        setError("Payment is unavailable right now. Please contact support@hielda.com.")
         setLoading(false)
         return
       }

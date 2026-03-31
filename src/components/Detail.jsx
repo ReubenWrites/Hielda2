@@ -169,6 +169,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const [showPartialPayment, setShowPartialPayment] = useState(false)
   const [partialAmount, setPartialAmount] = useState("")
   const [savingPartial, setSavingPartial] = useState(false)
+  const [disputing, setDisputing] = useState(false)
 
   useEffect(() => {
     if (!inv?.id) return
@@ -197,6 +198,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
 
   const dl = daysLate(inv.due_date)
   const ov = inv.status === "overdue"
+  const isDisputed = inv.status === "disputed"
   const isConsumer = inv.client_type === "consumer"
   const finesEnabled = !inv.no_fines && !isConsumer
   const netAmount = Number(inv.amount)
@@ -462,6 +464,40 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     setSavingPartial(false)
   }
 
+  const markDisputed = async () => {
+    if (!window.confirm(`Mark this invoice as disputed?\n\nChasing will be paused while you resolve this. You can resume at any time.`)) return
+    setDisputing(true)
+    setError("")
+    try {
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({ status: "disputed", auto_chase: false })
+        .eq("id", inv.id)
+      if (err) throw err
+      onUpdate()
+    } catch (e) {
+      setError("Failed to mark as disputed: " + e.message)
+    }
+    setDisputing(false)
+  }
+
+  const clearDispute = async () => {
+    setDisputing(true)
+    setError("")
+    try {
+      const resumeStatus = new Date(inv.due_date) < new Date() ? "overdue" : "pending"
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({ status: resumeStatus, auto_chase: true })
+        .eq("id", inv.id)
+      if (err) throw err
+      onUpdate()
+    } catch (e) {
+      setError("Failed to resolve dispute: " + e.message)
+    }
+    setDisputing(false)
+  }
+
   const amountPaid = Number(inv.amount_paid) || 0
   const amountRemaining = Math.round((Number(inv.amount) - amountPaid) * 100) / 100
 
@@ -475,8 +511,8 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       <div style={{ marginBottom: isMobile ? 14 : 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5, flexWrap: "wrap" }}>
           <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, color: c.tx, margin: 0 }}>{inv.ref}</h1>
-          <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : c.am}>
-            {ov ? "being chased" : inv.status}
+          <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : isDisputed ? "#7c3aed" : c.am}>
+            {ov ? "being chased" : isDisputed ? "disputed" : inv.status}
           </Badge>
           {isConsumer && <Badge color={c.am}>consumer</Badge>}
           {!isConsumer && inv.no_fines && <Badge color={c.td}>no fines</Badge>}
@@ -530,12 +566,37 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             ⚠ No client email — chase emails unavailable
           </div>
         )}
+        {inv.status !== "paid" && !isDisputed && (
+          <Btn v="ghost" onClick={markDisputed} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
+            ⚑ Dispute
+          </Btn>
+        )}
+        {isDisputed && (
+          <Btn v="ghost" onClick={clearDispute} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
+            {disputing ? "..." : "↩ Resolve Dispute"}
+          </Btn>
+        )}
         <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
           {deleting ? "..." : "🗑 Delete"}
         </Btn>
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
+
+      {isDisputed && (
+        <div style={{
+          padding: "14px 18px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)",
+          borderLeft: "3px solid #7c3aed", borderRadius: "0 10px 10px 0", marginBottom: 16,
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#7c3aed", marginBottom: 3 }}>Invoice under dispute</div>
+            <div style={{ fontSize: 12, color: c.tm, lineHeight: 1.5 }}>
+              Chasing is paused while this is resolved. Click <strong>Resolve Dispute</strong> above to resume chasing, or <strong>✓ Paid</strong> if it has been settled.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Partial payment form */}
       {showPartialPayment && inv.status !== "paid" && (

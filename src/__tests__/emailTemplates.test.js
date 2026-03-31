@@ -72,14 +72,41 @@ describe('getChaseStageForDays', () => {
     expect(getChaseStageForDays(-4)).toBe('reminder_2')
   })
 
-  it('returns first_chase for 1-13 days overdue', () => {
-    expect(getChaseStageForDays(1)).toBe('first_chase')
-    expect(getChaseStageForDays(13)).toBe('first_chase')
+  it('returns final_warning on due date', () => {
+    expect(getChaseStageForDays(0)).toBe('final_warning')
   })
 
-  it('returns second_chase for 14-29 days overdue', () => {
-    expect(getChaseStageForDays(14)).toBe('second_chase')
-    expect(getChaseStageForDays(29)).toBe('second_chase')
+  it('returns first_chase for days 1-5', () => {
+    expect(getChaseStageForDays(1)).toBe('first_chase')
+    expect(getChaseStageForDays(5)).toBe('first_chase')
+  })
+
+  it('returns second_chase for days 6-8', () => {
+    expect(getChaseStageForDays(6)).toBe('second_chase')
+    expect(getChaseStageForDays(8)).toBe('second_chase')
+  })
+
+  it('returns third_chase for days 9-10', () => {
+    expect(getChaseStageForDays(9)).toBe('third_chase')
+    expect(getChaseStageForDays(10)).toBe('third_chase')
+  })
+
+  it('returns chase_4 through chase_11 for days 11-25', () => {
+    expect(getChaseStageForDays(11)).toBe('chase_4')
+    expect(getChaseStageForDays(13)).toBe('chase_5')
+    expect(getChaseStageForDays(15)).toBe('chase_6')
+    expect(getChaseStageForDays(17)).toBe('chase_7')
+    expect(getChaseStageForDays(19)).toBe('chase_8')
+    expect(getChaseStageForDays(21)).toBe('chase_9')
+    expect(getChaseStageForDays(23)).toBe('chase_10')
+    expect(getChaseStageForDays(25)).toBe('chase_11')
+  })
+
+  it('returns escalation stages for days 26-29', () => {
+    expect(getChaseStageForDays(26)).toBe('escalation_1')
+    expect(getChaseStageForDays(27)).toBe('escalation_2')
+    expect(getChaseStageForDays(28)).toBe('escalation_3')
+    expect(getChaseStageForDays(29)).toBe('escalation_4')
   })
 
   it('returns final_notice for 30+ days overdue', () => {

@@ -30,6 +30,8 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   })
   const [clientType, setClientType] = useState("business")
   const [noFines, setNoFines] = useState(false)
+  const [newInvId, setNewInvId] = useState(null)
+  const [downloading, setDownloading] = useState(false)
   const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
@@ -248,10 +250,10 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       clearDraft()
       trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: meth })
 
-      // Increment sequential invoice number
-      const nextNum = (profile?.next_invoice_number || 1) + 1
-      await supabase.from("profiles").update({ next_invoice_number: nextNum }).eq("id", userId)
+      setNewInvId(newInv.id)
 
+      // Atomically increment invoice number server-side to avoid race conditions
+      await supabase.rpc("increment_invoice_number", { p_user_id: userId })
       onCreated()
 
       // Send client intro email if requested
@@ -275,6 +277,26 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       setError("Failed to create invoice: " + e.message)
     }
     setSaving(false)
+  }
+
+  const downloadPdf = async () => {
+    if (!newInvId) return
+    setDownloading(true)
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("generate-invoice-pdf", { body: { invoice_id: newInvId } })
+      if (fnErr) throw fnErr
+      const blob = new Blob([data], { type: "application/pdf" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${ref}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      trackEvent("pdf_downloaded", { ref })
+    } catch (e) {
+      setError("PDF generation failed: " + e.message)
+    }
+    setDownloading(false)
   }
 
   const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
@@ -337,8 +359,16 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
           </div>
         )}
 
+        {meth === "download" && (
+          <div style={{ marginBottom: 16 }}>
+            <Btn onClick={downloadPdf} dis={downloading}>
+              {downloading ? "Generating PDF..." : "⬇ Download Invoice PDF"}
+            </Btn>
+            <p style={{ fontSize: 11, color: c.td, marginTop: 6 }}>Send this to your client directly — Hielda will still chase if unpaid.</p>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 10 }}>
-          <Btn onClick={() => nav("dash")}>Dashboard</Btn>
+          <Btn v={meth === "download" ? "ghost" : "primary"} onClick={() => nav("dash")}>Dashboard</Btn>
           <Btn v="ghost" onClick={resetForm}>Create Another</Btn>
         </div>
       </div>

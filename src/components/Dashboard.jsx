@@ -15,9 +15,10 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
 
   const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
 
-  const { overdue, pending, paid, totExtra, totOwed } = useMemo(() => {
+  const { overdue, pending, paid, disputed, totExtra, totOwed } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
     const pending = invs.filter((i) => i.status === "pending")
+    const disputed = invs.filter((i) => i.status === "disputed")
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90)
     const paid = invs.filter((i) => i.status === "paid" && (!i.paid_date || new Date(i.paid_date) >= cutoff))
 
@@ -31,7 +32,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
       return s + Number(i.amount) + calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
     }, 0)
 
-    return { overdue, pending, paid, totExtra, totOwed }
+    return { overdue, pending, paid, disputed, totExtra, totOwed }
   }, [invs])
 
   const filtered = useMemo(() => {
@@ -271,6 +272,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
             { id: "all", label: "All", count: invs.length },
             { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
             { id: "pending", label: "Pending", count: pending.length, color: c.am },
+            { id: "disputed", label: "Disputed", count: disputed.length, color: "#7c3aed" },
             { id: "paid", label: "Paid", count: paid.length, color: c.gn },
           ].map(f => (
             <button
@@ -340,7 +342,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                       onClick={() => nav("detail", i.id)}
                       style={{
                         padding: "12px 14px",
-                        borderLeft: `3px solid ${i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}`,
+                        borderLeft: `3px solid ${i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}`,
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -354,7 +356,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                             <span style={{ fontWeight: 600, color: c.tx, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.client_name || "—"}</span>
-                            <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}>
+                            <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>
                               {i.status === "overdue" ? "chasing" : i.status}
                             </Badge>
                           </div>
@@ -435,7 +437,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                           <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600 }}>{fmt(Number(i.amount) + ex)}</td>
                           <td style={{ padding: "10px 12px", color: c.tm }}>{formatDate(i.due_date)}</td>
                           <td style={{ padding: "10px 12px" }}>
-                            <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : c.am}>
+                            <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>
                               {i.status === "overdue" ? "being chased" : i.status}
                             </Badge>
                           </td>
