@@ -68,16 +68,16 @@ export default function App() {
     let title, desc
     if (showCalculator) {
       title = "UK Late Payment Calculator — Hielda"
-      desc = "Calculate the statutory interest and fixed penalties you're legally owed on overdue B2B invoices. Free calculator for UK freelancers and SMEs under the Late Payment Act 1998."
+      desc = "Calculate statutory interest and penalties on overdue invoices. Free tool for UK freelancers under the Late Payment Act 1998."
     } else if (showPrivacy) {
       title = "Privacy Policy — Hielda"
       desc = "Hielda privacy policy — how we collect, use, and protect your data."
     } else if (showAuth) {
       title = "Start Free Trial — Hielda"
-      desc = "Start your free 7-day trial of Hielda. Automatic invoice chasing and late payment enforcement for UK freelancers. No credit card required."
+      desc = "7-day free trial, no credit card required. Automatic invoice chasing and late payment enforcement for UK freelancers."
     } else {
-      title = "Hielda — Automatic Invoice Chasing & Late Payment Enforcement for UK Freelancers"
-      desc = "Hielda automatically chases late invoices and enforces statutory interest and penalties under the UK Late Payment of Commercial Debts Act 1998. Built for freelancers and SMEs."
+      title = "Hielda — Invoice Chasing & Late Payment Enforcement for UK Freelancers"
+      desc = "Automatically chase late invoices and enforce statutory interest and penalties under UK law. For freelancers and SMEs."
     }
     document.title = title
     const metaDesc = document.querySelector('meta[name="description"]')
