@@ -77,7 +77,7 @@ function buildCheckInEmail(invoice, profile, stage, token) {
           <a href="${chaseUrl}" style="display:inline-block;padding:14px 32px;background:${color};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">No, please send the chase</a>
         </div>
 
-        <p style="font-size:12px;color:#94a3b8;text-align:center;">If you don't respond within 48 hours, we'll send the chase automatically.</p>
+        <p style="font-size:12px;color:#94a3b8;text-align:center;">We won't send anything to your client until you give the go-ahead.</p>
       </div>
     </div>
     <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">

@@ -4,8 +4,11 @@
 // For each eligible invoice (auto_chase=true, active subscription, has client email):
 //   1. Determine which chase stage is due today
 //   2. If no check-in sent yet → email the freelancer: "Has your client paid?"
-//   3. If check-in was sent 48h+ ago with no response → auto-fire the chase to the client
+//      - Freelancer clicks "No, send the chase" → chase goes to client (handled by check-in-response.js)
+//      - Freelancer clicks "Yes, they've paid" → invoice marked paid
+//      - Freelancer doesn't respond → nothing happens; cron checks again tomorrow
 //
+// Chases are NEVER sent automatically without explicit freelancer approval.
 // Also bulk-updates pending→overdue for any past-due invoices.
 
 import { createClient } from '@supabase/supabase-js'
@@ -158,7 +161,7 @@ function buildCheckInEmail(invoice, profile, stage) {
           <a href="${paidUrl}" style="display:inline-block;padding:14px 32px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">Yes, they've paid</a>
           <a href="${chaseUrl}" style="display:inline-block;padding:14px 32px;background:${color};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">No, send the chase</a>
         </div>
-        <p style="font-size:12px;color:#94a3b8;text-align:center;">If you don't respond within 48 hours, we'll send the chase automatically.</p>
+        <p style="font-size:12px;color:#94a3b8;text-align:center;">We won't send anything to your client until you give the go-ahead.</p>
       </div>
     </div>
     <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">Sent via Hielda — Protecting your pay.</div>
@@ -433,7 +436,7 @@ export default async function handler(req, res) {
   await loadLiveRate()
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-  const results = { status_updates: 0, check_ins_sent: 0, auto_fired: 0, skipped: 0, errors: 0 }
+  const results = { status_updates: 0, check_ins_sent: 0, skipped: 0, errors: 0 }
   const errors = []
 
   // ── Step 1: Bulk update pending → overdue for all past-due invoices ──────────
@@ -500,9 +503,6 @@ export default async function handler(req, res) {
   }
 
   // ── Step 6: Process each invoice ─────────────────────────────────────────
-  const now = Date.now()
-  const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000
-
   for (const invoice of invoices) {
     try {
       const profile = profileMap[invoice.user_id]
@@ -522,79 +522,28 @@ export default async function handler(req, res) {
       const sentLog = invoiceLogs.find(l => l.chase_stage === nextStageId && l.status === 'sent')
       const checkInLog = invoiceLogs.find(l => l.chase_stage === nextStageId && l.status === 'check_in_sent')
 
-      // Already sent the chase for this stage — move on
-      if (sentLog) { results.skipped++; continue }
+      // Chase already sent for this stage, or check-in already sent — nothing to do today
+      if (sentLog || checkInLog) { results.skipped++; continue }
 
-      if (checkInLog) {
-        // A check-in was sent — has 48h elapsed with no response?
-        const checkInAge = now - new Date(checkInLog.created_at).getTime()
-        if (checkInAge < FORTY_EIGHT_HOURS) {
-          results.skipped++
-          continue
-        }
+      // No check-in sent yet — send one to the freelancer asking for approval
+      const checkInEmail = buildCheckInEmail(invoice, profile, nextStageId)
 
-        // 48h elapsed — auto-fire the chase to the client
-        const dl = Math.max(0, dfd)
-        const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
-        const interest = finesEnabled ? Number(invoice.amount) * DAILY_RATE * dl : 0
-        const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-        const total = Number(invoice.amount) + interest + pen
+      await sendViaResend({
+        from: 'Hielda <notifications@hielda.com>',
+        to: [profile.email],
+        subject: checkInEmail.subject,
+        html: checkInEmail.html,
+      })
 
-        const email = buildChaseEmail(invoice, profile, nextStageId, dl, interest, pen, total)
+      await supabase.from('chase_log').insert({
+        invoice_id: invoice.id,
+        user_id: invoice.user_id,
+        chase_stage: nextStageId,
+        email_to: profile.email,
+        status: 'check_in_sent',
+      })
 
-        const ccList = [profile.email].filter(Boolean)
-        if (invoice.cc_emails) {
-          invoice.cc_emails.split(',').map(e => e.trim()).filter(Boolean).forEach(e => ccList.push(e))
-        }
-        const bccList = invoice.bcc_emails
-          ? invoice.bcc_emails.split(',').map(e => e.trim()).filter(Boolean)
-          : []
-
-        await sendViaResend({
-          from: `${email.fromName} via Hielda <chase@hielda.com>`,
-          to: [invoice.client_email],
-          cc: ccList,
-          bcc: bccList,
-          subject: email.subject,
-          html: email.html,
-        })
-
-        await supabase.from('chase_log').insert({
-          invoice_id: invoice.id,
-          user_id: invoice.user_id,
-          chase_stage: nextStageId,
-          email_to: invoice.client_email,
-          status: 'sent',
-          delivery_status: 'pending',
-        })
-
-        const nextNext = getNextStageId(nextStageId)
-        if (nextNext) {
-          await supabase.from('invoices').update({ chase_stage: nextNext }).eq('id', invoice.id)
-        }
-
-        results.auto_fired++
-      } else {
-        // No check-in sent yet — send one to the freelancer
-        const checkInEmail = buildCheckInEmail(invoice, profile, nextStageId)
-
-        await sendViaResend({
-          from: 'Hielda <notifications@hielda.com>',
-          to: [profile.email],
-          subject: checkInEmail.subject,
-          html: checkInEmail.html,
-        })
-
-        await supabase.from('chase_log').insert({
-          invoice_id: invoice.id,
-          user_id: invoice.user_id,
-          chase_stage: nextStageId,
-          email_to: profile.email,
-          status: 'check_in_sent',
-        })
-
-        results.check_ins_sent++
-      }
+      results.check_ins_sent++
     } catch (e) {
       console.error(`[auto-chase] Error on invoice ${invoice.id}:`, e.message)
       errors.push({ invoice_id: invoice.id, error: e.message })
