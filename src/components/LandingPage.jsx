@@ -136,6 +136,16 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <button
             onClick={onGetStarted}
             style={{
+              background: "none", color: c.tm, border: `1px solid ${c.bd}`, borderRadius: 8,
+              padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
+            Log In
+          </button>
+          <button
+            onClick={onGetStarted}
+            style={{
               background: c.ac, color: "#fff", border: "none", borderRadius: 8,
               padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
               fontFamily: FONT,
