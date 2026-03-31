@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { ShieldLogo } from "./ui"
 
@@ -85,6 +85,8 @@ const TIMELINE_PREVIEW = [
 ]
 
 export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isMobile }) {
+  const [openFaq, setOpenFaq] = useState(null)
+
   useEffect(() => {
     const script = document.createElement("script")
     script.type = "application/ld+json"
@@ -533,13 +535,30 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <p style={{ color: c.tm, fontSize: 14, textAlign: "center", margin: "0 0 32px" }}>
           Everything you need to know about your rights as a UK freelancer or small business.
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {LANDING_FAQS.map(({ q, a }) => (
-            <div key={q} style={{ background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, padding: isMobile ? "16px 18px" : "18px 24px" }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: c.tx, margin: "0 0 8px", lineHeight: 1.4 }}>{q}</h3>
-              <p style={{ fontSize: 13, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
-            </div>
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {LANDING_FAQS.map(({ q, a }) => {
+            const isOpen = openFaq === q
+            return (
+              <div key={q} style={{ background: c.sf, border: `1px solid ${isOpen ? c.ac : c.bd}`, borderRadius: 10, overflow: "hidden", transition: "border-color 0.15s" }}>
+                <button
+                  onClick={() => setOpenFaq(isOpen ? null : q)}
+                  style={{
+                    width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer",
+                    padding: isMobile ? "14px 18px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                    fontFamily: FONT,
+                  }}
+                >
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: c.tx, margin: 0, lineHeight: 1.4 }}>{q}</h3>
+                  <span style={{ fontSize: 18, fontWeight: 300, color: c.ac, flexShrink: 0, lineHeight: 1 }}>{isOpen ? "−" : "+"}</span>
+                </button>
+                {isOpen && (
+                  <div style={{ padding: isMobile ? "0 18px 16px" : "0 24px 18px" }}>
+                    <p style={{ fontSize: 13, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </section>
 

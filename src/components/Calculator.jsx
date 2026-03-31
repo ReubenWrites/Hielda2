@@ -48,6 +48,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
     return () => document.getElementById("faq-schema-calculator")?.remove()
   }, [])
 
+  const [openFaq, setOpenFaq] = useState(null)
   const [leadEmail, setLeadEmail] = useState("")
   const [leadSent, setLeadSent] = useState(false)
   const [leadSending, setLeadSending] = useState(false)
@@ -302,13 +303,30 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
           <h2 style={{ fontSize: 15, fontWeight: 700, color: c.tx, margin: "0 0 12px" }}>
             Frequently asked questions
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {CALC_FAQS.map(({ q, a }) => (
-              <div key={q} style={{ background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, padding: "16px 18px" }}>
-                <h3 style={{ fontSize: 13, fontWeight: 700, color: c.tx, margin: "0 0 6px", lineHeight: 1.4 }}>{q}</h3>
-                <p style={{ fontSize: 12, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
-              </div>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {CALC_FAQS.map(({ q, a }) => {
+              const isOpen = openFaq === q
+              return (
+                <div key={q} style={{ background: c.sf, border: `1px solid ${isOpen ? c.ac : c.bd}`, borderRadius: 10, overflow: "hidden" }}>
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : q)}
+                    style={{
+                      width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer",
+                      padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    <h3 style={{ fontSize: 13, fontWeight: 700, color: c.tx, margin: 0, lineHeight: 1.4 }}>{q}</h3>
+                    <span style={{ fontSize: 16, fontWeight: 300, color: c.ac, flexShrink: 0, lineHeight: 1 }}>{isOpen ? "−" : "+"}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ padding: "0 16px 14px" }}>
+                      <p style={{ fontSize: 12, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
