@@ -1,13 +1,53 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, Btn, ShieldLogo } from "./ui"
 import { trackEvent } from "../posthog"
 import { supabase } from "../supabase"
 
+const CALC_FAQS = [
+  {
+    q: "What is the Late Payment of Commercial Debts Act 1998?",
+    a: "It's a UK law that gives businesses the right to charge statutory interest and fixed penalties on overdue B2B invoices. The interest rate is 8% above the Bank of England base rate. The Act applies automatically to all qualifying B2B transactions — you don't need to include it in your contract or state it on your invoice.",
+  },
+  {
+    q: "How is statutory interest on late invoices calculated?",
+    a: "Interest accrues daily at the statutory rate (currently the Bank of England base rate plus 8% per annum). The formula is: invoice amount × annual rate ÷ 365 × number of days overdue. Interest continues to accrue until the invoice is paid in full.",
+  },
+  {
+    q: "What fixed penalty can I claim on a late invoice?",
+    a: "The Act entitles you to a fixed debt recovery cost per invoice: £40 for invoices under £1,000, £70 for invoices between £1,000 and £9,999, and £100 for invoices of £10,000 or more. This is charged in addition to any interest and applies per invoice.",
+  },
+  {
+    q: "Does the Late Payment Act apply to all invoices?",
+    a: "The Act applies to business-to-business (B2B) transactions only — both parties must be acting in the course of a business. It does not cover invoices to consumers. It applies throughout the UK and covers freelance and contractor invoices as well as those from limited companies.",
+  },
+  {
+    q: "Do I need to mention interest charges on my original invoice?",
+    a: "No. Your right to charge statutory interest and penalties exists automatically under the Act — even if you didn't mention it on your invoice or in your contract. You can apply these charges retrospectively to any qualifying overdue B2B invoice.",
+  },
+]
+
 export default function Calculator({ onBack, onGetStarted, isMobile }) {
   const [amount, setAmount] = useState("")
   const [daysOverdue, setDaysOverdue] = useState("")
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.type = "application/ld+json"
+    script.id = "faq-schema-calculator"
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": CALC_FAQS.map(({ q, a }) => ({
+        "@type": "Question",
+        "name": q,
+        "acceptedAnswer": { "@type": "Answer", "text": a },
+      })),
+    })
+    document.head.appendChild(script)
+    return () => document.getElementById("faq-schema-calculator")?.remove()
+  }, [])
+
   const [leadEmail, setLeadEmail] = useState("")
   const [leadSent, setLeadSent] = useState(false)
   const [leadSending, setLeadSending] = useState(false)
@@ -256,6 +296,21 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
             </p>
           </div>
         </Card>
+
+        {/* FAQ */}
+        <div style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: c.tx, margin: "0 0 12px" }}>
+            Frequently asked questions
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {CALC_FAQS.map(({ q, a }) => (
+              <div key={q} style={{ background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, padding: "16px 18px" }}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: c.tx, margin: "0 0 6px", lineHeight: 1.4 }}>{q}</h3>
+                <p style={{ fontSize: 12, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* CTA */}
         <div style={{

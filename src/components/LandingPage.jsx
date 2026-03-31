@@ -1,5 +1,33 @@
+import { useEffect } from "react"
 import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { ShieldLogo } from "./ui"
+
+const LANDING_FAQS = [
+  {
+    q: "My client hasn't paid my invoice — what can I do?",
+    a: "Under the Late Payment of Commercial Debts Act 1998, you have the legal right to charge statutory interest at 8% above the Bank of England base rate, plus a fixed penalty of £40–£100 on every overdue B2B invoice. You can send formal chase emails, add these charges automatically, and escalate to a legal notice if needed. Hielda automates this entire process so you never have to ask awkwardly for your own money.",
+  },
+  {
+    q: "How long can a client legally take to pay an invoice in the UK?",
+    a: "By default, payment is due within 30 days for business-to-business transactions. If no payment terms are agreed, the 30-day statutory period applies automatically. Once that period expires, the invoice is legally overdue and statutory interest begins to accrue daily.",
+  },
+  {
+    q: "Can I charge interest on an overdue invoice in the UK?",
+    a: "Yes. Under the Late Payment of Commercial Debts Act 1998, you are legally entitled to charge interest at 8% above the Bank of England base rate on any overdue B2B invoice. This right applies automatically — you don't need to have stated it on your original invoice or in your contract.",
+  },
+  {
+    q: "What late payment penalties can I charge?",
+    a: "The Act entitles you to a fixed debt recovery cost on top of interest: £40 for invoices under £1,000, £70 for invoices between £1,000 and £9,999, and £100 for invoices of £10,000 or more. These apply per invoice, in addition to the daily interest that accrues.",
+  },
+  {
+    q: "How do I chase a late invoice without damaging the client relationship?",
+    a: "The key is separating the personal relationship from the commercial process. Using a system like Hielda means your client receives formal, professional notices from an automated system — not from you personally. This is exactly how large companies operate: the person who commissioned your work and the accounts department are completely separate. You stay the good guy; Hielda does the chasing.",
+  },
+  {
+    q: "Does the Late Payment Act apply to my invoices?",
+    a: "The Act applies to business-to-business (B2B) transactions — both parties must be acting in the course of a business. It does not cover invoices to consumers. It applies throughout the UK and covers most commercial contracts, including freelance and contractor work.",
+  },
+]
 
 const FEATURES = [
   {
@@ -45,6 +73,23 @@ const TIMELINE_PREVIEW = [
 ]
 
 export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isMobile }) {
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.type = "application/ld+json"
+    script.id = "faq-schema-landing"
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": LANDING_FAQS.map(({ q, a }) => ({
+        "@type": "Question",
+        "name": q,
+        "acceptedAnswer": { "@type": "Answer", "text": a },
+      })),
+    })
+    document.head.appendChild(script)
+    return () => document.getElementById("faq-schema-landing")?.remove()
+  }, [])
+
   return (
     <main style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
       {/* Nav bar */}
@@ -466,6 +511,24 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <p style={{ fontSize: 11, color: c.td, marginTop: 14 }}>
           No credit card required to start · Cancel any time · UK businesses only
         </p>
+      </section>
+
+      {/* FAQ */}
+      <section style={{ padding: isMobile ? "40px 20px" : "64px 48px", maxWidth: 860, margin: "0 auto" }}>
+        <h2 style={{ fontSize: isMobile ? 20 : 26, fontWeight: 700, margin: "0 0 6px", textAlign: "center" }}>
+          Common questions about late payment
+        </h2>
+        <p style={{ color: c.tm, fontSize: 14, textAlign: "center", margin: "0 0 32px" }}>
+          Everything you need to know about your rights as a UK freelancer or small business.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {LANDING_FAQS.map(({ q, a }) => (
+            <div key={q} style={{ background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, padding: isMobile ? "16px 18px" : "18px 24px" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: c.tx, margin: "0 0 8px", lineHeight: 1.4 }}>{q}</h3>
+              <p style={{ fontSize: 13, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* CTA */}
