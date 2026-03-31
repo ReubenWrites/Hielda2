@@ -21,7 +21,7 @@ const LANDING_FAQS = [
   },
   {
     q: "How do I chase a late invoice without damaging the client relationship?",
-    a: "The key is separating the personal relationship from the commercial process. Using a system like Hielda means your client receives formal, professional notices from an automated system — not from you personally. This is exactly how large companies operate: the person who commissioned your work and the accounts department are completely separate. You stay the good guy; Hielda does the chasing.",
+    a: "The key is separating the personal relationship from the commercial process. Your client receives formal notices from a third party acting on your behalf — it's not personal, it's just business. This is exactly how large companies operate: the person who commissioned your work and the accounts department are completely separate teams. You stay the good guy; Hielda handles the uncomfortable part.",
   },
   {
     q: "Does the Late Payment Act apply to my invoices?",
@@ -29,11 +29,11 @@ const LANDING_FAQS = [
   },
   {
     q: "Why is Hielda better than just chasing clients myself?",
-    a: "When you chase a client yourself, you're asking a favour from someone you need to maintain a relationship with. Every chaser email you send puts you in an awkward position — too soft and they ignore it, too firm and you risk the relationship. Hielda removes you from the equation entirely. Your client receives formal notices from an automated system, which carries far more weight and creates no personal friction. You stay professional, they feel the pressure, and you never have to have an uncomfortable conversation.",
+    a: "When you chase a client yourself, you're asking a favour from someone whose goodwill you depend on. Every email you send puts you in an awkward position — too soft and they ignore it, too firm and you risk the relationship. Hielda removes you from the equation entirely. Your client hears from a third party acting on your behalf, which carries far more weight and creates no personal friction. You stay professional, they feel the pressure, and you never have to have an uncomfortable conversation.",
   },
   {
     q: "How does Hielda protect me from blowback from my client?",
-    a: "Hielda's chase emails are sent on your behalf but framed as automated system notifications — not personal requests. This gives your client a face-saving way to pay without either of you having to acknowledge an awkward dynamic. The language escalates gradually and professionally, mirroring how a large company's accounts department would operate. If a client pushes back, you can truthfully say 'our system applies these charges automatically' — taking the heat off you entirely.",
+    a: "Hielda acts as your outsourced accounts team — a third party that handles all the chasing and applies charges on your behalf. Your client receives formal notices from that third party, not from you personally. This gives them a face-saving way to pay without either of you having to acknowledge an awkward dynamic. If a client pushes back, you can truthfully say 'my outsourced accounting team applies those charges automatically to anyone who pays late — it's nothing personal.' That's a very different conversation from having to ask for your money yourself.",
   },
   {
     q: "Is it true that companies really delay payment on purpose?",

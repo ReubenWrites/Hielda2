@@ -28,6 +28,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     const num = profile?.next_invoice_number || 1
     return `${prefix}-${String(num).padStart(4, "0")}`
   })
+  const [clientType, setClientType] = useState("business")
   const [noFines, setNoFines] = useState(false)
   const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
@@ -78,6 +79,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
         if (d.bcc) setBcc(d.bcc)
         if (d.terms) setTerms(d.terms)
         if (d.noFines) setNoFines(d.noFines)
+        if (d.clientType) setClientType(d.clientType)
         const prefix = profile?.invoice_prefix || "INV"
         const num = profile?.next_invoice_number || 1
         setRef(`${prefix}-${String(num).padStart(4, "0")}`)
@@ -97,9 +99,9 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   useEffect(() => {
     if (!userId || step === 3) return
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientRef, cc, bcc }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc }))
     } catch {}
-  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientRef, cc, bcc, userId, step])
+  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, userId, step])
 
   const restoreDraft = () => {
     try {
@@ -113,6 +115,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       if (d.customDays !== undefined) setCustomDays(d.customDays)
       if (d.date !== undefined) setDate(d.date)
       if (d.noFines !== undefined) setNoFines(d.noFines)
+      if (d.clientType !== undefined) setClientType(d.clientType)
       if (d.clientRef !== undefined) setClientRef(d.clientRef)
       if (d.cc !== undefined) setCc(d.cc)
       if (d.bcc !== undefined) setBcc(d.bcc)
@@ -232,7 +235,8 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
         status: isOverdue ? "overdue" : "pending",
         chase_stage: isOverdue ? "reminder_1" : null,
         send_method: meth,
-        no_fines: noFines,
+        no_fines: clientType === "consumer" ? true : noFines,
+        client_type: clientType,
         client_name: cn,
         client_email: ce,
         client_address: ca,
@@ -565,7 +569,32 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             )}
             <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 4 }}>
+            {/* Client type toggle */}
+            <div style={{ marginTop: 6, marginBottom: 4 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 6 }}>Client type</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ v: "business", l: "Business (B2B)" }, { v: "consumer", l: "Consumer (individual)" }].map(opt => (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => setClientType(opt.v)}
+                    style={{
+                      flex: 1, padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      fontFamily: FONT, border: `1.5px solid ${clientType === opt.v ? c.ac : c.bd}`,
+                      background: clientType === opt.v ? c.acd : c.sf,
+                      color: clientType === opt.v ? c.ac : c.tm,
+                    }}
+                  >{opt.l}</button>
+                ))}
+              </div>
+              {clientType === "consumer" && (
+                <p style={{ fontSize: 11, color: c.tm, margin: "6px 0 0", lineHeight: 1.5 }}>
+                  Payment terms will be added to the invoice (contractual interest at {getRate()}% p.a. if overdue). No statutory fixed penalty applies to consumer invoices.
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 4, ...(clientType === "consumer" ? { display: "none" } : {}) }}>
               <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} style={{ accentColor: c.ac, width: 16, height: 16 }} />
               <label htmlFor="noFines" style={{ fontSize: 12, color: c.tm, cursor: "pointer" }}>
                 Chase without fines or interest

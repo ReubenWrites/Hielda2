@@ -197,7 +197,8 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
 
   const dl = daysLate(inv.due_date)
   const ov = inv.status === "overdue"
-  const finesEnabled = !inv.no_fines
+  const isConsumer = inv.client_type === "consumer"
+  const finesEnabled = !inv.no_fines && !isConsumer
   const netAmount = Number(inv.amount)
   const vatAmount = Number(inv.vat_amount) || 0
   const invoiceTotal = Number(inv.total_with_vat) || netAmount
@@ -477,7 +478,8 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
           <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : c.am}>
             {ov ? "being chased" : inv.status}
           </Badge>
-          {inv.no_fines && <Badge color={c.td}>no fines</Badge>}
+          {isConsumer && <Badge color={c.am}>consumer</Badge>}
+          {!isConsumer && inv.no_fines && <Badge color={c.td}>no fines</Badge>}
         </div>
         <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
       </div>
