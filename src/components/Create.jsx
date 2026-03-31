@@ -32,6 +32,8 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   const [noFines, setNoFines] = useState(false)
   const [newInvId, setNewInvId] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editId, setEditId] = useState(null)
   const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
@@ -67,6 +69,39 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
   // Check for clone data or saved draft on mount
   useEffect(() => {
     if (!userId) return
+    try {
+      const edit = localStorage.getItem("hielda_edit")
+      if (edit) {
+        const inv = JSON.parse(edit)
+        localStorage.removeItem("hielda_edit")
+        setIsEditing(true)
+        setEditId(inv.id)
+        setCn(inv.client_name || "")
+        setCe(inv.client_email || "")
+        setCa(inv.client_address || "")
+        setClientRef(inv.client_ref || "")
+        setCc(inv.cc_emails || "")
+        setBcc(inv.bcc_emails || "")
+        setRef(inv.ref || "")
+        setDate(inv.issue_date || todayStr())
+        const termDays = inv.payment_term_days ? String(inv.payment_term_days) : "30"
+        const isKnownTerm = TERMS.slice(0, -1).some(t => String(t.d) === termDays)
+        setTerms(isKnownTerm ? termDays : "-1")
+        if (!isKnownTerm) setCustomDays(termDays)
+        if (inv.no_fines) setNoFines(!!(inv.no_fines && inv.client_type !== "consumer"))
+        if (inv.client_type) setClientType(inv.client_type)
+        if (inv.line_items?.length) {
+          setLineItems(inv.line_items.map(li => ({
+            description: li.description || "",
+            amount: String(li.amount || ""),
+            vatRate: li.vatRate || defaultVatRate,
+          })))
+        } else {
+          setLineItems([{ description: inv.description || "", amount: String(inv.amount || ""), vatRate: defaultVatRate }])
+        }
+        return
+      }
+    } catch {}
     try {
       const clone = localStorage.getItem("hielda_clone")
       if (clone) {
@@ -279,6 +314,45 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
     setSaving(false)
   }
 
+  const saveEdit = async () => {
+    setSaving(true)
+    setError("")
+    try {
+      const dueStr = due.toISOString().split("T")[0]
+      const today = todayStr()
+      const isOverdue = dueStr < today
+      const validItems = lineItems.filter(li => li.description.trim() && parseFloat(li.amount) > 0)
+      const { error: dbError } = await supabase.from("invoices").update({
+        description: validItems.map(li => li.description).join(", "),
+        amount: parsedTotal,
+        subtotal: parsedTotal,
+        vat_amount: totalVat,
+        total_with_vat: totalWithVat,
+        line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount), vatRate: li.vatRate || "0" })),
+        issue_date: date,
+        payment_term_days: effectiveDays,
+        due_date: dueStr,
+        status: isOverdue ? "overdue" : "pending",
+        no_fines: clientType === "consumer" ? true : noFines,
+        client_type: clientType,
+        client_name: cn,
+        client_email: ce,
+        client_address: ca,
+        client_ref: clientRef.trim() || null,
+        cc_emails: cc.trim() || null,
+        bcc_emails: bcc.trim() || null,
+      }).eq("id", editId)
+      if (dbError) throw dbError
+      clearDraft()
+      trackEvent("invoice_edited", { amount: parsedTotal, ref })
+      onCreated()
+      nav("detail", editId)
+    } catch (e) {
+      setError("Failed to save changes: " + e.message)
+    }
+    setSaving(false)
+  }
+
   const downloadPdf = async () => {
     if (!newInvId) return
     setDownloading(true)
@@ -380,8 +454,8 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       <button onClick={() => nav("dash")} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontFamily: FONT, fontSize: 13, padding: 0, marginBottom: 16 }}>
         ← Back
       </button>
-      <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>Create Invoice</h1>
-      <p style={{ color: c.tm, margin: "0 0 22px", fontSize: 13 }}>Your details are pre-filled. Add client and job info.</p>
+      <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>{isEditing ? `Edit Invoice ${ref}` : "Create Invoice"}</h1>
+      <p style={{ color: c.tm, margin: "0 0 22px", fontSize: 13 }}>{isEditing ? "Update the details below and save your changes." : "Your details are pre-filled. Add client and job info."}</p>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 22 }}>
         {["Client & Job", "Review & Send"].map((l, i) => (
@@ -773,7 +847,10 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
           </div>
 
           <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end" }}>
-            <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+            {isEditing
+              ? <Btn dis={!canProceed || saving} onClick={saveEdit}>{saving ? "Saving..." : "Save Changes"}</Btn>
+              : <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+            }
           </div>
         </div>
       )}

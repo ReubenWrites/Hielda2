@@ -3,7 +3,6 @@ import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, Btn, ShieldLogo } from "./ui"
 import { trackEvent } from "../posthog"
-import { supabase } from "../supabase"
 
 const CALC_FAQS = [
   {
@@ -71,11 +70,15 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
     if (!leadEmail.trim() || leadSent) return
     setLeadSending(true)
     try {
-      await supabase.from("calculator_leads").insert({
-        email: leadEmail.trim(),
-        invoice_amount: parsedAmt,
-        days_overdue: parsedDays,
-        total_claimable: total,
+      await fetch("/api/calculator-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: leadEmail.trim(),
+          invoice_amount: parsedAmt,
+          days_overdue: parsedDays,
+          total_claimable: total,
+        }),
       })
       trackEvent("calculator_lead_captured", { amount: parsedAmt, days: parsedDays, total })
       setLeadSent(true)

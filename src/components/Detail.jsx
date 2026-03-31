@@ -537,6 +537,14 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             💰 Part Paid
           </Btn>
         )}
+        {inv.status !== "paid" && (
+          <Btn v="ghost" onClick={() => {
+            try { localStorage.setItem("hielda_edit", JSON.stringify(inv)) } catch {}
+            nav("create")
+          }} sz="sm">
+            ✏ Edit
+          </Btn>
+        )}
         <Btn v="ghost" onClick={() => {
           try { localStorage.setItem("hielda_clone", JSON.stringify({
             cn: inv.client_name, ce: inv.client_email, ca: inv.client_address || "",
