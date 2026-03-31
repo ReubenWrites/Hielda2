@@ -68,8 +68,19 @@ export default function App() {
   // Load live BoE rate on mount
   useEffect(() => { loadLiveBoeRate() }, [])
 
-  // Detect referral code in URL (/ref/{code}) and store it
+  // Capture UTM parameters and referral codes from URL on first visit
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const utmKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]
+    const utms = {}
+    utmKeys.forEach(k => { if (params.get(k)) utms[k] = params.get(k) })
+    if (Object.keys(utms).length > 0) {
+      // Store UTMs so they survive the session (e.g. user signs up later)
+      localStorage.setItem("hielda_utm", JSON.stringify(utms))
+      trackEvent("utm_visit", utms)
+    }
+
+    // Detect referral code in URL (/ref/{code}) and store it
     const path = window.location.pathname
     const match = path.match(/^\/ref\/([A-Za-z0-9-]+)$/)
     if (match) {

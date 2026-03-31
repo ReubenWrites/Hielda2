@@ -3,10 +3,14 @@ import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, Btn, ShieldLogo } from "./ui"
 import { trackEvent } from "../posthog"
+import { supabase } from "../supabase"
 
 export default function Calculator({ onBack, onGetStarted, isMobile }) {
   const [amount, setAmount] = useState("")
   const [daysOverdue, setDaysOverdue] = useState("")
+  const [leadEmail, setLeadEmail] = useState("")
+  const [leadSent, setLeadSent] = useState(false)
+  const [leadSending, setLeadSending] = useState(false)
 
   const parsedAmt = parseFloat(amount) || 0
   const parsedDays = parseInt(daysOverdue) || 0
@@ -21,6 +25,25 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
   const total = parsedAmt + interest + pen
 
   const penTier = parsedAmt >= 10000 ? "£100" : parsedAmt >= 1000 ? "£70" : "£40"
+
+  const sendLeadEmail = async () => {
+    if (!leadEmail.trim() || leadSent) return
+    setLeadSending(true)
+    try {
+      await supabase.from("calculator_leads").insert({
+        email: leadEmail.trim(),
+        invoice_amount: parsedAmt,
+        days_overdue: parsedDays,
+        total_claimable: total,
+      })
+      trackEvent("calculator_lead_captured", { amount: parsedAmt, days: parsedDays, total })
+      setLeadSent(true)
+    } catch {
+      // Non-critical — silently fail, don't interrupt the user
+      setLeadSent(true)
+    }
+    setLeadSending(false)
+  }
 
   return (
     <div style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
@@ -144,9 +167,52 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 <span style={{ fontSize: 15, fontWeight: 700, color: c.tx }}>Total owed to you</span>
                 <span style={{ fontSize: 24, fontWeight: 700, fontFamily: MONO, color: c.ac }}>{fmt(total)}</span>
               </div>
-              <p style={{ fontSize: 11, color: c.td, marginTop: 4, marginBottom: 0 }}>
+              <p style={{ fontSize: 11, color: c.td, marginTop: 4, marginBottom: 16 }}>
                 Interest accrues daily. The longer they wait, the more you're owed.
               </p>
+
+              {/* Lead capture */}
+              {!leadSent ? (
+                <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 16 }}>
+                  <p style={{ fontSize: 12, color: c.tx, fontWeight: 600, margin: "0 0 4px" }}>
+                    Get this calculation emailed to you
+                  </p>
+                  <p style={{ fontSize: 11, color: c.tm, margin: "0 0 10px" }}>
+                    We'll send a summary you can forward to your client, plus tips on claiming what you're owed.
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="email"
+                      value={leadEmail}
+                      onChange={(e) => setLeadEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && sendLeadEmail()}
+                      placeholder="your@email.com"
+                      style={{
+                        flex: 1, padding: "9px 12px", background: c.bg, border: `1px solid ${c.bd}`,
+                        borderRadius: 8, fontFamily: FONT, fontSize: 13, color: c.tx, outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <button
+                      onClick={sendLeadEmail}
+                      disabled={leadSending || !leadEmail.trim()}
+                      style={{
+                        background: c.ac, color: "#fff", border: "none", borderRadius: 8,
+                        padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                        fontFamily: FONT, flexShrink: 0,
+                        opacity: (!leadEmail.trim() || leadSending) ? 0.5 : 1,
+                      }}
+                    >
+                      {leadSending ? "..." : "Send"}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 10, color: c.td, margin: "6px 0 0" }}>No spam. Unsubscribe any time.</p>
+                </div>
+              ) : (
+                <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 14, textAlign: "center" }}>
+                  <span style={{ fontSize: 13, color: c.gn, fontWeight: 600 }}>✓ Sent! Check your inbox.</span>
+                </div>
+              )}
             </div>
           )}
 

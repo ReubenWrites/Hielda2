@@ -192,7 +192,19 @@ export default function Settings({ profile, onUpdate, isMobile }) {
         {/* Branding */}
         <Card>
           <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Branding</h3>
-          <Inp label="Website (optional)" value={p.website_url || ""} onChange={(v) => update("website_url", v)} ph="https://yoursite.com" />
+          <Inp
+            label="Website (optional)"
+            value={p.website_url || ""}
+            onChange={(v) => {
+              const trimmed = v.trim()
+              if (trimmed && !trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+                update("website_url", "https://" + trimmed)
+              } else {
+                update("website_url", trimmed)
+              }
+            }}
+            ph="https://yoursite.com"
+          />
 
           {/* Logo upload */}
           <div style={{ marginBottom: 12 }}>

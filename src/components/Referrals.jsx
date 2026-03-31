@@ -88,7 +88,7 @@ export default function Referrals({ profile, userId, isMobile }) {
       const spent = Number(ref.total_spent) || 0
       const remaining = REFERRAL_THRESHOLD - spent
       if (remaining <= 0) return "Eligible soon"
-      const monthsLeft = Math.ceil(remaining / 4.99)
+      const monthsLeft = Math.ceil(remaining / 3.99)
       return `${fmt(spent)}/${fmt(REFERRAL_THRESHOLD)} spent — ~${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} to go`
     }
     return s?.desc || ""
