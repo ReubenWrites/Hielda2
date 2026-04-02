@@ -1,0 +1,593 @@
+/* ── Dashboard CSS Module ── */
+
+/* ── Header ── */
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--tm);
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+
+/* ── Payment Details Banner ── */
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #fffbeb;
+  border: 1px solid #f59e0b40;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bannerBody {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bannerIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.bannerText {
+  font-size: 13px;
+  color: var(--tx);
+}
+
+.bannerActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dismissBtn {
+  background: none;
+  border: none;
+  color: var(--td);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+.dismissBtn:hover {
+  color: var(--tx);
+}
+
+/* ── Stat Cards Grid ── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+/* ── Being Chased Section ── */
+.chasingSection {
+  margin-bottom: 24px;
+}
+
+.chasingHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pulseWrapper {
+  position: relative;
+  width: 8px;
+  height: 8px;
+}
+
+.pulseDot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ac);
+}
+
+.chasingLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ac);
+}
+
+.chasingList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Chase Card (Desktop) ── */
+.chaseRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chaseLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chaseAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--acd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.chaseClient {
+  font-weight: 600;
+  color: var(--tx);
+  font-size: 13px;
+}
+
+.chaseRef {
+  font-size: 11px;
+  color: var(--tm);
+  margin-top: 1px;
+}
+
+.chaseRight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.chaseAmounts {
+  text-align: right;
+}
+
+.chaseTotal {
+  font-weight: 600;
+  color: var(--tx);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.chaseExtra {
+  font-size: 10px;
+  color: var(--go);
+  font-weight: 600;
+  margin-top: 1px;
+}
+
+.arrowIcon {
+  color: var(--td);
+  font-size: 15px;
+}
+
+/* ── Chase Card (Mobile) ── */
+.chaseMobileTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.chaseMobileAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--acd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.chaseMobileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.chaseMobileClient {
+  font-weight: 600;
+  color: var(--tx);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chaseMobileRef {
+  font-size: 10px;
+  color: var(--tm);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chaseMobileBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chaseMobileTotal {
+  font-weight: 600;
+  color: var(--tx);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.chaseMobileExtra {
+  font-size: 10px;
+  color: var(--go);
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+/* ── All Invoices Section ── */
+.invoicesHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: nowrap;
+}
+
+.invoicesTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.searchWrap {
+  flex: 1;
+  min-width: auto;
+  order: 0;
+}
+
+.searchInput {
+  width: 100%;
+  max-width: 280px;
+  padding: 7px 12px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--tx);
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: var(--ac);
+}
+
+/* ── Filter Pills ── */
+.filterBar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.filterPill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--bd);
+  background: var(--sf);
+  color: var(--tm);
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.filterPill:hover {
+  border-color: var(--ac);
+}
+
+/* ── Empty State ── */
+.emptyIcon {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tx);
+  margin-bottom: 4px;
+}
+
+.emptyText {
+  font-size: 13px;
+  color: var(--tm);
+  margin-bottom: 16px;
+}
+
+.noMatch {
+  color: var(--tm);
+  font-size: 13px;
+}
+
+/* ── Bulk Action Toolbar ── */
+.bulkBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--acd);
+  border: 1px solid rgba(30, 95, 160, 0.15);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.bulkCount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ac);
+}
+
+.bulkActions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── Mobile Invoice Cards ── */
+.mobileList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobileCardInner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mobileCheckbox {
+  cursor: pointer;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.mobileCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobileCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.mobileClientName {
+  font-weight: 600;
+  color: var(--tx);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileRef {
+  font-size: 11px;
+  color: var(--td);
+  font-family: var(--mono);
+  margin-bottom: 6px;
+}
+
+.mobileCardBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobileAmount {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--tx);
+}
+
+.mobileExtra {
+  font-size: 10px;
+  color: var(--go);
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.mobileDue {
+  font-size: 11px;
+  color: var(--tm);
+}
+
+.mobileArrow {
+  color: var(--td);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Desktop Table ── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tableHead tr {
+  border-bottom: 1px solid var(--bd);
+  background: #f8f9fb;
+}
+
+.thCheck {
+  padding: 10px 8px;
+  width: 36px;
+}
+
+.th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--tm);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.thSortable {
+  composes: th;
+  cursor: pointer;
+}
+
+.thSortable:hover {
+  color: var(--ac);
+}
+
+.thView {
+  width: 30px;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--bdl);
+  cursor: pointer;
+}
+
+.tdCheck {
+  padding: 10px 8px;
+}
+
+.td {
+  padding: 10px 12px;
+}
+
+.tdRef {
+  composes: td;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--td);
+}
+
+.tdClient {
+  composes: td;
+  color: var(--tx);
+  font-weight: 500;
+}
+
+.tdMono {
+  composes: td;
+  font-family: var(--mono);
+}
+
+.tdMonoBold {
+  composes: td;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.tdDue {
+  composes: td;
+  color: var(--tm);
+}
+
+.tdArrow {
+  composes: td;
+  color: var(--td);
+}
+
+.tdEmpty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--tm);
+  font-size: 13px;
+}
+
+.checkbox {
+  cursor: pointer;
+}
+
+.sortIcon {
+  font-size: 9px;
+  margin-left: 3px;
+}
+
+.sortActive {
+  composes: sortIcon;
+  color: var(--ac);
+}
+
+.sortInactive {
+  composes: sortIcon;
+  color: var(--td);
+}
+
+/* ── Mobile Responsive Overrides ── */
+@media (max-width: 767px) {
+  .header {
+    margin-bottom: 18px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .banner {
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .chasingSection {
+    margin-bottom: 18px;
+  }
+
+  .invoicesHeader {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .searchWrap {
+    min-width: 100%;
+    order: 3;
+  }
+
+  .searchInput {
+    max-width: 100%;
+  }
+
+  .bulkBar {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+}

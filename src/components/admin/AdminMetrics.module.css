@@ -1,0 +1,272 @@
+/* StatBar */
+.statBar {
+  margin-bottom: 10px;
+}
+
+.statBarHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.statBarLabel {
+  font-size: 12px;
+  color: var(--tx);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.statBarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.statBarSignups {
+  font-size: 10px;
+  color: var(--gn);
+  font-weight: 600;
+}
+
+.statBarValue {
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tx);
+  width: 36px;
+  text-align: right;
+}
+
+.statBarTrack {
+  height: 4px;
+  background: var(--bd);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.statBarFill {
+  height: 100%;
+  background: var(--ac);
+  border-radius: 2px;
+}
+
+/* Setup card */
+.setupTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 8px;
+}
+
+.setupDesc {
+  font-size: 13px;
+  color: var(--tm);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.setupSteps {
+  font-size: 13px;
+  color: var(--tm);
+  line-height: 2;
+  margin: 0 0 16px;
+  padding-left: 20px;
+}
+
+.setupCode {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--tx);
+  line-height: 1.8;
+}
+
+.setupHint {
+  font-size: 11px;
+  color: var(--td);
+  margin: 0;
+}
+
+/* Main grid */
+.twoColGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.threeColGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 16px;
+}
+
+.sectionLabelSm {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+
+.noData {
+  font-size: 12px;
+  color: var(--td);
+}
+
+.sourceHint {
+  font-size: 10px;
+  color: var(--td);
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+/* UTM rows */
+.utmRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--bdl);
+  font-size: 12px;
+}
+
+.utmLabel {
+  color: var(--tx);
+}
+
+.utmValue {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+/* Daily visitors */
+.dailyLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+}
+
+.dailyGrid {
+  display: grid;
+  gap: 6px;
+}
+
+.dailyCell {
+  text-align: center;
+}
+
+.dailyBarWrap {
+  height: 64px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.dailyBar {
+  width: 70%;
+  border-radius: 2px 2px 0 0;
+  opacity: 0.8;
+}
+
+.dailyDate {
+  font-size: 9px;
+  color: var(--td);
+}
+
+.dailyCount {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.dailyHint {
+  font-size: 10px;
+  color: var(--td);
+  margin: 8px 0 0;
+}
+
+/* Deep dive links */
+.deepDiveGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.deepDiveLink {
+  display: block;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--bd);
+  text-decoration: none;
+}
+
+.deepDiveName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ac);
+}
+
+.deepDiveDesc {
+  font-size: 11px;
+  color: var(--tm);
+  margin-top: 2px;
+}
+
+.deepDiveLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+
+/* Loading / Error states */
+.loading {
+  text-align: center;
+  padding: 40px;
+}
+
+.errorText {
+  color: var(--or);
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .twoColGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .threeColGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .deepDiveGrid {
+    grid-template-columns: 1fr;
+  }
+}

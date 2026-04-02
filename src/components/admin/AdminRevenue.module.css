@@ -1,0 +1,157 @@
+.loading {
+  text-align: center;
+  padding: 40px;
+}
+
+.errorIcon {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+
+.errorTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tx);
+  margin-bottom: 6px;
+}
+
+.errorText {
+  color: var(--or);
+  font-size: 13px;
+}
+
+.errorHint {
+  color: var(--tm);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* Stats grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statCardAlert {
+  background: var(--ord);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--tm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statLabelAlert {
+  font-size: 11px;
+  color: var(--or);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--font);
+}
+
+.statValueMono {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--mono);
+}
+
+.statValueAlert {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--or);
+  font-family: var(--font);
+}
+
+/* Section label */
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+}
+
+/* Breakdown rows */
+.breakdownRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bdl);
+}
+
+.breakdownStatus {
+  font-size: 13px;
+  color: var(--tx);
+  text-transform: capitalize;
+}
+
+.breakdownCount {
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+/* Payment rows */
+.paymentRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bdl);
+  font-size: 12px;
+}
+
+.paymentEmail {
+  color: var(--tx);
+  flex: 1;
+}
+
+.paymentAmount {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.paymentDate {
+  color: var(--td);
+}
+
+.paymentBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

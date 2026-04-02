@@ -1,0 +1,168 @@
+.loading {
+  text-align: center;
+  padding: 40px;
+}
+
+.errorBox {
+  padding: 10px 14px;
+  background: var(--ord);
+  color: var(--or);
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+/* Stats grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statCardAlert {
+  background: var(--ord);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--tm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statLabelAlert {
+  font-size: 11px;
+  color: var(--or);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--font);
+}
+
+.statValueMono {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--mono);
+}
+
+.statValueAlert {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--or);
+  font-family: var(--font);
+}
+
+/* Section label */
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+}
+
+/* Payout rows */
+.payoutRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bdl);
+  flex-wrap: wrap;
+}
+
+.payoutEmail {
+  font-size: 13px;
+  color: var(--tx);
+  flex: 1;
+}
+
+.payoutType {
+  font-size: 12px;
+  color: var(--tm);
+}
+
+.payoutAmount {
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.payoutBankDetails {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--td);
+}
+
+.payoutActions {
+  display: flex;
+  gap: 6px;
+}
+
+.emptyState {
+  font-size: 13px;
+  color: var(--td);
+}
+
+/* All referrals */
+.referralRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bdl);
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.referralEmail {
+  color: var(--tx);
+  flex: 1;
+  min-width: 120px;
+}
+
+.referralArrow {
+  color: var(--tm);
+}
+
+.referralSpent {
+  font-family: var(--mono);
+  color: var(--tm);
+  min-width: 60px;
+}
+
+.referralBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

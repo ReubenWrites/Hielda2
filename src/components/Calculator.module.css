@@ -1,0 +1,419 @@
+.page {
+  font-family: var(--font);
+  color: var(--tx);
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+/* ── Nav ── */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 48px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--bd);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.navLogo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.navLogoText {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ac);
+  letter-spacing: -0.02em;
+}
+.navTrialBtn {
+  background: var(--ac);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+/* ── Header ── */
+.header {
+  padding: 60px 48px 32px;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--tm);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 0;
+  margin-bottom: 20px;
+}
+.title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--tx);
+  line-height: 1.15;
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+}
+.subtitle {
+  font-size: 16px;
+  color: var(--tm);
+  line-height: 1.6;
+  margin: 0 0 6px;
+}
+.legalRef {
+  font-size: 12px;
+  color: var(--td);
+}
+
+/* ── Calculator body ── */
+.calcBody {
+  padding: 0 48px 60px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.inputGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.inputLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tx);
+  margin-bottom: 6px;
+}
+.inputWrap {
+  position: relative;
+}
+.currencySign {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--td);
+  font-size: 14px;
+  font-weight: 600;
+}
+.amountInput {
+  width: 100%;
+  padding: 12px 14px 12px 30px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--tx);
+  outline: none;
+  box-sizing: border-box;
+}
+.daysInput {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--tx);
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* ── Results ── */
+.results {
+  border-top: 1px solid var(--bd);
+  padding-top: 20px;
+}
+.resultRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bdl);
+}
+.resultRowLabel {
+  font-size: 13px;
+  color: var(--tm);
+}
+.resultRowVal {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0 8px;
+}
+.totalLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+}
+.totalVal {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--ac);
+}
+.accrualNote {
+  font-size: 11px;
+  color: var(--td);
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+/* ── Lead capture ── */
+.leadSection {
+  border-top: 1px solid var(--bd);
+  padding-top: 16px;
+}
+.leadTitle {
+  font-size: 12px;
+  color: var(--tx);
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.leadDesc {
+  font-size: 11px;
+  color: var(--tm);
+  margin: 0 0 10px;
+}
+.leadRow {
+  display: flex;
+  gap: 8px;
+}
+.leadInput {
+  flex: 1;
+  padding: 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--tx);
+  outline: none;
+  box-sizing: border-box;
+}
+.leadBtn {
+  background: var(--ac);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  flex-shrink: 0;
+}
+.leadBtn:disabled {
+  opacity: 0.5;
+}
+.leadDisclaimer {
+  font-size: 10px;
+  color: var(--td);
+  margin: 6px 0 0;
+}
+.leadSuccess {
+  border-top: 1px solid var(--bd);
+  padding-top: 14px;
+  text-align: center;
+}
+.leadSuccessText {
+  font-size: 13px;
+  color: var(--gn);
+  font-weight: 600;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  border-top: 1px solid var(--bd);
+  padding-top: 24px;
+  text-align: center;
+  color: var(--td);
+  font-size: 13px;
+}
+
+/* ── How it's calculated ── */
+.infoTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 12px;
+}
+.infoBody {
+  font-size: 12px;
+  color: var(--tm);
+  line-height: 1.7;
+}
+.infoText {
+  margin: 0 0 12px;
+}
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.infoBox {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.infoBoxLabel {
+  font-weight: 700;
+  color: var(--ac);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.infoBoxText {
+  font-size: 12px;
+  color: var(--tm);
+}
+.infoFootnote {
+  margin: 0;
+  font-size: 11px;
+  color: var(--td);
+}
+
+/* ── FAQ ── */
+.faqSection {
+  margin-top: 16px;
+}
+.faqTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 12px;
+}
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.faqItem {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.faqItemOpen {
+  composes: faqItem;
+  border-color: var(--ac);
+}
+.faqBtn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 13px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font);
+}
+.faqQuestion {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0;
+  line-height: 1.4;
+}
+.faqToggle {
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--ac);
+  flex-shrink: 0;
+  line-height: 1;
+}
+.faqAnswer {
+  padding: 0 16px 14px;
+}
+.faqAnswerText {
+  font-size: 12px;
+  color: var(--tm);
+  margin: 0;
+  line-height: 1.7;
+}
+
+/* ── CTA ── */
+.ctaSection {
+  margin-top: 24px;
+  text-align: center;
+  padding: 28px 24px;
+  background: var(--ac);
+  border-radius: 14px;
+}
+.ctaTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 6px;
+}
+.ctaSubtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+.ctaBtn {
+  background: #fff;
+  color: var(--ac);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+.ctaSmall {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .nav {
+    padding: 14px 20px;
+  }
+  .header {
+    padding: 40px 20px 24px;
+  }
+  .title {
+    font-size: 26px;
+  }
+  .subtitle {
+    font-size: 14px;
+  }
+  .calcBody {
+    padding: 0 20px 40px;
+  }
+  .inputGrid {
+    grid-template-columns: 1fr;
+  }
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+}

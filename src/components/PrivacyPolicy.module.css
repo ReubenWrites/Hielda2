@@ -1,0 +1,148 @@
+.page {
+  font-family: var(--font);
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.nav {
+  background: var(--ac);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--tm);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 6px;
+}
+
+.lastUpdated {
+  color: var(--td);
+  font-size: 12px;
+  margin: 0 0 32px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 0 0 10px;
+  border-bottom: 1px solid var(--bd);
+  padding-bottom: 6px;
+}
+
+.sectionBody {
+  font-size: 13px;
+  color: var(--tm);
+  line-height: 1.75;
+}
+
+.marginTop {
+  margin-top: 8px;
+}
+
+.link {
+  color: var(--ac);
+}
+
+.dataLabel {
+  font-weight: 600;
+  color: var(--tx);
+  margin-bottom: 4px;
+}
+
+.list {
+  padding-left: 18px;
+  margin: 0 0 12px;
+}
+
+.listLast {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.marginBottom {
+  margin-bottom: 8px;
+}
+
+.strong {
+  color: var(--tx);
+}
+
+.processorTable {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.processorRow {
+  display: grid;
+  grid-template-columns: 120px 1fr 100px;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+.processorRowBorder {
+  border-bottom: 1px solid var(--bdl);
+}
+
+.processorName {
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.processorRole {
+  color: var(--tm);
+}
+
+.processorLocation {
+  color: var(--td);
+  text-align: right;
+}
+
+.contactBox {
+  padding: 20px 24px;
+  background: var(--acd);
+  border: 1px solid rgba(30, 95, 160, 0.125);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--tm);
+}
+
+.contactLink {
+  color: var(--ac);
+  font-weight: 600;
+}

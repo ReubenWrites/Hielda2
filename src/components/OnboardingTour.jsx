@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
-import { colors as c, FONT } from "../constants"
+import { useState } from "react"
 import { Btn } from "./ui"
+import s from "./OnboardingTour.module.css"
 
 const STEPS = [
   {
@@ -65,48 +65,31 @@ export default function OnboardingTour({ userId, onDone }) {
   }
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
-      background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20, fontFamily: FONT,
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: 16, padding: "32px 28px",
-        maxWidth: 420, width: "100%", textAlign: "center",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-      }}>
-        <div style={{
-          width: 56, height: 56, borderRadius: "50%", background: c.acd,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 24, margin: "0 auto 16px",
-        }}>
+    <div className={s.overlay}>
+      <div className={s.dialog}>
+        <div className={s.iconCircle}>
           {current.icon}
         </div>
 
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: c.tx, margin: "0 0 8px" }}>
+        <h2 className={s.title}>
           {current.title}
         </h2>
 
-        <p style={{ fontSize: 13, color: c.tm, lineHeight: 1.6, margin: "0 0 24px" }}>
+        <p className={s.body}>
           {current.body}
         </p>
 
         {/* Progress dots */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
+        <div className={s.dots}>
           {STEPS.map((_, i) => (
             <div
               key={i}
-              style={{
-                width: i === step ? 20 : 6, height: 6, borderRadius: 3,
-                background: i === step ? c.ac : c.bd,
-                transition: "all 0.2s",
-              }}
+              className={`${s.dot} ${i === step ? s.dotActive : ""}`}
             />
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+        <div className={s.actions}>
           {step > 0 && (
             <Btn v="ghost" onClick={() => setStep(s => s - 1)}>Back</Btn>
           )}
@@ -114,7 +97,7 @@ export default function OnboardingTour({ userId, onDone }) {
           {!isLast && (
             <button
               onClick={finish}
-              style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}
+              className={s.skipBtn}
             >
               Skip tour
             </button>

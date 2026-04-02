@@ -1,5 +1,5 @@
-import { colors as c, FONT } from "../constants"
 import { Btn } from "./ui"
+import s from './SubscriptionGate.module.css'
 
 const TRIAL_DAYS = 42
 
@@ -28,35 +28,15 @@ export default function SubscriptionGate({ subscription, onUpgrade, children }) 
 
   // Trial banner
   const banner = isTrial ? (
-    <div style={{
-      padding: "8px 16px",
-      background: `linear-gradient(135deg, ${c.acd}, rgba(30,95,160,0.12))`,
-      borderRadius: 10,
-      fontSize: 12,
-      marginBottom: 20,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      border: `1px solid ${c.ac}20`,
-    }}>
-      <span style={{ color: c.ac, fontWeight: 500 }}>
+    <div className={s.trialBanner}>
+      <span className={s.trialText}>
         Free trial — <strong>{daysLeft} day{daysLeft !== 1 ? "s" : ""}</strong> remaining
       </span>
       <Btn sz="sm" onClick={onUpgrade}>Upgrade</Btn>
     </div>
   ) : isPastDue ? (
-    <div style={{
-      padding: "8px 16px",
-      background: c.ord,
-      borderRadius: 10,
-      fontSize: 12,
-      marginBottom: 20,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      border: `1px solid ${c.or}20`,
-    }}>
-      <span style={{ color: c.or, fontWeight: 500 }}>
+    <div className={s.pastDueBanner}>
+      <span className={s.pastDueText}>
         Payment failed. Please update your payment method to continue.
       </span>
       <Btn sz="sm" v="danger" onClick={onUpgrade}>Update Payment</Btn>
@@ -66,12 +46,12 @@ export default function SubscriptionGate({ subscription, onUpgrade, children }) 
   // Paywall for expired trials
   if (!active) {
     return (
-      <div style={{ textAlign: "center", padding: "60px 24px" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🛡️</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: c.tx, margin: "0 0 8px" }}>
+      <div className={s.paywall}>
+        <div className={s.paywallIcon}>🛡️</div>
+        <h2 className={s.paywallTitle}>
           Your free trial has ended
         </h2>
-        <p style={{ color: c.tm, fontSize: 14, lineHeight: 1.6, maxWidth: 400, margin: "0 auto 24px" }}>
+        <p className={s.paywallDesc}>
           Upgrade to Hielda Pro to continue chasing late payments and protecting your income.
         </p>
         <Btn sz="lg" onClick={onUpgrade}>View Plans & Upgrade</Btn>

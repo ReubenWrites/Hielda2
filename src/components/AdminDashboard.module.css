@@ -1,0 +1,341 @@
+.title {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  color: var(--tm);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--bd);
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--tm);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.tabActive {
+  border-bottom-color: var(--ac);
+  color: var(--ac);
+  font-weight: 600;
+}
+
+/* Badge */
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Row */
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--bdl);
+  gap: 12px;
+}
+
+.rowLabel {
+  font-size: 12px;
+  color: var(--tm);
+  flex-shrink: 0;
+}
+
+.rowValue {
+  font-size: 12px;
+  color: var(--tx);
+  font-weight: 500;
+  text-align: right;
+  font-family: var(--font);
+  word-break: break-all;
+}
+
+.rowValueMono {
+  font-size: 12px;
+  color: var(--tx);
+  font-weight: 500;
+  text-align: right;
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+/* Search */
+.searchRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.searchInputWrap {
+  flex: 1;
+  min-width: 220px;
+}
+
+.searchLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm);
+  display: block;
+  margin-bottom: 5px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--tx);
+  background: var(--bg);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.errorBox {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--ord);
+  color: var(--or);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+/* Stats grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statCardAlert {
+  background: var(--ord);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--tm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statLabelAlert {
+  font-size: 11px;
+  color: var(--or);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--font);
+}
+
+.statValueMono {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--mono);
+}
+
+.statValueAlert {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--or);
+  font-family: var(--font);
+}
+
+/* Two col grid */
+.twoColGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 12px;
+}
+
+.sectionLabelLg {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+}
+
+.noSub {
+  font-size: 13px;
+  color: var(--td);
+  padding: 8px 0;
+}
+
+.subBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.noInvoices {
+  font-size: 13px;
+  color: var(--td);
+}
+
+/* Invoice row */
+.invoiceBtn {
+  width: 100%;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font);
+  text-align: left;
+}
+
+.invoiceBorder {
+  border-bottom: 1px solid var(--bdl);
+  margin-bottom: 0;
+}
+
+.invoiceRef {
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--ac);
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.invoiceClient {
+  font-size: 12px;
+  color: var(--tx);
+  flex: 1;
+}
+
+.invoiceAmount {
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--tx);
+  width: 80px;
+  text-align: right;
+}
+
+.invoiceToggle {
+  font-size: 11px;
+  color: var(--td);
+  width: 14px;
+}
+
+/* Expanded invoice */
+.expandedInvoice {
+  padding-bottom: 14px;
+  padding-left: 4px;
+}
+
+.invoiceDetailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Chase log */
+.chaseLogTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.chaseLogRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid var(--bdl);
+  flex-wrap: wrap;
+}
+
+.chaseLogStage {
+  font-size: 11px;
+  color: var(--tx);
+  flex: 1;
+}
+
+.chaseLogDate {
+  font-size: 11px;
+  color: var(--td);
+}
+
+.chaseLogResendId {
+  font-size: 10px;
+  color: var(--td);
+  font-family: var(--mono);
+}
+
+.noChase {
+  font-size: 12px;
+  color: var(--td);
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .twoColGrid,
+  .invoiceDetailGrid {
+    grid-template-columns: 1fr;
+  }
+}

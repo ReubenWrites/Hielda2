@@ -1,0 +1,53 @@
+@import './theme.css';
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: .4; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html { scroll-behavior: smooth; }
+::selection { background: rgba(30,95,160,0.15); }
+:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+button:focus:not(:focus-visible) { outline: none; }
+
+.pulse-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ac);
+  opacity: .4;
+  animation: pulse-ring 2s ease-out infinite;
+}
+.header-pulse {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--or);
+  opacity: 0.3;
+  animation: pulse-ring 2s ease-out infinite;
+}
+.sidebar-nav:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: rgba(255,255,255,0.8) !important;
+}
+.table-row-hover:hover { background: var(--sfh); }
+.table-row-hover:focus { outline: 2px solid var(--ac); outline-offset: -2px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 3px; }

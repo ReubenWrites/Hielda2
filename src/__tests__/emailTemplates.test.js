@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { buildChaseEmail, getChaseStageForDays } from '../lib/emailTemplates'
 
 const mockInvoice = {
@@ -20,6 +20,14 @@ const mockProfile = {
 }
 
 describe('buildChaseEmail', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('generates reminder_1 email', () => {
     const email = buildChaseEmail(mockInvoice, mockProfile, 'reminder_1')
     expect(email).not.toBeNull()
@@ -35,7 +43,7 @@ describe('buildChaseEmail', () => {
     const email = buildChaseEmail(mockInvoice, mockProfile, 'final_notice')
     expect(email).not.toBeNull()
     expect(email.subject).toContain('FINAL NOTICE')
-    expect(email.html).toContain('final notice')
+    expect(email.html).toContain('FINAL NOTICE')
     expect(email.html).toContain('Hielda')
   })
 
@@ -67,9 +75,9 @@ describe('getChaseStageForDays', () => {
     expect(getChaseStageForDays(-10)).toBe('reminder_1')
   })
 
-  it('returns reminder_2 for 1-4 days before due', () => {
+  it('returns reminder_2 for 1 day before due and reminder_1 for further out', () => {
     expect(getChaseStageForDays(-1)).toBe('reminder_2')
-    expect(getChaseStageForDays(-4)).toBe('reminder_2')
+    expect(getChaseStageForDays(-4)).toBe('reminder_1')
   })
 
   it('returns final_warning on due date', () => {

@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { supabase } from "../supabase"
-import { colors as c, FONT } from "../constants"
 import { Card, Inp, Btn, ShieldLogo, ErrorBanner, InfoBanner } from "./ui"
 import { trackEvent } from "../posthog"
+import s from "./AuthScreen.module.css"
 
 export default function AuthScreen({ onAuth, onBack }) {
   const [mode, setMode] = useState("login")
@@ -18,7 +18,6 @@ export default function AuthScreen({ onAuth, onBack }) {
     try {
       const storedCode = localStorage.getItem("hielda_referral_code")
       if (!storedCode || !newUserId) return
-      // Find the referral record by code and update with referred_user_id
       const { data: refs } = await supabase
         .from("referrals")
         .select("id")
@@ -28,7 +27,6 @@ export default function AuthScreen({ onAuth, onBack }) {
       if (refs?.length) {
         await supabase.from("referrals").update({ referred_user_id: newUserId, status: "signed_up" }).eq("id", refs[0].id)
       } else {
-        // No existing invite record — look up the referrer by their profile code
         const { data: referrer } = await supabase
           .from("profiles")
           .select("id")
@@ -117,87 +115,89 @@ export default function AuthScreen({ onAuth, onBack }) {
   const canSubmit = email && pass && (mode === "login" || name)
 
   return (
-    <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ position: "absolute", inset: 0, opacity: 0.25, backgroundImage: "radial-gradient(circle,#b0bcc8 0.5px,transparent 0.5px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
-      <Card style={{ width: "100%", maxWidth: 400, padding: window.innerWidth <= 768 ? "28px 20px" : "40px 36px", position: "relative", zIndex: 1, margin: "0 16px" }}>
-        {onBack && (
-          <button onClick={onBack} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontFamily: FONT, fontSize: 13, padding: 0, marginBottom: 12 }}>
-            ← Back
-          </button>
-        )}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <ShieldLogo size={40} />
-          <div style={{ fontSize: 24, fontWeight: 700, color: c.ac, letterSpacing: "-0.02em", marginTop: 12 }}>Hielda</div>
-          <div style={{ fontSize: 12, color: c.td, marginTop: 3 }}>Protecting your pay.</div>
-        </div>
+    <div className={s.wrapper}>
+      <div className={s.patternOverlay} />
+      <Card style={{ width: "100%", maxWidth: 400, padding: 0, position: "relative", zIndex: 1, margin: "0 16px" }}>
+        <div className={s.cardInner}>
+          {onBack && (
+            <button onClick={onBack} className={s.backBtn}>
+              ← Back
+            </button>
+          )}
+          <div className={s.header}>
+            <ShieldLogo size={40} />
+            <div className={s.title}>Hielda</div>
+            <div className={s.subtitle}>Protecting your pay.</div>
+          </div>
 
-        {mode === "reset" ? (
-          <form onSubmit={handleReset}>
-            <p style={{ fontSize: 13, color: c.tm, margin: "0 0 16px" }}>
-              Enter your email and we'll send you a link to reset your password.
-            </p>
-            <Inp label="Email" value={email} onChange={setEmail} ph="you@email.com" type="email" />
-            <ErrorBanner message={err} onDismiss={() => setErr("")} />
-            <InfoBanner message={info} />
-            <Btn type="submit" dis={loading || !email.trim() || resetSent} style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}>
-              {loading ? "Sending..." : resetSent ? "Email sent!" : "Send reset link"}
-            </Btn>
-            <div style={{ textAlign: "center" }}>
-              <button onClick={() => switchMode("login")} style={{ background: "none", border: "none", color: c.ac, cursor: "pointer", fontFamily: FONT, fontSize: 13 }}>
-                ← Back to log in
-              </button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            {mode === "signup" && <Inp label="Full Name" value={name} onChange={setName} ph="Your name" />}
-            <Inp label="Email" value={email} onChange={setEmail} ph="you@email.com" type="email" />
-            <Inp label="Password" value={pass} onChange={setPass} ph={mode === "signup" ? "Choose a password (6+ chars)" : "Your password"} type="password" />
-
-            {mode === "login" && (
-              <div style={{ textAlign: "right", marginTop: -8, marginBottom: 12 }}>
-                <button
-                  type="button"
-                  onClick={() => switchMode("reset")}
-                  style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontFamily: FONT, fontSize: 11 }}
-                >
-                  Forgot password?
+          {mode === "reset" ? (
+            <form onSubmit={handleReset}>
+              <p className={s.resetText}>
+                Enter your email and we'll send you a link to reset your password.
+              </p>
+              <Inp label="Email" value={email} onChange={setEmail} ph="you@email.com" type="email" />
+              <ErrorBanner message={err} onDismiss={() => setErr("")} />
+              <InfoBanner message={info} />
+              <Btn type="submit" dis={loading || !email.trim() || resetSent} style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}>
+                {loading ? "Sending..." : resetSent ? "Email sent!" : "Send reset link"}
+              </Btn>
+              <div className={s.centeredText}>
+                <button onClick={() => switchMode("login")} className={s.backToLogin}>
+                  ← Back to log in
                 </button>
               </div>
-            )}
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              {mode === "signup" && <Inp label="Full Name" value={name} onChange={setName} ph="Your name" />}
+              <Inp label="Email" value={email} onChange={setEmail} ph="you@email.com" type="email" />
+              <Inp label="Password" value={pass} onChange={setPass} ph={mode === "signup" ? "Choose a password (6+ chars)" : "Your password"} type="password" />
 
-            <ErrorBanner message={err} onDismiss={() => setErr("")} />
-            <InfoBanner message={info} />
+              {mode === "login" && (
+                <div className={s.forgotWrap}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode("reset")}
+                    className={s.forgotBtn}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
 
-            <Btn
-              type="submit"
-              dis={loading || !canSubmit}
-              style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}
-            >
-              {loading ? "Signing in..." : mode === "signup" ? "Create Account" : "Log In"}
-            </Btn>
-          </form>
-        )}
+              <ErrorBanner message={err} onDismiss={() => setErr("")} />
+              <InfoBanner message={info} />
 
-        {mode !== "reset" && (
-          <div style={{ textAlign: "center", fontSize: 13, color: c.tm }}>
-            {mode === "login" ? (
-              <span>
-                New to Hielda?{" "}
-                <button onClick={() => switchMode("signup")} style={{ background: "none", border: "none", color: c.ac, cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13 }}>
-                  Create an account
-                </button>
-              </span>
-            ) : (
-              <span>
-                Already have an account?{" "}
-                <button onClick={() => switchMode("login")} style={{ background: "none", border: "none", color: c.ac, cursor: "pointer", fontFamily: FONT, fontWeight: 600, fontSize: 13 }}>
-                  Log in
-                </button>
-              </span>
-            )}
-          </div>
-        )}
+              <Btn
+                type="submit"
+                dis={loading || !canSubmit}
+                style={{ width: "100%", justifyContent: "center", marginBottom: 14 }}
+              >
+                {loading ? "Signing in..." : mode === "signup" ? "Create Account" : "Log In"}
+              </Btn>
+            </form>
+          )}
+
+          {mode !== "reset" && (
+            <div className={s.modeToggle}>
+              {mode === "login" ? (
+                <span>
+                  New to Hielda?{" "}
+                  <button onClick={() => switchMode("signup")} className={s.modeBtn}>
+                    Create an account
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  Already have an account?{" "}
+                  <button onClick={() => switchMode("login")} className={s.modeBtn}>
+                    Log in
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   )

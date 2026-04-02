@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../supabase"
-import { colors as c, TERMS, getBoe, getRate, onRateChange } from "../constants"
-import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
+import { TERMS, getBoe, getRate, onRateChange } from "../constants"
+import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection } from "./ui"
+import s from "./Settings.module.css"
 
 export default function Settings({ profile, onUpdate, isMobile }) {
   const [p, setP] = useState(profile || {})
@@ -106,21 +107,21 @@ export default function Settings({ profile, onUpdate, isMobile }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
+      <div className={s.header}>
         <div>
-          <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>Your Details</h1>
-          <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>Auto-fills every invoice.</p>
+          <h1 className={s.title}>Your Details</h1>
+          <p className={s.subtitle}>Auto-fills every invoice.</p>
         </div>
         <Btn onClick={save} dis={saving || hasValidationErrors}>
-          {saving ? "Saving..." : saved ? "✓ Saved!" : hasValidationErrors ? "Fix errors" : "Save Changes"}
+          {saving ? "Saving..." : saved ? "\u2713 Saved!" : hasValidationErrors ? "Fix errors" : "Save Changes"}
         </Btn>
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
+      <div className={s.grid}>
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Personal</h3>
+          <h3 className={s.sectionHeading}>Personal</h3>
           <Inp label="Name" value={p.full_name || ""} onChange={(v) => update("full_name", v)} />
           <Inp label="Business" value={p.business_name || ""} onChange={(v) => update("business_name", v)} />
           <Inp label="Email" value={p.email || ""} onChange={() => {}} disabled />
@@ -128,7 +129,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           <Inp label="Address" value={p.address || ""} onChange={(v) => update("address", v)} ta />
         </Card>
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Payment</h3>
+          <h3 className={s.sectionHeading}>Payment</h3>
           <Inp label="Account Name" value={p.account_name || ""} onChange={(v) => update("account_name", v)} />
           <Inp label="Bank" value={p.bank_name || ""} onChange={(v) => update("bank_name", v)} />
           <Inp
@@ -151,61 +152,58 @@ export default function Settings({ profile, onUpdate, isMobile }) {
             mono
             error={p.account_number && p.account_number.length !== 8 ? "Must be 8 digits" : ""}
           />
-          <Inp label="VAT Number (optional)" value={p.vat_number || ""} onChange={(v) => update("vat_number", v)} mono />
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: c.tx }}>
+          <div className={s.vatCheckbox}>
+            <label className={s.vatLabel}>
               <input
                 type="checkbox"
                 checked={p.vat_registered || false}
                 onChange={(e) => update("vat_registered", e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: c.ac }}
+                className={s.vatCheckInput}
               />
               VAT Registered
             </label>
-            <p style={{ fontSize: 10, color: c.td, margin: "4px 0 0 24px" }}>Enable to add VAT to invoices.</p>
+            <p className={s.hintIndented}>Enable to add VAT to invoices.</p>
           </div>
           {p.vat_registered && (
-            <Sel
-              label="Default VAT Rate"
-              value={p.default_vat_rate || "20"}
-              onChange={(v) => update("default_vat_rate", v)}
-              opts={[
-                { l: "20% Standard", v: "20" },
-                { l: "5% Reduced", v: "5" },
-                { l: "0% Zero-rated", v: "0" },
-                { l: "Exempt", v: "exempt" },
-              ]}
-            />
+            <>
+              <Inp label="VAT Number" value={p.vat_number || ""} onChange={(v) => update("vat_number", v)} mono />
+              <Sel
+                label="Default VAT Rate"
+                value={p.default_vat_rate || "20"}
+                onChange={(v) => update("default_vat_rate", v)}
+                opts={[
+                  { l: "20% Standard", v: "20" },
+                  { l: "5% Reduced", v: "5" },
+                  { l: "0% Zero-rated", v: "0" },
+                  { l: "Exempt", v: "exempt" },
+                ]}
+              />
+            </>
           )}
           <Inp label="Company Reg No. (optional)" value={p.company_reg_number || ""} onChange={(v) => update("company_reg_number", v)} mono ph="e.g. 12345678" />
           <Inp label="UTR (optional)" value={p.utr_number || ""} onChange={(v) => update("utr_number", v)} mono />
-          <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 4px" }}>Unique Taxpayer Reference — your 10-digit HMRC number for self-assessment.</p>
-          <div style={{ marginTop: 14, padding: 12, background: c.acd, borderRadius: 8 }}>
-            <div style={{ fontSize: 12, color: c.ac, fontWeight: 600, marginBottom: 3 }}>Statutory Rates</div>
-            <div style={{ fontSize: 11, color: c.tm, lineHeight: 1.5 }}>
-              BoE: {rateInfo.boe}% · Interest: {rateInfo.rate}% p.a.<br />
-              Penalties: £40 / £70 / £100
+          <p className={s.hint}>Unique Taxpayer Reference — your 10-digit HMRC number for self-assessment.</p>
+          <div className={s.rateBox}>
+            <div className={s.rateTitle}>Statutory Rates</div>
+            <div className={s.rateBody}>
+              BoE: {rateInfo.boe}% &middot; Interest: {rateInfo.rate}% p.a.<br />
+              Penalties: &pound;40 / &pound;70 / &pound;100
             </div>
           </div>
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginTop: 16 }}>
+      <div className={s.gridMt}>
         {/* International banking */}
-        <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>International Banking</h3>
-          <p style={{ fontSize: 11, color: c.td, margin: "-6px 0 12px", lineHeight: 1.5 }}>
-            For overseas clients. Shown on invoices alongside your UK sort code and account number.
-          </p>
+        <CollapsibleSection title="International Banking" description="For overseas clients. Shown on invoices alongside your UK sort code and account number.">
           <Inp label="SWIFT / BIC" value={p.swift_bic || ""} onChange={(v) => update("swift_bic", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} mono ph="e.g. HBUKGB4B"
             error={p.swift_bic && (p.swift_bic.length < 8 || p.swift_bic.length > 11) ? "Must be 8 or 11 characters" : ""} />
           <Inp label="IBAN" value={p.iban || ""} onChange={(v) => update("iban", v.toUpperCase().replace(/\s/g, "").slice(0, 34))} mono ph="e.g. GB29NWBK60161331926819"
             error={p.iban && (p.iban.length < 15 || p.iban.length > 34) ? "Must be 15-34 characters" : ""} />
-        </Card>
+        </CollapsibleSection>
 
         {/* Branding */}
-        <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Branding</h3>
+        <CollapsibleSection title="Invoice Branding" description="Your logo and website shown on invoices.">
           <Inp
             label="Website (optional)"
             value={p.website_url || ""}
@@ -221,14 +219,14 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           />
 
           {/* Logo upload */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 6 }}>
+          <div className={s.logoWrap}>
+            <label className={s.logoLabel}>
               Company Logo
             </label>
             {p.logo_url ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <img src={p.logo_url} alt="Logo" style={{ height: 48, maxWidth: 120, objectFit: "contain", borderRadius: 4, border: `1px solid ${c.bd}`, padding: 4, background: "#fff" }} />
-                <button onClick={removeLogo} style={{ fontSize: 11, color: c.or, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+              <div className={s.logoPreview}>
+                <img src={p.logo_url} alt="Logo" className={s.logoImg} />
+                <button onClick={removeLogo} className={s.removeBtn}>
                   Remove
                 </button>
               </div>
@@ -244,27 +242,22 @@ export default function Settings({ profile, onUpdate, isMobile }) {
                 <button
                   onClick={() => logoInputRef.current?.click()}
                   disabled={logoUploading}
-                  style={{
-                    padding: "8px 16px", background: c.bg, border: `1px dashed ${c.bd}`,
-                    borderRadius: 8, fontSize: 12, color: c.tm, cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
+                  className={s.uploadBtn}
                 >
                   {logoUploading ? "Uploading..." : "Upload logo (PNG, JPG, SVG)"}
                 </button>
-                <p style={{ fontSize: 10, color: c.td, margin: "4px 0 0" }}>
+                <p className={s.hintSmall}>
                   Recommended: PNG with transparent background, min 200px wide.
                 </p>
               </div>
             )}
           </div>
-        </Card>
+        </CollapsibleSection>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Personalisation</h3>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+      <div className={s.section}>
+        <CollapsibleSection title="Invoice Personalisation" description="Custom signoff and payment terms shown on your invoices.">
+          <div className={s.personalisationGrid}>
             <div>
               <Inp
                 label="Custom signoff (optional)"
@@ -273,7 +266,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
                 ta
                 ph="e.g. Thank you for your business — we look forward to working with you again."
               />
-              <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 0" }}>Printed at the bottom of every invoice.</p>
+              <p className={s.hintBelow}>Printed at the bottom of every invoice.</p>
             </div>
             <div>
               <Inp
@@ -283,23 +276,23 @@ export default function Settings({ profile, onUpdate, isMobile }) {
                 ta
                 ph="e.g. Payment is due within 30 days of invoice date. Late payments are subject to statutory interest under the Late Payment of Commercial Debts Act 1998."
               />
-              <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 0" }}>Included in your first invoice email to every client.</p>
+              <p className={s.hintBelow}>Included in your first invoice email to every client.</p>
             </div>
           </div>
-        </Card>
+        </CollapsibleSection>
       </div>
 
-      <div style={{ marginTop: 16 }}>
+      <div className={s.section}>
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Invoice Defaults</h3>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 14 }}>
+          <h3 className={s.sectionHeading}>Invoice Defaults</h3>
+          <div className={s.defaultsGrid}>
             <Inp label="Invoice Prefix" value={p.invoice_prefix || "INV"} onChange={(v) => update("invoice_prefix", v.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10))} ph="INV" mono />
             <Inp label="Next Invoice Number" value={String(p.next_invoice_number || 1)} onChange={(v) => update("next_invoice_number", parseInt(v.replace(/[^0-9]/g, "")) || 1)} ph="1" mono />
           </div>
-          <p style={{ fontSize: 10, color: c.td, margin: "-6px 0 14px" }}>
-            Your next invoice will be: <strong style={{ fontFamily: "monospace" }}>{(p.invoice_prefix || "INV")}-{String(p.next_invoice_number || 1).padStart(4, "0")}</strong>
+          <p className={s.nextInvoice}>
+            Your next invoice will be: <strong className={s.nextInvoiceCode}>{(p.invoice_prefix || "INV")}-{String(p.next_invoice_number || 1).padStart(4, "0")}</strong>
           </p>
-          <div style={{ maxWidth: 320 }}>
+          <div className={s.termsWrap}>
             <Sel
               label="Default Payment Terms"
               value={String(p.default_payment_terms || 30)}
@@ -307,7 +300,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
               opts={TERMS.filter(t => t.d !== -1).map((t) => ({ l: t.l, v: String(t.d) }))}
             />
           </div>
-          <p style={{ fontSize: 11, color: c.td, margin: "4px 0 0" }}>
+          <p className={s.termsHint}>
             New invoices will default to this payment term. You can override it per invoice.
           </p>
         </Card>

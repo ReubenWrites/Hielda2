@@ -1,0 +1,258 @@
+.header {
+  margin-bottom: 22px;
+}
+
+.title {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 5px;
+}
+
+.subtitle {
+  color: var(--tm);
+  margin: 0;
+  font-size: 13px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: var(--tm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--font);
+}
+
+.statValueMono {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  font-family: var(--mono);
+}
+
+.twoColGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.linkInput {
+  flex: 1;
+  padding: 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--tx);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--td);
+  margin: 0;
+}
+
+.hintTop {
+  font-size: 11px;
+  color: var(--td);
+  margin: 4px 0 0;
+}
+
+.inviteRow {
+  display: flex;
+  gap: 8px;
+}
+
+.inviteInputWrap {
+  flex: 1;
+}
+
+.bonusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.bonusLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.bonusEarned {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gn);
+}
+
+.progressTrack {
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.bonusHint {
+  font-size: 11px;
+  color: var(--td);
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.listTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+}
+
+.emptyState {
+  font-size: 13px;
+  color: var(--td);
+  text-align: center;
+  padding: 20px 0;
+}
+
+.referralRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bdl);
+  flex-wrap: wrap;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.referralEmail {
+  font-size: 13px;
+  color: var(--tx);
+  flex: 1;
+  min-width: 120px;
+}
+
+.statusBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.statusMessage {
+  font-size: 11px;
+  color: var(--td);
+  min-width: 180px;
+  text-align: right;
+  padding-left: 0;
+}
+
+.payoutRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bdl);
+}
+
+.payoutType {
+  font-size: 13px;
+  color: var(--tx);
+}
+
+.payoutRight {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.payoutAmount {
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tx);
+}
+
+.payoutBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--tm);
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .twoColGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statusMessage {
+    min-width: 100%;
+    text-align: left;
+    padding-left: 18px;
+  }
+}

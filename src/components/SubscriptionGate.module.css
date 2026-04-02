@@ -1,0 +1,58 @@
+.trialBanner {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--acd), rgba(30, 95, 160, 0.12));
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(30, 95, 160, 0.125);
+}
+
+.trialText {
+  color: var(--ac);
+  font-weight: 500;
+}
+
+.pastDueBanner {
+  padding: 8px 16px;
+  background: var(--ord);
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid rgba(217, 119, 6, 0.125);
+}
+
+.pastDueText {
+  color: var(--or);
+  font-weight: 500;
+}
+
+.paywall {
+  text-align: center;
+  padding: 60px 24px;
+}
+
+.paywallIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.paywallTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 8px;
+}
+
+.paywallDesc {
+  color: var(--tm);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto 24px;
+}

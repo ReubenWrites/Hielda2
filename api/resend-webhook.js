@@ -16,6 +16,8 @@ const STATUS_MAP = {
   'email.bounced': 'bounced',
   'email.complained': 'complained',
   'email.delivery_delayed': 'delayed',
+  'email.opened': 'opened',
+  'email.clicked': 'clicked',
 }
 
 export const config = {
@@ -79,7 +81,43 @@ export default async function handler(req, res) {
       .select('invoice_id, user_id, chase_stage, email_to')
       .single()
 
-    // If the email bounced or was complained about, notify the freelancer
+    // Insert in-app notification for actionable events
+    if (logEntry && (deliveryStatus === 'bounced' || deliveryStatus === 'complained' || deliveryStatus === 'opened')) {
+      const { data: notifInvoice } = await supabase
+        .from('invoices')
+        .select('ref')
+        .eq('id', logEntry.invoice_id)
+        .single()
+
+      // Only notify once per event type per chase log entry
+      const { data: existingNotif } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('chase_log_id', logEntry.invoice_id)
+        .eq('type', deliveryStatus === 'complained' ? 'complaint' : deliveryStatus)
+        .maybeSingle()
+
+      if (!existingNotif && notifInvoice) {
+        const notifMap = {
+          bounced: { type: 'bounce', title: `Email bounced — ${notifInvoice.ref}`, body: `Chase email to ${logEntry.email_to} failed to deliver.` },
+          complained: { type: 'complaint', title: `Marked as spam — ${notifInvoice.ref}`, body: `${logEntry.email_to} marked your chase email as spam.` },
+          opened: { type: 'opened', title: `Email opened — ${notifInvoice.ref}`, body: `${logEntry.email_to} opened your chase email.` },
+        }
+        const notif = notifMap[deliveryStatus]
+        if (notif) {
+          await supabase.from('notifications').insert({
+            user_id: logEntry.user_id,
+            type: notif.type,
+            title: notif.title,
+            body: notif.body,
+            invoice_id: logEntry.invoice_id,
+            chase_log_id: logEntry.invoice_id,
+          })
+        }
+      }
+    }
+
+    // If the email bounced or was complained about, also send email notification to freelancer
     if ((deliveryStatus === 'bounced' || deliveryStatus === 'complained') && logEntry) {
       const { data: invoice } = await supabase
         .from('invoices')

@@ -1,0 +1,310 @@
+.title {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 5px;
+}
+
+.subtitle {
+  color: var(--tm);
+  margin: 0 0 22px;
+  font-size: 13px;
+}
+
+.topGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 0 0 10px;
+}
+
+.bodyText {
+  font-size: 13px;
+  color: var(--tm);
+  line-height: 1.7;
+}
+
+.bodyParagraph {
+  margin: 0 0 8px;
+}
+
+.bodyParagraphLast {
+  margin: 8px 0 0;
+}
+
+.legalStrong {
+  color: var(--tx);
+}
+
+.infoBox {
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.infoRow {
+  margin-bottom: 5px;
+}
+
+.infoRowLast {
+  margin-bottom: 0;
+}
+
+.rateValue {
+  color: var(--go);
+  font-family: var(--mono);
+}
+
+.checkList {
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.timelineTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 0 0 16px;
+}
+
+.timelineIntro {
+  font-size: 12px;
+  color: var(--tm);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.timelineStep {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  flex-wrap: nowrap;
+}
+
+.timelineStepBorder {
+  border-bottom: 1px solid var(--bdl);
+}
+
+.stepLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.stepIcon {
+  font-size: 20px;
+  width: 34px;
+  text-align: center;
+}
+
+.stepDay {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  width: 68px;
+}
+
+.stepContent {
+  min-width: 0;
+}
+
+.stepTitle {
+  font-weight: 600;
+  color: var(--tx);
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.stepDesc {
+  font-size: 12px;
+  color: var(--tm);
+  line-height: 1.4;
+}
+
+.faqTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 0 0 12px;
+}
+
+.faqItem {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--bdl);
+}
+
+.faqItemLast {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.faqQuestion {
+  font-weight: 600;
+  color: var(--tx);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.faqAnswer {
+  font-size: 11.5px;
+  color: var(--tm);
+  line-height: 1.5;
+}
+
+.penaltyTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 0 0 12px;
+}
+
+.penaltyIntro {
+  font-size: 12px;
+  color: var(--tm);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.penaltyTable {
+  background: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.penaltyRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+}
+
+.penaltyRowBorder {
+  border-bottom: 1px solid var(--bdl);
+}
+
+.penaltyRange {
+  font-size: 12px;
+  color: var(--tm);
+}
+
+.penaltyAmount {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--ac);
+}
+
+.penaltyNote {
+  font-size: 11px;
+  color: var(--td);
+  margin: 12px 0 0;
+  line-height: 1.5;
+}
+
+.exampleTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 20px 0 10px;
+}
+
+.exampleBox {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+}
+
+.exampleRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.exampleLabel {
+  color: var(--tm);
+}
+
+.exampleValue {
+  font-family: var(--mono);
+  color: var(--tx);
+}
+
+.exampleValueOr {
+  font-family: var(--mono);
+  color: var(--or);
+}
+
+.exampleTotal {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 2px solid var(--ac);
+}
+
+.exampleTotalLabel {
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.exampleTotalValue {
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--ac);
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 18px;
+  }
+
+  .topGrid,
+  .bottomGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .topGrid {
+    margin-bottom: 16px;
+  }
+
+  .bottomGrid {
+    margin-top: 16px;
+  }
+
+  .timelineStep {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .stepIcon {
+    font-size: 16px;
+    width: 24px;
+  }
+
+  .stepDay {
+    width: auto;
+  }
+}

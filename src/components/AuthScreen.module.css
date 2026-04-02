@@ -1,0 +1,129 @@
+.wrapper {
+  font-family: var(--font);
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patternOverlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  background-image: radial-gradient(circle, #b0bcc8 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.cardInner {
+  padding: 40px 36px;
+}
+
+@media (max-width: 768px) {
+  .cardInner {
+    padding: 28px 20px;
+  }
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--tm);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.backBtn:hover {
+  color: var(--ac);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ac);
+  letter-spacing: -0.02em;
+  margin-top: 12px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--td);
+  margin-top: 3px;
+}
+
+.resetText {
+  font-size: 13px;
+  color: var(--tm);
+  margin: 0 0 16px;
+}
+
+.fullWidthBtn {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.centeredText {
+  text-align: center;
+}
+
+.backToLogin {
+  background: none;
+  border: none;
+  color: var(--ac);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+.backToLogin:hover {
+  text-decoration: underline;
+}
+
+.forgotWrap {
+  text-align: right;
+  margin-top: -8px;
+  margin-bottom: 12px;
+}
+
+.forgotBtn {
+  background: none;
+  border: none;
+  color: var(--tm);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 11px;
+}
+
+.forgotBtn:hover {
+  color: var(--ac);
+}
+
+.modeToggle {
+  text-align: center;
+  font-size: 13px;
+  color: var(--tm);
+}
+
+.modeBtn {
+  background: none;
+  border: none;
+  color: var(--ac);
+  cursor: pointer;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.modeBtn:hover {
+  text-decoration: underline;
+}

@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from "react"
-import { colors as c, FONT, MONO, getRate, getBoe } from "../constants"
+import { getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
-import { Card, Btn, ShieldLogo } from "./ui"
+import { Card, ShieldLogo } from "./ui"
 import { trackEvent } from "../posthog"
+import s from "./Calculator.module.css"
 
 const CALC_FAQS = [
   {
@@ -90,86 +91,56 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
   }
 
   return (
-    <div style={{ fontFamily: FONT, color: c.tx, background: c.bg, minHeight: "100vh" }}>
+    <div className={s.page}>
       {/* Nav */}
-      <nav style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: isMobile ? "14px 20px" : "14px 48px",
-        background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)",
-        borderBottom: `1px solid ${c.bd}`,
-        position: "sticky", top: 0, zIndex: 10,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={onBack}>
+      <nav className={s.nav}>
+        <div className={s.navLogo} onClick={onBack}>
           <ShieldLogo size={28} />
-          <span style={{ fontSize: 20, fontWeight: 700, color: c.ac, letterSpacing: "-0.02em" }}>Hielda</span>
+          <span className={s.navLogoText}>Hielda</span>
         </div>
-        <button
-          onClick={onGetStarted}
-          style={{
-            background: c.ac, color: "#fff", border: "none", borderRadius: 8,
-            padding: "8px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-            fontFamily: FONT,
-          }}
-        >
+        <button onClick={onGetStarted} className={s.navTrialBtn}>
           Start Free Trial
         </button>
       </nav>
 
       {/* Header */}
-      <section style={{
-        padding: isMobile ? "40px 20px 24px" : "60px 48px 32px",
-        textAlign: "center", maxWidth: 700, margin: "0 auto",
-      }}>
-        <button
-          onClick={onBack}
-          style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontFamily: FONT, fontSize: 13, padding: 0, marginBottom: 20 }}
-        >
+      <section className={s.header}>
+        <button onClick={onBack} className={s.backBtn}>
           ← Back to home
         </button>
-        <h1 style={{
-          fontSize: isMobile ? 26 : 36, fontWeight: 700, color: c.tx,
-          lineHeight: 1.15, margin: "0 0 10px", letterSpacing: "-0.02em",
-        }}>
+        <h1 className={s.title}>
           UK Late Payment Calculator
         </h1>
-        <p style={{ fontSize: isMobile ? 14 : 16, color: c.tm, lineHeight: 1.6, margin: "0 0 6px" }}>
+        <p className={s.subtitle}>
           Calculate the statutory interest and penalties you're legally owed on overdue B2B invoices under UK law.
         </p>
-        <p style={{ fontSize: 12, color: c.td }}>
+        <p className={s.legalRef}>
           Based on the Late Payment of Commercial Debts (Interest) Act 1998
         </p>
       </section>
 
       {/* Calculator */}
-      <section style={{
-        padding: isMobile ? "0 20px 40px" : "0 48px 60px",
-        maxWidth: 600, margin: "0 auto",
-      }}>
+      <section className={s.calcBody}>
         <Card style={{ padding: isMobile ? "24px 20px" : "32px 28px" }}>
           {/* Inputs */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 24 }}>
+          <div className={s.inputGrid}>
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 6 }}>
+              <label className={s.inputLabel}>
                 Invoice amount
               </label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: c.td, fontSize: 14, fontWeight: 600 }}>£</span>
+              <div className={s.inputWrap}>
+                <span className={s.currencySign}>£</span>
                 <input
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  style={{
-                    width: "100%", padding: "12px 14px 12px 30px",
-                    background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 8,
-                    fontFamily: MONO, fontSize: 16, color: c.tx, outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  className={s.amountInput}
                 />
               </div>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 6 }}>
+              <label className={s.inputLabel}>
                 Days overdue
               </label>
               <input
@@ -178,93 +149,70 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 onChange={(e) => setDaysOverdue(e.target.value)}
                 onBlur={trackCalc}
                 placeholder="e.g. 30"
-                style={{
-                  width: "100%", padding: "12px 14px",
-                  background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 8,
-                  fontFamily: MONO, fontSize: 16, color: c.tx, outline: "none",
-                  boxSizing: "border-box",
-                }}
+                className={s.daysInput}
               />
             </div>
           </div>
 
           {/* Results */}
           {hasInput && (
-            <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 20 }}>
+            <div className={s.results}>
               {[
-                { label: "Original invoice", value: fmt(parsedAmt), color: c.tx },
+                { label: "Original invoice", value: fmt(parsedAmt), color: "var(--tx)" },
                 { label: `Fixed penalty (invoice ${penTier} tier)`, value: `+ ${fmt(pen)}`, color: "#d97706" },
                 { label: `Interest (${parsedDays} days at ${getRate()}% p.a.)`, value: `+ ${fmt(interest)}`, color: "#d97706" },
               ].map((row) => (
-                <div key={row.label} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "10px 0", borderBottom: `1px solid ${c.bdl}`,
-                }}>
-                  <span style={{ fontSize: 13, color: c.tm }}>{row.label}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, fontFamily: MONO, color: row.color }}>{row.value}</span>
+                <div key={row.label} className={s.resultRow}>
+                  <span className={s.resultRowLabel}>{row.label}</span>
+                  <span className={s.resultRowVal} style={{ color: row.color }}>{row.value}</span>
                 </div>
               ))}
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "16px 0 8px",
-              }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: c.tx }}>Total owed to you</span>
-                <span style={{ fontSize: 24, fontWeight: 700, fontFamily: MONO, color: c.ac }}>{fmt(total)}</span>
+              <div className={s.totalRow}>
+                <span className={s.totalLabel}>Total owed to you</span>
+                <span className={s.totalVal}>{fmt(total)}</span>
               </div>
-              <p style={{ fontSize: 11, color: c.td, marginTop: 4, marginBottom: 16 }}>
+              <p className={s.accrualNote}>
                 Interest accrues daily. The longer they wait, the more you're owed.
               </p>
 
               {/* Lead capture */}
               {!leadSent ? (
-                <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 16 }}>
-                  <p style={{ fontSize: 12, color: c.tx, fontWeight: 600, margin: "0 0 4px" }}>
+                <div className={s.leadSection}>
+                  <p className={s.leadTitle}>
                     Save this calculation
                   </p>
-                  <p style={{ fontSize: 11, color: c.tm, margin: "0 0 10px" }}>
+                  <p className={s.leadDesc}>
                     Enter your email and we'll save your result so you can refer back to it — plus tips on exactly what to say to your client.
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className={s.leadRow}>
                     <input
                       type="email"
                       value={leadEmail}
                       onChange={(e) => setLeadEmail(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && sendLeadEmail()}
                       placeholder="your@email.com"
-                      style={{
-                        flex: 1, padding: "9px 12px", background: c.bg, border: `1px solid ${c.bd}`,
-                        borderRadius: 8, fontFamily: FONT, fontSize: 13, color: c.tx, outline: "none",
-                        boxSizing: "border-box",
-                      }}
+                      className={s.leadInput}
                     />
                     <button
                       onClick={sendLeadEmail}
                       disabled={leadSending || !leadEmail.trim()}
-                      style={{
-                        background: c.ac, color: "#fff", border: "none", borderRadius: 8,
-                        padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                        fontFamily: FONT, flexShrink: 0,
-                        opacity: (!leadEmail.trim() || leadSending) ? 0.5 : 1,
-                      }}
+                      className={s.leadBtn}
                     >
                       {leadSending ? "..." : "Send"}
                     </button>
                   </div>
-                  <p style={{ fontSize: 10, color: c.td, margin: "6px 0 0" }}>No spam. Unsubscribe any time.</p>
+                  <p className={s.leadDisclaimer}>No spam. Unsubscribe any time.</p>
                 </div>
               ) : (
-                <div style={{ borderTop: `1px solid ${c.bd}`, paddingTop: 14, textAlign: "center" }}>
-                  <span style={{ fontSize: 13, color: c.gn, fontWeight: 600 }}>✓ Saved. We'll be in touch.</span>
+                <div className={s.leadSuccess}>
+                  <span className={s.leadSuccessText}>✓ Saved. We'll be in touch.</span>
                 </div>
               )}
             </div>
           )}
 
           {!hasInput && (
-            <div style={{
-              borderTop: `1px solid ${c.bd}`, paddingTop: 24,
-              textAlign: "center", color: c.td, fontSize: 13,
-            }}>
+            <div className={s.emptyState}>
               Enter an amount and days overdue to see your calculation.
             </div>
           )}
@@ -272,59 +220,55 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
 
         {/* Penalty tiers info */}
         <Card style={{ marginTop: 16, padding: isMobile ? "20px" : "24px 28px" }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: c.tx, margin: "0 0 12px" }}>
+          <h3 className={s.infoTitle}>
             How it's calculated
           </h3>
-          <div style={{ fontSize: 12, color: c.tm, lineHeight: 1.7 }}>
-            <p style={{ margin: "0 0 12px" }}>
+          <div className={s.infoBody}>
+            <p className={s.infoText}>
               The <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong> gives businesses the right to charge interest and a fixed penalty on overdue B2B invoices.
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ fontWeight: 700, color: c.ac, fontSize: 13, marginBottom: 4 }}>Interest rate</div>
-                <div style={{ fontSize: 12, color: c.tm }}>
-                  Bank of England base rate ({getBoe()}%) + 8% = <strong style={{ color: c.tx }}>{getRate()}% per annum</strong>
+            <div className={s.infoGrid}>
+              <div className={s.infoBox}>
+                <div className={s.infoBoxLabel}>Interest rate</div>
+                <div className={s.infoBoxText}>
+                  Bank of England base rate ({getBoe()}%) + 8% = <strong style={{ color: "var(--tx)" }}>{getRate()}% per annum</strong>
                 </div>
               </div>
-              <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ fontWeight: 700, color: c.ac, fontSize: 13, marginBottom: 4 }}>Fixed penalties</div>
-                <div style={{ fontSize: 12, color: c.tm }}>
+              <div className={s.infoBox}>
+                <div className={s.infoBoxLabel}>Fixed penalties</div>
+                <div className={s.infoBoxText}>
                   Under £1,000: <strong>£40</strong><br />
                   £1,000–£9,999: <strong>£70</strong><br />
                   £10,000+: <strong>£100</strong>
                 </div>
               </div>
             </div>
-            <p style={{ margin: 0, fontSize: 11, color: c.td }}>
+            <p className={s.infoFootnote}>
               These are your legal rights — not optional extras. Most freelancers never claim them.
             </p>
           </div>
         </Card>
 
         {/* FAQ */}
-        <div style={{ marginTop: 16 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: c.tx, margin: "0 0 12px" }}>
+        <div className={s.faqSection}>
+          <h2 className={s.faqTitle}>
             Frequently asked questions
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className={s.faqList}>
             {CALC_FAQS.map(({ q, a }) => {
               const isOpen = openFaq === q
               return (
-                <div key={q} style={{ background: c.sf, border: `1px solid ${isOpen ? c.ac : c.bd}`, borderRadius: 10, overflow: "hidden" }}>
+                <div key={q} className={isOpen ? s.faqItemOpen : s.faqItem}>
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : q)}
-                    style={{
-                      width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer",
-                      padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-                      fontFamily: FONT,
-                    }}
+                    className={s.faqBtn}
                   >
-                    <h3 style={{ fontSize: 13, fontWeight: 700, color: c.tx, margin: 0, lineHeight: 1.4 }}>{q}</h3>
-                    <span style={{ fontSize: 16, fontWeight: 300, color: c.ac, flexShrink: 0, lineHeight: 1 }}>{isOpen ? "−" : "+"}</span>
+                    <h3 className={s.faqQuestion}>{q}</h3>
+                    <span className={s.faqToggle}>{isOpen ? "−" : "+"}</span>
                   </button>
                   {isOpen && (
-                    <div style={{ padding: "0 16px 14px" }}>
-                      <p style={{ fontSize: 12, color: c.tm, margin: 0, lineHeight: 1.7 }}>{a}</p>
+                    <div className={s.faqAnswer}>
+                      <p className={s.faqAnswerText}>{a}</p>
                     </div>
                   )}
                 </div>
@@ -334,27 +278,17 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
         </div>
 
         {/* CTA */}
-        <div style={{
-          marginTop: 24, textAlign: "center",
-          padding: "28px 24px", background: c.ac, borderRadius: 14,
-        }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: "0 0 6px" }}>
+        <div className={s.ctaSection}>
+          <h3 className={s.ctaTitle}>
             Stop leaving money on the table
           </h3>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, margin: "0 0 18px" }}>
+          <p className={s.ctaSubtitle}>
             Hielda chases late invoices and enforces penalties automatically — so you don't have to.
           </p>
-          <button
-            onClick={onGetStarted}
-            style={{
-              background: "#fff", color: c.ac, border: "none", borderRadius: 10,
-              padding: "12px 32px", fontSize: 15, fontWeight: 700, cursor: "pointer",
-              fontFamily: FONT, boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-            }}
-          >
+          <button onClick={onGetStarted} className={s.ctaBtn}>
             Start Free Trial
           </button>
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 10, marginBottom: 0 }}>
+          <p className={s.ctaSmall}>
             No credit card required · 6-week free trial
           </p>
         </div>

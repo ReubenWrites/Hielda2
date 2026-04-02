@@ -269,7 +269,7 @@ describe('Onboarding', () => {
   it('navigates to step 2 when Get Started clicked', async () => {
     render(<Onboarding user={mockUser} profile={null} onComplete={() => {}} />)
     await act(() => screen.getByText('Get Started').click())
-    expect(screen.getByText('Your Business')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /your business/i })).toBeInTheDocument()
     expect(screen.getByLabelText('Full Name')).toHaveValue('Test User')
   })
 })

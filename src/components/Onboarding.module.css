@@ -1,0 +1,174 @@
+.wrapper {
+  font-family: var(--font);
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patternOverlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  background-image: radial-gradient(circle, #b0bcc8 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.cardInner {
+  padding: 40px 36px;
+}
+
+@media (max-width: 768px) {
+  .cardInner {
+    padding: 28px 20px;
+  }
+}
+
+.progressBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+}
+
+.progressItem {
+  flex: 1;
+}
+
+.progressTrack {
+  height: 3px;
+  border-radius: 2px;
+  margin-bottom: 6px;
+  transition: background 0.3s;
+}
+
+.progressTrackActive {
+  background: var(--ac);
+}
+
+.progressTrackInactive {
+  background: var(--bd);
+}
+
+.progressLabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.progressLabelActive {
+  color: var(--ac);
+}
+
+.progressLabelInactive {
+  color: var(--td);
+}
+
+/* Step 0: Welcome */
+.welcomeCenter {
+  text-align: center;
+}
+
+.welcomeTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ac);
+  margin: 16px 0 6px;
+  letter-spacing: -0.02em;
+}
+
+.welcomeDesc {
+  color: var(--tm);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.featureList {
+  text-align: left;
+  margin-bottom: 28px;
+}
+
+.featureItem {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bdl);
+}
+
+.featureIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.featureTitle {
+  font-weight: 600;
+  color: var(--tx);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.featureDesc {
+  color: var(--tm);
+  font-size: 12px;
+}
+
+.fullWidthBtn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Step 1: Business Details */
+.stepTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 4px;
+}
+
+.stepDesc {
+  color: var(--tm);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.securityNotice {
+  background: #f0f6ff;
+  border: 1px solid var(--bdl);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 22px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.securityIcon {
+  font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.securityText {
+  color: var(--tm);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.stepActions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.trialNote {
+  text-align: center;
+  color: var(--td);
+  font-size: 10.5px;
+  margin-top: 14px;
+  margin-bottom: 0;
+  line-height: 1.5;
+}

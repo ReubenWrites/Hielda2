@@ -1,32 +1,48 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, lazy, Suspense } from "react"
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from "react-router-dom"
 import { supabase } from "./supabase"
-import { colors as c, FONT, MONO, loadLiveBoeRate } from "./constants"
+import { loadLiveBoeRate } from "./constants"
 import { fmt, todayStr } from "./utils"
 import { identifyUser, resetUser, trackPageView, trackEvent } from "./posthog"
 import { ShieldLogo, Spinner } from "./components/ui"
 import AuthScreen from "./components/AuthScreen"
-import Onboarding from "./components/Onboarding"
 import Dashboard from "./components/Dashboard"
-import Detail from "./components/Detail"
-import Create from "./components/Create"
-import Settings from "./components/Settings"
-import HowItWorks from "./components/HowItWorks"
-import Billing from "./components/Billing"
 import SubscriptionGate from "./components/SubscriptionGate"
-import LandingPage from "./components/LandingPage"
-import Calculator from "./components/Calculator"
-import PrivacyPolicy from "./components/PrivacyPolicy"
-import AdminDashboard from "./components/AdminDashboard"
-import Referrals from "./components/Referrals"
-import OnboardingTour, { shouldShowTour } from "./components/OnboardingTour"
+const shouldShowTour = (userId) => { try { return !localStorage.getItem(`hielda_tour_done_${userId}`) } catch { return false } }
+import s from "./App.module.css"
+
+// Lazy-loaded routes
+const Onboarding = lazy(() => import("./components/Onboarding"))
+const Detail = lazy(() => import("./components/Detail"))
+const Create = lazy(() => import("./components/Create"))
+const Settings = lazy(() => import("./components/Settings"))
+const HowItWorks = lazy(() => import("./components/HowItWorks"))
+const Billing = lazy(() => import("./components/Billing"))
+const LandingPage = lazy(() => import("./components/LandingPage"))
+const Calculator = lazy(() => import("./components/Calculator"))
+const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"))
+const AdminDashboard = lazy(() => import("./components/AdminDashboard"))
+const Referrals = lazy(() => import("./components/Referrals"))
+const Clients = lazy(() => import("./components/Clients"))
+const Analytics = lazy(() => import("./components/Analytics"))
+const NotificationDropdown = lazy(() => import("./components/NotificationDropdown"))
+const OnboardingTour = lazy(() => import("./components/OnboardingTour"))
+
+const PageLoader = () => (
+  <div className={s.pageLoader}>
+    <Spinner size={24} />
+  </div>
+)
 
 const NAV_ITEMS = [
-  { id: "dash", l: "Dashboard", i: "◉" },
-  { id: "create", l: "New Invoice", i: "+" },
-  { id: "referrals", l: "Refer & Earn", i: "♦" },
-  { id: "how", l: "How It Works", i: "?" },
-  { id: "settings", l: "Your Details", i: "⚙" },
-  { id: "billing", l: "Your Account", i: "○" },
+  { id: "dash", l: "Dashboard", i: "◉", path: "/dashboard" },
+  { id: "create", l: "New Invoice", i: "+", path: "/create" },
+  { id: "clients", l: "Clients", i: "👤", path: "/clients" },
+  { id: "analytics", l: "Analytics", i: "📊", path: "/analytics" },
+  { id: "referrals", l: "Refer & Earn", i: "♦", path: "/referrals" },
+  { id: "how", l: "How It Works", i: "?", path: "/how" },
+  { id: "settings", l: "Your Details", i: "⚙", path: "/settings" },
+  { id: "billing", l: "Your Account", i: "○", path: "/billing" },
 ]
 
 function useMediaQuery(query) {
@@ -40,40 +56,104 @@ function useMediaQuery(query) {
   return matches
 }
 
+/** Wrapper for Detail — reads invoice ID from URL params */
+function DetailRoute({ invs, profile, onUpdate, isMobile }) {
+  const { id } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const inv = invs.find((i) => i.id === id)
+  const editChase = searchParams.get("edit_chase") === "true"
+
+  if (!inv) {
+    return (
+      <div className={s.notFound}>
+        <p className={s.notFoundText}>Invoice not found.</p>
+        <button onClick={() => navigate("/dashboard")} className={s.notFoundBtn}>
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <Detail
+      inv={inv}
+      profile={profile}
+      onUpdate={onUpdate}
+      isMobile={isMobile}
+      editChase={editChase}
+      onEditChaseDone={() => setSearchParams({}, { replace: true })}
+    />
+  )
+}
+
+/** Handles /ref/:code — stores referral code and redirects to home */
+function ReferralRedirect() {
+  const { code } = useParams()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (code) {
+      localStorage.setItem("hielda_referral_code", code)
+      trackEvent("referral_link_visited", { code })
+    }
+    navigate("/", { replace: true })
+  }, [code, navigate])
+  return null
+}
+
+/** Handles legacy deep-link: ?invoice=ID&edit_chase=true */
+function LegacyDeepLink() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const invoiceId = searchParams.get("invoice")
+  const editChase = searchParams.get("edit_chase") === "true"
+
+  useEffect(() => {
+    if (invoiceId) {
+      const target = editChase ? `/invoice/${invoiceId}?edit_chase=true` : `/invoice/${invoiceId}`
+      navigate(target, { replace: true })
+    }
+  }, [invoiceId, editChase, navigate])
+
+  return null
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [subscription, setSubscription] = useState(null)
   const [invs, setInvs] = useState([])
-  const [view, setView] = useState("dash")
-  const [selId, setSelId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [dataError, setDataError] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showAuth, setShowAuth] = useState(false)
-  const [showPrivacy, setShowPrivacy] = useState(false)
-  const [showCalculator, setShowCalculator] = useState(false)
   const [showTour, setShowTour] = useState(false)
-  const [editChase, setEditChase] = useState(false)
 
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const isMobile = useMediaQuery("(max-width: 768px)")
+  const isAdmin = (profile?.email || user?.email) === import.meta.env.VITE_ADMIN_EMAIL
+
+  // Navigate to /privacy on custom event
   useEffect(() => {
-    const handler = () => setShowPrivacy(true)
+    const handler = () => navigate("/privacy")
     window.addEventListener("hielda:show-privacy", handler)
     return () => window.removeEventListener("hielda:show-privacy", handler)
-  }, [])
+  }, [navigate])
 
-  // Sync page title + meta description with current view
+  // Sync page title with route
   useEffect(() => {
     if (session) return
+    const path = location.pathname
     let title, desc
-    if (showCalculator) {
+    if (path === "/calculator") {
       title = "UK Late Payment Calculator — Hielda"
       desc = "Calculate statutory interest and penalties on overdue invoices. Free tool for UK freelancers under the Late Payment Act 1998."
-    } else if (showPrivacy) {
+    } else if (path === "/privacy") {
       title = "Privacy Policy — Hielda"
       desc = "Hielda privacy policy — how we collect, use, and protect your data."
-    } else if (showAuth) {
+    } else if (path === "/auth") {
       title = "Start Free Trial — Hielda"
       desc = "6-week free trial, no credit card required. Automatic invoice chasing and late payment enforcement for UK freelancers."
     } else {
@@ -83,61 +163,25 @@ export default function App() {
     document.title = title
     const metaDesc = document.querySelector('meta[name="description"]')
     if (metaDesc) metaDesc.setAttribute("content", desc)
-  }, [showCalculator, showPrivacy, showAuth, session])
+  }, [location.pathname, session])
 
-  // Sync URL with pre-auth view state
+  // Track page views on route changes
   useEffect(() => {
-    if (session) return
-    if (showCalculator && window.location.pathname !== "/calculator") {
-      window.history.pushState(null, "", "/calculator")
-    } else if (showPrivacy && window.location.pathname !== "/privacy") {
-      window.history.pushState(null, "", "/privacy")
-    } else if (!showCalculator && !showPrivacy && !showAuth && window.location.pathname !== "/") {
-      window.history.pushState(null, "", "/")
-    }
-  }, [showCalculator, showPrivacy, showAuth, session])
-
-  // Handle browser back/forward buttons
-  useEffect(() => {
-    const handler = () => {
-      const path = window.location.pathname
-      if (path === "/calculator") { setShowCalculator(true); setShowPrivacy(false); setShowAuth(false) }
-      else if (path === "/privacy") { setShowPrivacy(true); setShowCalculator(false); setShowAuth(false) }
-      else { setShowCalculator(false); setShowPrivacy(false); setShowAuth(false) }
-    }
-    window.addEventListener("popstate", handler)
-    return () => window.removeEventListener("popstate", handler)
-  }, [])
-
-  const isMobile = useMediaQuery("(max-width: 768px)")
-  const isAdmin = (profile?.email || user?.email) === import.meta.env.VITE_ADMIN_EMAIL
+    if (session) trackPageView(location.pathname)
+  }, [location.pathname, session])
 
   // Load live BoE rate on mount
   useEffect(() => { loadLiveBoeRate() }, [])
 
-  // Capture UTM parameters and referral codes from URL on first visit
+  // Capture UTM parameters on first visit
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const utmKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]
     const utms = {}
-    utmKeys.forEach(k => { if (params.get(k)) utms[k] = params.get(k) })
+    utmKeys.forEach((k) => { if (params.get(k)) utms[k] = params.get(k) })
     if (Object.keys(utms).length > 0) {
-      // Store UTMs so they survive the session (e.g. user signs up later)
       localStorage.setItem("hielda_utm", JSON.stringify(utms))
       trackEvent("utm_visit", utms)
-    }
-
-    // Detect pre-auth routes on direct load
-    const path = window.location.pathname
-    if (path === "/calculator") setShowCalculator(true)
-    else if (path === "/privacy") setShowPrivacy(true)
-
-    // Detect referral code in URL (/ref/{code}) and store it
-    const match = path.match(/^\/ref\/([A-Za-z0-9-]+)$/)
-    if (match) {
-      localStorage.setItem("hielda_referral_code", match[1])
-      window.history.replaceState(null, "", "/")
-      trackEvent("referral_link_visited", { code: match[1] })
     }
   }, [])
 
@@ -212,32 +256,10 @@ export default function App() {
     if (user) loadData()
   }, [user, loadData])
 
-  // Deep-link: ?invoice=ID&edit_chase=true → open that invoice with email editor
-  useEffect(() => {
-    if (!invs.length) return
-    const params = new URLSearchParams(window.location.search)
-    const invoiceId = params.get("invoice")
-    const wantEdit = params.get("edit_chase") === "true"
-    if (invoiceId && invs.some(i => i.id === invoiceId)) {
-      setView("detail")
-      setSelId(invoiceId)
-      if (wantEdit) setEditChase(true)
-      // Clean the URL so refreshing doesn't re-trigger
-      window.history.replaceState(null, "", "/")
-    }
-  }, [invs])
-
   const handleAuth = (sess, usr) => {
     setSession(sess)
     setUser(usr)
     trackEvent("login")
-  }
-
-  const nav = (v, id) => {
-    setView(v)
-    setSelId(id || null)
-    if (isMobile) setSidebarOpen(false)
-    trackPageView(v)
   }
 
   const logout = async () => {
@@ -248,253 +270,191 @@ export default function App() {
     setProfile(null)
     setSubscription(null)
     setInvs([])
-    setView("dash")
+    navigate("/")
   }
 
-  const sel = invs.find((i) => i.id === selId)
-
-  // Pre-compute header stats once
+  // Pre-compute header stats
   const overdueInvs = invs.filter((i) => i.status === "overdue")
   const pendingInvs = invs.filter((i) => i.status === "pending")
 
   if (loading) {
     return (
-      <div style={{ fontFamily: FONT, background: c.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+      <div className={s.loadingScreen}>
         <Spinner size={28} />
-        <span style={{ color: c.tm, fontSize: 13 }}>Loading your invoices...</span>
+        <span className={s.loadingText}>Loading your invoices...</span>
       </div>
     )
   }
 
+  // ── Public (unauthenticated) routes ──
   if (!session) {
-    if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
-    if (showCalculator) return <Calculator onBack={() => setShowCalculator(false)} onGetStarted={() => { setShowCalculator(false); setShowAuth(true) }} isMobile={isMobile} />
-    if (showAuth) return <AuthScreen onAuth={handleAuth} onBack={() => setShowAuth(false)} />
-    return <LandingPage onGetStarted={() => { trackPageView("auth"); setShowAuth(true) }} onPrivacy={() => { trackPageView("privacy"); setShowPrivacy(true) }} onCalculator={() => { trackPageView("calculator"); setShowCalculator(true) }} isMobile={isMobile} />
-  }
-
-  // Show onboarding for new users who haven't completed setup
-  if (!profile || !profile.onboarding_complete) {
     return (
-      <Onboarding
-        user={user}
-        profile={profile}
-        onComplete={() => { loadData(); setView("dash") }}
-      />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/calculator" element={<Calculator onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} isMobile={isMobile} />} />
+          <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
+          <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
+          <Route path="/ref/:code" element={<ReferralRedirect />} />
+          <Route path="*" element={<LandingPage onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} onPrivacy={() => { trackPageView("privacy"); navigate("/privacy") }} onCalculator={() => { trackPageView("calculator"); navigate("/calculator") }} isMobile={isMobile} />} />
+        </Routes>
+      </Suspense>
     )
   }
 
-  if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />
+  // ── Onboarding gate ──
+  if (!profile || !profile.onboarding_complete) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Onboarding
+          user={user}
+          profile={profile}
+          onComplete={() => { loadData(); navigate("/dashboard") }}
+        />
+      </Suspense>
+    )
+  }
 
+  // ── Authenticated layout ──
   return (
-    <div style={{ fontFamily: FONT, background: c.bg, color: c.tx, minHeight: "100vh", display: "flex" }}>
+    <div className={s.layout}>
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 99 }}
-        />
+        <div onClick={() => setSidebarOpen(false)} className={s.overlay} />
       )}
 
       {/* Sidebar */}
-      <div
-        style={{
-          width: 210,
-          flexShrink: 0,
-          background: c.ac,
-          padding: "20px 12px",
-          display: "flex",
-          flexDirection: "column",
-          position: isMobile ? "fixed" : "relative",
-          overflow: "hidden",
-          height: isMobile ? "100vh" : "auto",
-          zIndex: isMobile ? 100 : "auto",
-          transform: isMobile && !sidebarOpen ? "translateX(-100%)" : "translateX(0)",
-          transition: "transform 0.25s ease",
-        }}
-      >
-        <div style={{ padding: "0 8px", marginBottom: 10, position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: 9 }}>
+      <div className={`${s.sidebar}${isMobile && sidebarOpen ? ` ${s.sidebarOpen}` : ""}`}>
+        <div className={s.sidebarLogo}>
           <ShieldLogo size={36} white />
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1 }}>Hielda</div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginTop: 2, letterSpacing: "0.02em" }}>Protecting your pay.</div>
+            <div className={s.sidebarBrand}>Hielda</div>
+            <div className={s.sidebarTagline}>Protecting your pay.</div>
           </div>
         </div>
 
-        <nav style={{ flex: 1, position: "relative", zIndex: 2, marginTop: 28 }} aria-label="Main navigation">
-          {[...NAV_ITEMS, ...(isAdmin ? [{ id: "admin", l: "Support", i: "🛠" }] : [])].map((item) => {
-            const active = view === item.id || (item.id === "dash" && view === "detail")
+        <nav className={s.sidebarNav} aria-label="Main navigation">
+          {[...NAV_ITEMS, ...(isAdmin ? [{ id: "admin", l: "Support", i: "🛠", path: "/admin" }] : [])].map((item) => {
+            const active = location.pathname === item.path || (item.id === "dash" && location.pathname.startsWith("/invoice/"))
             return (
               <button
                 key={item.id}
-                onClick={() => nav(item.id)}
+                onClick={() => { navigate(item.path); if (isMobile) setSidebarOpen(false) }}
                 aria-current={active ? "page" : undefined}
-                className={!active ? "sidebar-nav" : ""}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  width: "100%",
-                  padding: "9px 10px",
-                  background: active ? "rgba(255,255,255,0.13)" : "transparent",
-                  border: "none",
-                  borderRadius: 7,
-                  color: active ? "#fff" : "rgba(255,255,255,0.5)",
-                  fontFamily: FONT,
-                  fontSize: 12,
-                  fontWeight: active ? 600 : 400,
-                  cursor: "pointer",
-                  marginBottom: 3,
-                  textAlign: "left",
-                  transition: "all 0.15s ease",
-                }}
+                className={active ? s.navBtnActive : s.navBtn}
               >
-                <span style={{ width: 17, textAlign: "center", fontSize: 12 }} aria-hidden="true">{item.i}</span>
+                <span className={s.navIcon} aria-hidden="true">{item.i}</span>
                 {item.l}
               </button>
             )
           })}
         </nav>
 
-        <a
-          href="mailto:support@hielda.com"
-          style={{
-            display: "block", textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.45)",
-            padding: "6px 8px", marginBottom: 6, borderRadius: 7, textDecoration: "none",
-            position: "relative", zIndex: 2,
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.75)"}
-          onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}
-        >
+        <a href="mailto:support@hielda.com" className={s.supportLink}>
           Contact Support
         </a>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", padding: "0 8px", marginBottom: 8, position: "relative", zIndex: 2, textAlign: "center" }}>
+        <div className={s.sidebarEmail}>
           {profile?.email || user?.email}
         </div>
-        <button
-          onClick={logout}
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 7,
-            padding: "8px 10px",
-            color: "rgba(255,255,255,0.5)",
-            fontFamily: FONT,
-            fontSize: 11,
-            cursor: "pointer",
-            textAlign: "center",
-            position: "relative",
-            zIndex: 2,
-          }}
-        >
+        <button onClick={logout} className={s.logoutBtn}>
           Log out
         </button>
-        <img src="/shield-f2-single.png?v=2" alt="" style={{ position: "absolute", top: "43%", left: "50%", transform: "translate(-50%, -50%)", width: 120, opacity: 0.13, pointerEvents: "none", zIndex: 1 }} />
+        <img src="/shield-f2-single.png?v=2" alt="" className={s.sidebarBg} />
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: "100vh", minWidth: 0 }}>
+      <div className={s.mainCol}>
         {/* Header */}
-        <header style={{ flexShrink: 0, padding: isMobile ? "10px 16px" : "10px 28px", borderBottom: `1px solid ${c.bd}`, background: c.sf, display: "flex", alignItems: "center", zIndex: 2, minHeight: 54, gap: 10 }}>
+        <header className={s.header}>
           {isMobile && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "4px 8px", color: c.tx }}
-              aria-label="Open menu"
-            >
+            <button onClick={() => setSidebarOpen(true)} className={s.hamburger} aria-label="Open menu">
               ☰
             </button>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, background: c.ac, color: "#fff", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, fontFamily: FONT }}>
+          <div className={s.avatarRow}>
+            <div className={s.avatar}>
               {(profile?.full_name || "U").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
             </div>
             {!isMobile && (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: c.tx }}>{profile?.business_name || profile?.full_name || "Welcome"}</div>
+                <div className={s.headerName}>{profile?.business_name || profile?.full_name || "Welcome"}</div>
                 {profile?.business_name && profile?.full_name && (
-                  <div style={{ fontSize: 11, color: c.td }}>{profile.full_name}</div>
+                  <div className={s.headerSub}>{profile.full_name}</div>
                 )}
               </div>
             )}
           </div>
 
-          <div style={{ flex: 1, display: "flex", justifyContent: "center", gap: 10 }}>
+          <div className={s.headerStats}>
             {overdueInvs.length > 0 && (
-              <div style={{ display: "inline-flex", alignItems: "center", padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: c.ord, color: c.or, border: `1px solid ${c.or}20` }}>
-                <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 10, height: 10, marginRight: 7 }}>
+              <div className={s.badgeOverdue}>
+                <span className={s.pulseWrap}>
                   <span className="header-pulse" />
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.or, position: "relative", zIndex: 1 }} />
+                  <span className={s.pulseDot} />
                 </span>
                 {overdueInvs.length} chasing{!isMobile && ` · ${fmt(overdueInvs.reduce((s, i) => s + Number(i.amount), 0))}`}
               </div>
             )}
             {pendingInvs.length > 0 && !isMobile && (
-              <div style={{ display: "inline-flex", alignItems: "center", padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: c.amd, color: c.am, border: `1px solid ${c.am}20` }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: c.am, marginRight: 7 }} />
+              <div className={s.badgePending}>
+                <span className={s.pendingDot} />
                 {pendingInvs.length} pending
               </div>
             )}
             {overdueInvs.length === 0 && pendingInvs.length === 0 && !isMobile && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 12px", borderRadius: 999, fontSize: 11, fontWeight: 500, color: c.td, border: `1px solid ${c.bd}`, background: c.sf }}>
-                <span style={{ color: c.gn }}>✓</span> All clear — no outstanding invoices
+              <div className={s.badgeClear}>
+                <span className={s.clearCheck}>✓</span> All clear — no outstanding invoices
               </div>
             )}
           </div>
 
+          <Suspense fallback={null}>
+            <NotificationDropdown userId={user?.id} />
+          </Suspense>
+
           {!isMobile && (
-            <div style={{ fontSize: 12, color: c.tm }}>
+            <div className={s.headerDate}>
               {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </div>
           )}
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: isMobile ? "20px 16px" : "28px 32px", overflowY: "auto", position: "relative" }}>
-          <div style={{ position: "absolute", inset: 0, opacity: 0.25, backgroundImage: "radial-gradient(circle,#b0bcc8 0.5px,transparent 0.5px)", backgroundSize: "20px 20px", pointerEvents: "none" }} />
-          <div style={{ position: "relative" }}>
-            <SubscriptionGate subscription={subscription} onUpgrade={() => nav("billing")}>
+        <main className={s.content}>
+          <div className={s.dotPattern} />
+          <div className={s.contentInner}>
+            <SubscriptionGate subscription={subscription} onUpgrade={() => navigate("/billing")}>
               {dataError && (
-                <div role="alert" style={{ padding: "12px 16px", background: c.ord, color: c.or, borderRadius: 8, fontSize: 13, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div role="alert" className={s.errorBanner}>
                   <span>{dataError}</span>
-                  <button onClick={loadData} style={{ background: c.or, color: "#fff", border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                  <button onClick={loadData} className={s.retryBtn}>
                     Retry
                   </button>
                 </div>
               )}
-              {view === "dash" && <Dashboard invs={invs} nav={nav} isMobile={isMobile} onUpdate={loadData} profile={profile} />}
-              {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} isMobile={isMobile} editChase={editChase} onEditChaseDone={() => setEditChase(false)} />}
-              {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} isMobile={isMobile} invs={invs} />}
-              {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}
-              {view === "how" && <HowItWorks isMobile={isMobile} />}
-              {view === "referrals" && <Referrals profile={profile} userId={user?.id} isMobile={isMobile} />}
-              {view === "billing" && <Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />}
-              {view === "admin" && isAdmin && <AdminDashboard isMobile={isMobile} />}
+              <LegacyDeepLink />
+              <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/dashboard" element={<Dashboard invs={invs} onUpdate={loadData} isMobile={isMobile} profile={profile} />} />
+                <Route path="/invoice/:id" element={<DetailRoute invs={invs} profile={profile} onUpdate={loadData} isMobile={isMobile} />} />
+                <Route path="/create" element={<Create profile={profile} userId={user?.id} onCreated={loadData} isMobile={isMobile} invs={invs} />} />
+                <Route path="/settings" element={<Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />} />
+                <Route path="/how" element={<HowItWorks isMobile={isMobile} />} />
+                <Route path="/referrals" element={<Referrals profile={profile} userId={user?.id} isMobile={isMobile} />} />
+                <Route path="/clients" element={<Clients userId={user?.id} invs={invs} isMobile={isMobile} />} />
+                <Route path="/analytics" element={<Analytics invs={invs} isMobile={isMobile} />} />
+                <Route path="/billing" element={<Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />} />
+                {isAdmin && <Route path="/admin" element={<AdminDashboard isMobile={isMobile} />} />}
+                <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/dashboard")} />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+              </Suspense>
             </SubscriptionGate>
             {showTour && <OnboardingTour userId={user?.id} onDone={() => setShowTour(false)} />}
           </div>
         </main>
       </div>
 
-      <style>{`
-        @keyframes pulse-ring { 0% { transform: scale(1); opacity: .4 } 100% { transform: scale(2.2); opacity: 0 } }
-        @keyframes spin { to { transform: rotate(360deg) } }
-        * { box-sizing: border-box; margin: 0; }
-        html { scroll-behavior: smooth; }
-        ::selection { background: rgba(30,95,160,0.15); }
-        :focus-visible { outline: 2px solid ${c.ac}; outline-offset: 2px; }
-        button:focus:not(:focus-visible) { outline: none; }
-        .pulse-ring { position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid ${c.ac}; opacity: .4; animation: pulse-ring 2s ease-out infinite; }
-        .header-pulse { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: ${c.or}; opacity: 0.3; animation: pulse-ring 2s ease-out infinite; }
-        .sidebar-nav:hover { background: rgba(255,255,255,0.08) !important; color: rgba(255,255,255,0.8) !important; }
-        .table-row-hover:hover { background: ${c.sfh}; }
-        .table-row-hover:focus { outline: 2px solid ${c.ac}; outline-offset: -2px; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: ${c.bg}; }
-        ::-webkit-scrollbar-thumb { background: ${c.bd}; border-radius: 3px; }
-      `}</style>
     </div>
   )
 }

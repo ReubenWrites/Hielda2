@@ -1,0 +1,26 @@
+.container {
+  font-family: var(--font);
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0;
+}
+
+.message {
+  font-size: 13px;
+  color: var(--tm);
+  max-width: 400px;
+  line-height: 1.6;
+}

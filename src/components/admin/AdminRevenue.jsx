@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../supabase"
-import { colors as c, FONT, MONO } from "../../constants"
 import { fmt } from "../../utils"
 import { Card, Spinner } from "../ui"
+import s from './AdminRevenue.module.css'
 
 export default function AdminRevenue({ isMobile }) {
   const [data, setData] = useState(null)
@@ -32,15 +32,15 @@ export default function AdminRevenue({ isMobile }) {
     setLoading(false)
   }
 
-  if (loading) return <div style={{ textAlign: "center", padding: 40 }}><Spinner size={20} /></div>
+  if (loading) return <div className={s.loading}><Spinner size={20} /></div>
 
   if (error) {
     return (
       <Card style={{ textAlign: "center", padding: 40 }}>
-        <div style={{ fontSize: 28, marginBottom: 12 }}>💰</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: c.tx, marginBottom: 6 }}>Revenue Data</div>
-        <p style={{ color: c.or, fontSize: 13 }}>{error}</p>
-        <p style={{ color: c.tm, fontSize: 12, marginTop: 8 }}>
+        <div className={s.errorIcon}>💰</div>
+        <div className={s.errorTitle}>Revenue Data</div>
+        <p className={s.errorText}>{error}</p>
+        <p className={s.errorHint}>
           Make sure the /api/admin-revenue endpoint is deployed with Stripe access.
         </p>
       </Card>
@@ -52,29 +52,29 @@ export default function AdminRevenue({ isMobile }) {
   return (
     <div>
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div className={s.statsGrid}>
         {[
-          { label: "MRR", value: fmt(data.mrr || 0), mono: true },
-          { label: "Active Subs", value: data.active_subscriptions || 0 },
-          { label: "Trialing", value: data.trialing || 0 },
-          { label: "Churned", value: data.churned || 0, alert: (data.churned || 0) > 0 },
-        ].map(s => (
-          <div key={s.label} style={{ background: s.alert ? c.ord : c.sf, border: `1px solid ${s.alert ? c.or + "40" : c.bd}`, borderRadius: 10, padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, color: s.alert ? c.or : c.tm, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: s.alert ? c.or : c.tx, fontFamily: s.mono ? MONO : FONT }}>{s.value}</div>
+          { label: "MRR", value: fmt(data.mrr || 0), mono: true, alert: false },
+          { label: "Active Subs", value: data.active_subscriptions || 0, mono: false, alert: false },
+          { label: "Trialing", value: data.trialing || 0, mono: false, alert: false },
+          { label: "Churned", value: data.churned || 0, mono: false, alert: (data.churned || 0) > 0 },
+        ].map(stat => (
+          <div key={stat.label} className={stat.alert ? s.statCardAlert : s.statCard}>
+            <div className={stat.alert ? s.statLabelAlert : s.statLabel}>{stat.label}</div>
+            <div className={stat.alert ? s.statValueAlert : (stat.mono ? s.statValueMono : s.statValue)}>{stat.value}</div>
           </div>
         ))}
       </div>
 
       {/* Subscription breakdown */}
       <Card style={{ marginBottom: 16 }}>
-        <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
+        <h3 className={s.sectionLabel}>
           Subscription Breakdown
         </h3>
         {(data.breakdown || []).map(b => (
-          <div key={b.status} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${c.bdl}` }}>
-            <span style={{ fontSize: 13, color: c.tx, textTransform: "capitalize" }}>{b.status}</span>
-            <span style={{ fontSize: 13, fontFamily: MONO, fontWeight: 600, color: c.tx }}>{b.count}</span>
+          <div key={b.status} className={s.breakdownRow}>
+            <span className={s.breakdownStatus}>{b.status}</span>
+            <span className={s.breakdownCount}>{b.count}</span>
           </div>
         ))}
       </Card>
@@ -82,19 +82,21 @@ export default function AdminRevenue({ isMobile }) {
       {/* Recent payments */}
       {data.recent_payments?.length > 0 && (
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
+          <h3 className={s.sectionLabel}>
             Recent Payments
           </h3>
           {data.recent_payments.map((p, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${c.bdl}`, fontSize: 12 }}>
-              <span style={{ color: c.tx, flex: 1 }}>{p.email || p.customer}</span>
-              <span style={{ fontFamily: MONO, fontWeight: 600, color: c.tx }}>{fmt(p.amount / 100)}</span>
-              <span style={{ color: c.td }}>{new Date(p.created * 1000).toLocaleDateString("en-GB")}</span>
-              <span style={{
-                fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 999,
-                background: p.status === "paid" ? c.gnd : c.sf,
-                color: p.status === "paid" ? c.gn : c.tm,
-              }}>
+            <div key={i} className={s.paymentRow}>
+              <span className={s.paymentEmail}>{p.email || p.customer}</span>
+              <span className={s.paymentAmount}>{fmt(p.amount / 100)}</span>
+              <span className={s.paymentDate}>{new Date(p.created * 1000).toLocaleDateString("en-GB")}</span>
+              <span
+                className={s.paymentBadge}
+                style={{
+                  background: p.status === "paid" ? "var(--gnd)" : "var(--sf)",
+                  color: p.status === "paid" ? "var(--gn)" : "var(--tm)",
+                }}
+              >
                 {p.status}
               </span>
             </div>

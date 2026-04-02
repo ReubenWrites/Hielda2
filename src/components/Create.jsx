@@ -1,13 +1,16 @@
 import { useState, useEffect, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../supabase"
-import { colors as c, FONT, MONO, TERMS, getRate } from "../constants"
+import { colors as c, TERMS, getRate } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
 import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
 import { trackEvent } from "../posthog"
+import s from "./Create.module.css"
 
 const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
 
-export default function Create({ profile, nav, userId, onCreated, isMobile, invs }) {
+export default function Create({ profile, userId, onCreated, isMobile, invs }) {
+  const navigate = useNavigate()
   const defaultTerms = profile?.default_payment_terms ? String(profile.default_payment_terms) : "30"
   const isCustomDefault = !TERMS.slice(0, -1).some(t => String(t.d) === defaultTerms)
 
@@ -346,7 +349,7 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       clearDraft()
       trackEvent("invoice_edited", { amount: parsedTotal, ref })
       onCreated()
-      nav("detail", editId)
+      navigate(`/invoice/${editId}`)
     } catch (e) {
       setError("Failed to save changes: " + e.message)
     }
@@ -377,56 +380,36 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
 
   if (needsPaymentDetails) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 380, textAlign: "center" }}>
-        <div style={{ width: 68, height: 68, borderRadius: "50%", background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, marginBottom: 16 }}>
-          💳
-        </div>
-        <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 6px" }}>Payment details needed</h2>
-        <p style={{ color: c.tm, fontSize: 13, marginBottom: 20, maxWidth: 360 }}>
+      <div className={s.centerWrap}>
+        <div className={`${s.iconCircle} ${s.iconCircleWarning}`}>💳</div>
+        <h2 className={s.heading}>Payment details needed</h2>
+        <p className={s.subtextMuted}>
           Add your bank details so they appear on invoices and clients know where to pay.
         </p>
-        <Btn onClick={() => nav("settings")}>Add Payment Details</Btn>
+        <Btn onClick={() => navigate("/settings")}>Add Payment Details</Btn>
       </div>
     )
   }
 
   if (step === 3) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 380, textAlign: "center" }}>
-        <div style={{ width: 68, height: 68, borderRadius: "50%", background: c.gnd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, marginBottom: 16 }}>
-          ✓
-        </div>
-        <h2 style={{ fontSize: 19, fontWeight: 700, color: c.tx, margin: "0 0 6px" }}>Invoice Created</h2>
-        <p style={{ color: c.tm, fontSize: 13, marginBottom: 5 }}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
-        <p style={{ color: c.tm, fontSize: 12, marginBottom: 20 }}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
+      <div className={s.centerWrap}>
+        <div className={`${s.iconCircle} ${s.iconCircleSuccess}`}>✓</div>
+        <h2 className={s.heading}>Invoice Created</h2>
+        <p className={s.successRef}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
+        <p className={s.subtextSmall}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
 
         {sendIntro && introMethod === "hielda" && (
-          <div style={{ fontSize: 12, color: c.gn, marginBottom: 16, padding: "8px 16px", background: c.gnd, borderRadius: 8 }}>
-            ✓ Introduction email sent to {cn}
-          </div>
+          <div className={s.introSentBadge}>✓ Introduction email sent to {cn}</div>
         )}
 
         {sendIntro && introMethod === "self" && (
-          <div style={{ width: "100%", maxWidth: 480, marginBottom: 20, textAlign: "left" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-              Copy and send this to {cn}
-            </div>
-            <textarea
-              readOnly
-              value={introText}
-              style={{
-                width: "100%", minHeight: 160, fontSize: 12, color: c.tx, fontFamily: FONT,
-                padding: 12, borderRadius: 8, border: `1px solid ${c.bd}`, background: c.bg,
-                resize: "none", boxSizing: "border-box", lineHeight: 1.6,
-              }}
-            />
+          <div className={s.introSelfWrap}>
+            <div className={s.sectionLabel}>Copy and send this to {cn}</div>
+            <textarea readOnly value={introText} className={s.introTextarea} />
             <button
               onClick={() => { navigator.clipboard.writeText(introText); setIntroCopied(true) }}
-              style={{
-                marginTop: 8, width: "100%", padding: "8px", borderRadius: 8, fontSize: 12,
-                fontWeight: 600, cursor: "pointer", fontFamily: FONT, border: `1.5px solid ${c.ac}`,
-                background: introCopied ? c.acd : "#fff", color: c.ac,
-              }}
+              className={introCopied ? s.copyBtnDone : s.copyBtn}
             >
               {introCopied ? "✓ Copied!" : "Copy to clipboard"}
             </button>
@@ -434,15 +417,15 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
         )}
 
         {meth === "download" && (
-          <div style={{ marginBottom: 16 }}>
+          <div className={s.downloadWrap}>
             <Btn onClick={downloadPdf} dis={downloading}>
               {downloading ? "Generating PDF..." : "⬇ Download Invoice PDF"}
             </Btn>
-            <p style={{ fontSize: 11, color: c.td, marginTop: 6 }}>Send this to your client directly — Hielda will still chase if unpaid.</p>
+            <p className={s.downloadHint}>Send this to your client directly — Hielda will still chase if unpaid.</p>
           </div>
         )}
-        <div style={{ display: "flex", gap: 10 }}>
-          <Btn v={meth === "download" ? "ghost" : "primary"} onClick={() => nav("dash")}>Dashboard</Btn>
+        <div className={s.btnRow}>
+          <Btn v={meth === "download" ? "ghost" : "primary"} onClick={() => navigate("/dashboard")}>Dashboard</Btn>
           <Btn v="ghost" onClick={resetForm}>Create Another</Btn>
         </div>
       </div>
@@ -451,17 +434,15 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
 
   return (
     <div>
-      <button onClick={() => nav("dash")} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontFamily: FONT, fontSize: 13, padding: 0, marginBottom: 16 }}>
-        ← Back
-      </button>
-      <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>{isEditing ? `Edit Invoice ${ref}` : "Create Invoice"}</h1>
-      <p style={{ color: c.tm, margin: "0 0 22px", fontSize: 13 }}>{isEditing ? "Update the details below and save your changes." : "Your details are pre-filled. Add client and job info."}</p>
+      <button onClick={() => navigate("/dashboard")} className={s.backBtn}>← Back</button>
+      <h1 className={s.pageTitle}>{isEditing ? `Edit Invoice ${ref}` : "Create Invoice"}</h1>
+      <p className={s.pageDesc}>{isEditing ? "Update the details below and save your changes." : "Your details are pre-filled. Add client and job info."}</p>
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 22 }}>
+      <div className={s.progressRow}>
         {["Client & Job", "Review & Send"].map((l, i) => (
-          <div key={l} style={{ flex: 1 }}>
-            <div style={{ height: 3, borderRadius: 2, background: i + 1 <= step ? c.ac : c.bd, marginBottom: 6 }} />
-            <span style={{ fontSize: 10, fontWeight: 600, color: i + 1 <= step ? c.ac : c.td, textTransform: "uppercase", letterSpacing: "0.04em" }}>{l}</span>
+          <div key={l} className={s.progressItem}>
+            <div className={`${s.progressBar} ${i + 1 <= step ? s.progressBarActive : s.progressBarInactive}`} />
+            <span className={`${s.progressLabel} ${i + 1 <= step ? s.progressLabelActive : s.progressLabelInactive}`}>{l}</span>
           </div>
         ))}
       </div>
@@ -469,67 +450,45 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
       {draftBanner && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "12px 16px", background: "#fffbeb", border: "1px solid #f59e0b40",
-          borderRadius: 10, marginBottom: 16, gap: 12, flexWrap: "wrap",
-        }}>
-          <span style={{ fontSize: 13, color: c.tx }}>📝 You have a saved draft — want to restore it?</span>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div className={s.draftBanner}>
+          <span className={s.draftText}>📝 You have a saved draft — want to restore it?</span>
+          <div className={s.draftBtnRow}>
             <Btn sz="sm" onClick={restoreDraft}>Restore</Btn>
-            <button onClick={discardDraft} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Discard</button>
+            <button onClick={discardDraft} className={s.discardBtn}>Discard</button>
           </div>
         </div>
       )}
 
       {step === 1 && (
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 18 }}>
+        <div className={s.step1Grid}>
           <Card>
-            <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Client</h3>
+            <h3 className={s.cardHeading}>Client</h3>
             {recentClients.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: c.td, marginBottom: 6 }}>Recent clients</div>
+              <div className={s.recentWrap}>
+                <div className={s.recentLabel}>Recent clients</div>
                 {recentClients.length > 6 && (
                   <input
                     type="text"
                     value={clientSearch}
                     onChange={e => setClientSearch(e.target.value)}
                     placeholder="Search clients…"
-                    style={{
-                      width: "100%", padding: "7px 10px", marginBottom: 8,
-                      border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: FONT,
-                      fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box",
-                    }}
+                    className={s.clientSearchInput}
                   />
                 )}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div className={s.clientChips}>
                   {recentClients
                     .filter(i => !clientSearch || i.client_name.toLowerCase().includes(clientSearch.toLowerCase()) || i.client_email.toLowerCase().includes(clientSearch.toLowerCase()))
                     .map(inv => {
                       const active = cn === inv.client_name && ce === inv.client_email
                       return (
-                        <div
-                          key={inv.client_email}
-                          style={{ display: "flex", alignItems: "center", borderRadius: 999, overflow: "hidden", border: `1px solid ${active ? c.ac : c.bd}` }}
-                        >
-                          <button
-                            onClick={() => fillClient(inv)}
-                            style={{
-                              padding: "5px 10px 5px 12px", background: active ? c.acd : c.sf,
-                              color: active ? c.ac : c.tm, border: "none",
-                              fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: FONT,
-                            }}
-                          >
+                        <div key={inv.client_email} className={active ? s.chipWrapActive : s.chipWrap}>
+                          <button onClick={() => fillClient(inv)} className={active ? s.chipBtnActive : s.chipBtn}>
                             {inv.client_name}
                           </button>
                           <button
                             onClick={(e) => hideClient(inv.client_email, e)}
                             title="Remove from recent clients"
-                            style={{
-                              padding: "5px 8px", background: active ? c.acd : c.sf,
-                              color: active ? c.ac : c.td, border: "none", borderLeft: `1px solid ${active ? c.ac + "40" : c.bd}`,
-                              fontSize: 11, cursor: "pointer", fontFamily: FONT, lineHeight: 1,
-                            }}
+                            className={active ? s.chipRemoveActive : s.chipRemove}
                           >×</button>
                         </div>
                       )
@@ -544,69 +503,52 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
               error={cc.trim() && cc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more CC emails are invalid" : ""} />
             <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
               error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
-            <p style={{ fontSize: 11, color: c.td, margin: "-8px 0 8px" }}>
+            <p className={s.ccHint}>
               Separate multiple emails with a comma. You'll always be CC'd automatically.
             </p>
           </Card>
           <Card>
-            <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 14px" }}>Job</h3>
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: c.tm, marginBottom: 8 }}>Line Items</div>
+            <h3 className={s.cardHeading}>Job</h3>
+            <div className={s.lineItemsWrap}>
+              <div className={s.lineItemsLabel}>Line Items</div>
               {!isMobile && (
-                <div style={{ display: "grid", gridTemplateColumns: isVatRegistered ? "1fr auto auto auto" : "1fr auto auto", gap: "4px 8px", alignItems: "center", marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>
-                  {isVatRegistered && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>VAT</span>}
+                <div className={isVatRegistered ? s.lineItemsHeaderVat : s.lineItemsHeaderNoVat}>
+                  <span className={s.colLabel}>Description</span>
+                  <span className={s.colLabel}>Amount (£)</span>
+                  {isVatRegistered && <span className={s.colLabel}>VAT</span>}
                   <span />
                 </div>
               )}
               {lineItems.map((li, i) => (
-                <div key={i} style={isMobile
-                  ? { display: "flex", flexDirection: "column", gap: 4, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${c.bdl}` }
-                  : { display: "grid", gridTemplateColumns: isVatRegistered ? "1fr auto auto auto" : "1fr auto auto", gap: "4px 8px", alignItems: "flex-start", marginBottom: 6 }
-                }>
+                <div key={i} className={isMobile ? s.lineRowMobile : (isVatRegistered ? s.lineRowVat : s.lineRowNoVat)}>
                   <div>
-                    {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Description</span>}
+                    {isMobile && <span className={s.colLabel}>Description</span>}
                     <input
                       type="text"
                       value={li.description}
                       onChange={(e) => updateLineItem(i, "description", e.target.value)}
                       placeholder="e.g. Video production"
-                      style={{
-                        width: "100%", padding: "9px 12px", background: c.bg,
-                        border: `1px solid ${c.bd}`, borderRadius: 8, color: c.tx,
-                        fontFamily: FONT, fontSize: 13, outline: "none", boxSizing: "border-box",
-                      }}
+                      className={s.lineInput}
                     />
                   </div>
-                  <div style={isMobile ? { display: "flex", gap: 8, alignItems: "center" } : {}}>
-                    <div style={{ flex: isMobile ? 1 : undefined }}>
-                      {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>Amount (£)</span>}
+                  <div className={isMobile ? s.mobileAmountRow : undefined}>
+                    <div className={isMobile ? s.mobileFlexItem : undefined}>
+                      {isMobile && <span className={s.colLabel}>Amount (£)</span>}
                       <input
                         type="number"
                         value={li.amount}
                         onChange={(e) => updateLineItem(i, "amount", e.target.value)}
                         placeholder="0.00"
-                        style={{
-                          width: isMobile ? "100%" : 90, padding: "9px 12px", background: c.bg,
-                          border: `1px solid ${lineItemErrors[i] ? c.or : c.bd}`,
-                          borderRadius: 8, color: c.tx, fontFamily: MONO, fontSize: 13,
-                          outline: "none", boxSizing: "border-box",
-                        }}
+                        className={lineItemErrors[i] ? s.amountInputError : s.amountInput}
                       />
                     </div>
                     {isVatRegistered && (
-                      <div style={{ flex: isMobile ? 1 : undefined }}>
-                        {isMobile && <span style={{ fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>VAT Rate</span>}
+                      <div className={isMobile ? s.mobileFlexItem : undefined}>
+                        {isMobile && <span className={s.colLabel}>VAT Rate</span>}
                         <select
                           value={li.vatRate || "20"}
                           onChange={(e) => updateLineItem(i, "vatRate", e.target.value)}
-                          style={{
-                            width: isMobile ? "100%" : 90, padding: "9px 8px", background: c.bg,
-                            border: `1px solid ${c.bd}`, borderRadius: 8, color: c.tx,
-                            fontFamily: FONT, fontSize: 12, outline: "none", boxSizing: "border-box",
-                            cursor: "pointer",
-                          }}
+                          className={s.vatSelect}
                         >
                           <option value="20">20%</option>
                           <option value="5">5%</option>
@@ -619,49 +561,35 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                       type="button"
                       onClick={() => removeLineItem(i)}
                       disabled={lineItems.length === 1}
-                      style={{
-                        padding: "9px 11px", background: "none",
-                        border: `1px solid ${c.bd}`, borderRadius: 8, color: c.td,
-                        cursor: lineItems.length === 1 ? "not-allowed" : "pointer",
-                        fontSize: 14, fontFamily: FONT, opacity: lineItems.length === 1 ? 0.3 : 1,
-                        flexShrink: 0,
-                      }}
+                      className={s.removeLineBtn}
                       aria-label="Remove line"
                     >×</button>
                   </div>
                   {lineItemErrors[i] && (
-                    <div style={{ gridColumn: "1/-1", fontSize: 11, color: c.or, marginTop: -2, marginBottom: 2 }}>{lineItemErrors[i]}</div>
+                    <div className={s.lineError}>{lineItemErrors[i]}</div>
                   )}
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={addLineItem}
-                style={{
-                  width: "100%", padding: "8px", background: "none",
-                  border: `1px dashed ${c.bd}`, borderRadius: 8, color: c.tm,
-                  cursor: "pointer", fontSize: 12, fontFamily: FONT, marginTop: 2,
-                }}
-              >+ Add line</button>
+              <button type="button" onClick={addLineItem} className={s.addLineBtn}>+ Add line</button>
               {parsedTotal > 0 && (
-                <div style={{ borderTop: `1px solid ${c.bdl}`, marginTop: 8, paddingTop: 8 }}>
+                <div className={s.totalsWrap}>
                   {isVatRegistered && totalVat > 0 && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 4 }}>
+                      <div className={s.totalRow}>
                         <span>Subtotal (ex. VAT)</span>
-                        <span style={{ fontFamily: MONO }}>{fmt(parsedTotal)}</span>
+                        <span className={s.mono}>{fmt(parsedTotal)}</span>
                       </div>
                       {Object.entries(vatBreakdown).filter(([, v]) => v > 0).map(([rate, amount]) => (
-                        <div key={rate} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 4 }}>
+                        <div key={rate} className={s.totalRow}>
                           <span>VAT @ {rate}%</span>
-                          <span style={{ fontFamily: MONO }}>{fmt(amount)}</span>
+                          <span className={s.mono}>{fmt(amount)}</span>
                         </div>
                       ))}
                     </>
                   )}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700 }}>
-                    <span style={{ color: c.tm }}>{isVatRegistered && totalVat > 0 ? "Total (inc. VAT)" : "Total"}</span>
-                    <span style={{ fontFamily: MONO, color: c.ac }}>{fmt(isVatRegistered ? totalWithVat : parsedTotal)}</span>
+                  <div className={s.grandTotalRow}>
+                    <span className={s.grandTotalLabel}>{isVatRegistered && totalVat > 0 ? "Total (inc. VAT)" : "Total"}</span>
+                    <span className={s.grandTotalValue}>{fmt(isVatRegistered ? totalWithVat : parsedTotal)}</span>
                   </div>
                 </div>
               )}
@@ -674,98 +602,75 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
             <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
 
             {/* Client type toggle */}
-            <div style={{ marginTop: 6, marginBottom: 4 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 6 }}>Client type</label>
-              <div style={{ display: "flex", gap: 8 }}>
+            <div className={s.clientTypeWrap}>
+              <label className={s.fieldLabel}>Client type</label>
+              <div className={s.toggleRow}>
                 {[{ v: "business", l: "Business (B2B)" }, { v: "consumer", l: "Consumer (individual)" }].map(opt => (
                   <button
                     key={opt.v}
                     type="button"
                     onClick={() => setClientType(opt.v)}
-                    style={{
-                      flex: 1, padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                      fontFamily: FONT, border: `1.5px solid ${clientType === opt.v ? c.ac : c.bd}`,
-                      background: clientType === opt.v ? c.acd : c.sf,
-                      color: clientType === opt.v ? c.ac : c.tm,
-                    }}
+                    className={clientType === opt.v ? s.toggleBtnActive : s.toggleBtn}
                   >{opt.l}</button>
                 ))}
               </div>
               {clientType === "consumer" && (
-                <p style={{ fontSize: 11, color: c.tm, margin: "6px 0 0", lineHeight: 1.5 }}>
+                <p className={s.consumerNote}>
                   Payment terms will be added to the invoice (contractual interest at {getRate()}% p.a. if overdue). No statutory fixed penalty applies to consumer invoices.
                 </p>
               )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 4, ...(clientType === "consumer" ? { display: "none" } : {}) }}>
-              <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} style={{ accentColor: c.ac, width: 16, height: 16 }} />
-              <label htmlFor="noFines" style={{ fontSize: 12, color: c.tm, cursor: "pointer" }}>
-                Chase without fines or interest
-              </label>
+            <div className={clientType === "consumer" ? s.noFinesRowHidden : s.noFinesRow}>
+              <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} className={s.checkbox} />
+              <label htmlFor="noFines" className={s.checkboxLabel}>Chase without fines or interest</label>
               <button
                 type="button"
                 onClick={() => setShowNoFinesInfo(v => !v)}
-                style={{
-                  width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${c.bd}`,
-                  background: showNoFinesInfo ? c.acd : c.sf, color: showNoFinesInfo ? c.ac : c.td,
-                  fontSize: 11, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
-                }}
+                className={showNoFinesInfo ? s.infoBtnActive : s.infoBtn}
                 aria-label="About this option"
-              >
-                ?
-              </button>
+              >?</button>
             </div>
             {showNoFinesInfo && (
-              <div style={{
-                marginTop: 4, marginBottom: 4, padding: "10px 12px", background: c.acd, borderRadius: 8,
-                border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
-              }}>
+              <div className={s.infoBox}>
                 Hielda will still chase this invoice on your behalf and send all the usual reminder and chase emails — but the emails won't reference any additional fines or interest on top of the original invoice amount. Useful if you'd prefer to keep things informal with a particular client.
               </div>
             )}
             {noFines && !showNoFinesInfo && (
-              <div style={{ fontSize: 11, color: c.td, marginBottom: 4, paddingLeft: 24 }}>
-                We'll still send chase emails, but won't add statutory penalties or interest.
-              </div>
+              <div className={s.noFinesHint}>We'll still send chase emails, but won't add statutory penalties or interest.</div>
             )}
-            <div style={{ marginTop: 10, padding: 10, background: c.bg, borderRadius: 8, border: `1px solid ${c.bd}`, fontSize: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: c.tm }}>Ref</span>
-                <span style={{ fontFamily: MONO, color: c.ac }}>{ref}</span>
+            <div className={s.summaryBox}>
+              <div className={s.summaryRow}>
+                <span className={s.summaryLabel}>Ref</span>
+                <span className={s.summaryRef}>{ref}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                <span style={{ color: c.tm }}>Due</span>
-                <span style={{ color: due < new Date(todayStr()) ? c.or : c.tx, fontWeight: 500 }}>{formatDate(due)}</span>
+              <div className={s.summaryRowMt}>
+                <span className={s.summaryLabel}>Due</span>
+                <span className={`${s.dueValue} ${due < new Date(todayStr()) ? s.dueOverdue : s.dueNormal}`}>{formatDate(due)}</span>
               </div>
               {due < new Date(todayStr()) && (
-                <div style={{
-                  marginTop: 8, padding: "8px 10px", background: "#fff7ed",
-                  border: "1px solid #f59e0b50", borderRadius: 6,
-                  fontSize: 11, color: "#92400e", lineHeight: 1.5,
-                }}>
+                <div className={s.pastDueWarning}>
                   <strong>Heads up:</strong> This due date is in the past. The invoice will be created as <strong>overdue</strong> and chasing will begin immediately.
                 </div>
               )}
               {parsedTotal > 0 && !noFines && (
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
+                <div className={s.penaltyRow}>
                   <span>Late penalty</span>
                   <span>{fmt(p)} + {getRate()}% p.a.</span>
                 </div>
               )}
               {parsedTotal > 0 && noFines && (
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
+                <div className={s.penaltyRow}>
                   <span>Late penalty</span>
-                  <span style={{ fontStyle: "italic" }}>Waived</span>
+                  <span className={s.waived}>Waived</span>
                 </div>
               )}
             </div>
           </Card>
           {/* Existing client intro */}
-          <div style={{ gridColumn: "1/-1" }}>
+          <div className={s.introFullWidth}>
             <Card>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <div className={s.introCheckRow}>
                 <input
                   type="checkbox"
                   id="sendIntro"
@@ -774,88 +679,58 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
                     setSendIntro(e.target.checked)
                     if (e.target.checked && !introText) setIntroText(buildIntroText())
                   }}
-                  style={{ accentColor: c.ac, width: 16, height: 16, marginTop: 2, flexShrink: 0 }}
+                  className={s.introCheckbox}
                 />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <label htmlFor="sendIntro" style={{ fontSize: 13, fontWeight: 600, color: c.tx, cursor: "pointer" }}>
+                <div className={s.introCheckContent}>
+                  <div className={s.introLabelRow}>
+                    <label htmlFor="sendIntro" className={s.introLabel}>
                       Send {cn || "this client"} a friendly introduction to Hielda
                     </label>
                     <button
                       type="button"
                       onClick={() => setShowIntroInfo(v => !v)}
-                      style={{
-                        width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${c.bd}`,
-                        background: showIntroInfo ? c.acd : c.sf, color: showIntroInfo ? c.ac : c.td,
-                        fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
-                      }}
+                      className={showIntroInfo ? s.infoBtnActive : s.infoBtn}
                       aria-label="About this feature"
-                    >
-                      ?
-                    </button>
+                    >?</button>
                   </div>
-                  <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: c.tm, marginTop: 2 }}>
+                  <span className={s.introSubtext}>
                     For existing clients you now want to manage through Hielda.
                   </span>
                   {showIntroInfo && (
-                    <div style={{
-                      marginTop: 8, padding: "10px 12px", background: c.acd, borderRadius: 8,
-                      border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
-                    }}>
-                      <strong style={{ color: c.ac }}>What this does:</strong> Sends a professional, friendly email to your client explaining that you've started using Hielda to manage your invoicing. It reassures them that nothing changes on their end — they'll still receive invoices and reminders as normal. This is especially useful for long-standing clients who might be surprised to receive emails from Hielda.
+                    <div className={s.infoBoxMarginTop}>
+                      <strong className={s.introInfoBold}>What this does:</strong> Sends a professional, friendly email to your client explaining that you've started using Hielda to manage your invoicing. It reassures them that nothing changes on their end — they'll still receive invoices and reminders as normal. This is especially useful for long-standing clients who might be surprised to receive emails from Hielda.
                     </div>
                   )}
                 </div>
               </div>
 
               {sendIntro && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-                    Email text — edit freely
-                  </div>
+                <div className={s.introEditWrap}>
+                  <div className={s.sectionLabel}>Email text — edit freely</div>
                   <textarea
                     value={introText}
                     onChange={(e) => setIntroText(e.target.value)}
-                    style={{
-                      width: "100%", minHeight: 180, fontSize: 12, color: c.tx, fontFamily: FONT,
-                      padding: 12, borderRadius: 8, border: `1px solid ${c.bd}`, background: c.bg,
-                      resize: "vertical", boxSizing: "border-box", lineHeight: 1.6,
-                    }}
+                    className={s.introEditTextarea}
                   />
-                  <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+                  <div className={s.introMethodRow}>
                     <button
                       onClick={() => setIntroMethod("hielda")}
-                      style={{
-                        padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                        cursor: "pointer", fontFamily: FONT, border: `1.5px solid ${introMethod === "hielda" ? c.ac : c.bd}`,
-                        background: introMethod === "hielda" ? c.acd : "#fff", color: introMethod === "hielda" ? c.ac : c.tm,
-                      }}
-                    >
-                      📧 Hielda sends it for me
-                    </button>
+                      className={introMethod === "hielda" ? s.methodBtnActive : s.methodBtn}
+                    >📧 Hielda sends it for me</button>
                     <button
                       onClick={() => setIntroMethod("self")}
-                      style={{
-                        padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                        cursor: "pointer", fontFamily: FONT, border: `1.5px solid ${introMethod === "self" ? c.ac : c.bd}`,
-                        background: introMethod === "self" ? c.acd : "#fff", color: introMethod === "self" ? c.ac : c.tm,
-                      }}
-                    >
-                      ✍️ I'll send it myself
-                    </button>
+                      className={introMethod === "self" ? s.methodBtnActive : s.methodBtn}
+                    >✍️ I'll send it myself</button>
                   </div>
                   {introMethod === "self" && (
-                    <div style={{ marginTop: 10, fontSize: 11, color: c.tm, padding: "8px 12px", background: c.bg, borderRadius: 8, border: `1px solid ${c.bd}` }}>
-                      We'll show you this text to copy after the invoice is created.
-                    </div>
+                    <div className={s.introSelfNote}>We'll show you this text to copy after the invoice is created.</div>
                   )}
                 </div>
               )}
             </Card>
           </div>
 
-          <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end" }}>
+          <div className={s.step1Footer}>
             {isEditing
               ? <Btn dis={!canProceed || saving} onClick={saveEdit}>{saving ? "Saving..." : "Save Changes"}</Btn>
               : <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
@@ -867,90 +742,90 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
       {step === 2 && (
         <div>
           {due < new Date(todayStr()) && (
-            <div style={{ padding: "10px 14px", background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 8, fontSize: 12, color: c.tx, marginBottom: 14, lineHeight: 1.5 }}>
+            <div className={s.overdueWarning}>
               ⚠️ <strong>This invoice is already overdue.</strong> Hielda will begin chasing immediately after creation.
             </div>
           )}
           <Card style={{ marginBottom: 16, background: "#fff", borderRadius: 12 }}>
-            <div style={{ padding: "18px 26px 14px", borderBottom: `2px solid ${c.ac}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div className={s.invoiceHead}>
+              <div className={s.invoiceHeadFlex}>
                 <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: c.ac, marginBottom: 3 }}>INVOICE</div>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: c.tx }}>{ref}</div>
+                  <div className={s.invoiceTag}>INVOICE</div>
+                  <div className={s.invoiceRef}>{ref}</div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: c.tx }}>{profile?.business_name || profile?.full_name || ""}</div>
-                  <div style={{ fontSize: 11, color: c.tm, whiteSpace: "pre-line", marginTop: 2 }}>{profile?.address || ""}</div>
+                <div className={s.invoiceSender}>
+                  <div className={s.senderName}>{profile?.business_name || profile?.full_name || ""}</div>
+                  <div className={s.senderAddr}>{profile?.address || ""}</div>
                 </div>
               </div>
             </div>
-            <div style={{ padding: "14px 26px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 18, marginBottom: 18 }}>
+            <div className={s.invoiceBody}>
+              <div className={s.invoiceGrid}>
                 <div>
-                  <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: c.td, marginBottom: 3 }}>Bill To</div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: c.tx }}>{cn}</div>
-                  <div style={{ fontSize: 11, color: c.tm, whiteSpace: "pre-line" }}>{ca}</div>
+                  <div className={s.billToLabel}>Bill To</div>
+                  <div className={s.billToName}>{cn}</div>
+                  <div className={s.billToAddr}>{ca}</div>
                 </div>
-                <div style={{ textAlign: "right", fontSize: 11, color: c.tm }}>
+                <div className={s.invoiceMeta}>
                   <div>Issue: {formatDate(date)}</div>
                   <div>Due: {formatDate(due)}</div>
                   <div>Terms: {effectiveDays} days</div>
                 </div>
               </div>
-              <div style={{ borderTop: `1px solid ${c.bdl}`, borderBottom: `1px solid ${c.bdl}`, padding: "10px 0" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0 5px", fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>
+              <div className={s.lineItemsTable}>
+                <div className={s.tableHeader}>
                   <span>Description</span><span>Amount</span>
                 </div>
                 {lineItems.filter(li => li.description || li.amount).map((li, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13, borderTop: i > 0 ? `1px solid ${c.bdl}` : "none" }}>
-                    <span style={{ color: c.tx }}>{li.description || <em style={{ color: c.td }}>No description</em>}</span>
-                    <span style={{ fontFamily: MONO }}>{fmt(parseFloat(li.amount) || 0)}</span>
+                  <div key={i} className={i > 0 ? s.tableRowBorder : s.tableRow}>
+                    <span className={s.rowDesc}>{li.description || <em className={s.rowNoDesc}>No description</em>}</span>
+                    <span className={s.mono}>{fmt(parseFloat(li.amount) || 0)}</span>
                   </div>
                 ))}
               </div>
               {isVatRegistered && totalVat > 0 && (
-                <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${c.bdl}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 3 }}>
+                <div className={s.vatSection}>
+                  <div className={s.vatRow}>
                     <span>Subtotal (ex. VAT)</span>
-                    <span style={{ fontFamily: MONO }}>{fmt(parsedTotal)}</span>
+                    <span className={s.mono}>{fmt(parsedTotal)}</span>
                   </div>
                   {Object.entries(vatBreakdown).filter(([, v]) => v > 0).map(([rate, amount]) => (
-                    <div key={rate} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: c.tm, marginBottom: 3 }}>
+                    <div key={rate} className={s.vatRow}>
                       <span>VAT @ {rate}%</span>
-                      <span style={{ fontFamily: MONO }}>+{fmt(amount)}</span>
+                      <span className={s.mono}>+{fmt(amount)}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: isVatRegistered && totalVat > 0 ? 6 : 12 }}>
-                <span style={{ fontWeight: 700, fontSize: 13, color: c.tx }}>
+              <div className={s.invoiceTotalRow} style={{ marginTop: isVatRegistered && totalVat > 0 ? 6 : 12 }}>
+                <span className={s.invoiceTotalLabel}>
                   {isVatRegistered && totalVat > 0 ? "Total (inc. VAT)" : "Total Due"}
                 </span>
-                <span style={{ fontWeight: 700, fontSize: 18, color: c.ac, fontFamily: MONO }}>
+                <span className={s.invoiceTotalValue}>
                   {fmt(isVatRegistered ? totalWithVat : parsedTotal)}
                 </span>
               </div>
-              <div style={{ marginTop: 14, padding: 11, background: c.bg, borderRadius: 8, fontSize: 11, color: c.tm }}>
-                <div style={{ fontWeight: 600, color: c.tx, marginBottom: 4 }}>Payment Details</div>
+              <div className={s.paymentDetailsBox}>
+                <div className={s.paymentDetailsTitle}>Payment Details</div>
                 <div>Sort Code: {profile?.sort_code || "—"} · Account: {profile?.account_number || "—"} · Ref: {ref}</div>
               </div>
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div className={s.methodGrid}>
             <Card onClick={() => setMeth("portal")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "portal" ? c.ac : c.bd, background: meth === "portal" ? c.acd : c.sf }}>
-              <div style={{ fontSize: 22, marginBottom: 5 }} aria-hidden="true">📧</div>
-              <div style={{ fontWeight: 600, color: c.tx, fontSize: 13 }}>Send via Hielda</div>
-              <div style={{ fontSize: 11, color: c.tm, marginTop: 3 }}>We email and track automatically.</div>
+              <div className={s.methodIcon} aria-hidden="true">📧</div>
+              <div className={s.methodTitle}>Send via Hielda</div>
+              <div className={s.methodSubtext}>We email and track automatically.</div>
             </Card>
             <Card onClick={() => setMeth("download")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "download" ? c.ac : c.bd, background: meth === "download" ? c.acd : c.sf }}>
-              <div style={{ fontSize: 22, marginBottom: 5 }} aria-hidden="true">📥</div>
-              <div style={{ fontWeight: 600, color: c.tx, fontSize: 13 }}>Download & Send</div>
-              <div style={{ fontSize: 11, color: c.tm, marginTop: 3 }}>We still track and chase for you.</div>
+              <div className={s.methodIcon} aria-hidden="true">📥</div>
+              <div className={s.methodTitle}>Download & Send</div>
+              <div className={s.methodSubtext}>We still track and chase for you.</div>
             </Card>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div className={s.step2Footer}>
             <Btn v="ghost" onClick={() => setStep(1)}>← Back</Btn>
             <Btn dis={!meth || saving} onClick={go}>
               {saving ? "Creating..." : meth === "portal" ? "Send Invoice" : "Create & Download"} →

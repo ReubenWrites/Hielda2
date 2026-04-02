@@ -312,10 +312,11 @@ function wrapInLayout(bodyHtml, stageConfig) {
  * Returns the highest stage whose dfd (days from due) is <= daysOverdue.
  */
 export function getChaseStageForDays(daysOverdue) {
-  let result = null
-  for (const stage of CHASE_STAGES) {
-    if (stage.dfd <= daysOverdue) result = stage.id
-    else break
+  // Walk stages in reverse to find the first stage whose trigger day has been reached
+  for (let i = CHASE_STAGES.length - 1; i >= 0; i--) {
+    if (CHASE_STAGES[i].dfd <= daysOverdue) return CHASE_STAGES[i].id
   }
-  return result
+  // If before the earliest stage trigger, return the earliest stage
+  if (daysOverdue <= CHASE_STAGES[0].dfd) return CHASE_STAGES[0].id
+  return null
 }

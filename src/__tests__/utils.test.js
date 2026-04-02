@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { penalty, calcInterest, fmt, formatDate, addDays, generateRef, daysLate, todayStr, isValidEmail } from '../utils'
 
 describe('penalty', () => {
@@ -83,16 +83,20 @@ describe('generateRef', () => {
 })
 
 describe('daysLate', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-15T12:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('returns 0 for future dates', () => {
-    const future = new Date()
-    future.setDate(future.getDate() + 10)
-    expect(daysLate(future.toISOString())).toBe(0)
+    expect(daysLate('2026-06-25')).toBe(0)
   })
 
   it('returns positive days for past dates', () => {
-    const past = new Date()
-    past.setDate(past.getDate() - 5)
-    expect(daysLate(past.toISOString())).toBe(5)
+    expect(daysLate('2026-06-10')).toBe(5)
   })
 })
 

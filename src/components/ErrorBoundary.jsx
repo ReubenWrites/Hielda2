@@ -1,6 +1,6 @@
 import { Component } from "react"
-import { colors as c, FONT } from "../constants"
 import { Btn, ShieldLogo } from "./ui"
+import s from './ErrorBoundary.module.css'
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -19,21 +19,10 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          fontFamily: FONT,
-          background: c.bg,
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-          gap: 16,
-          padding: 24,
-          textAlign: "center",
-        }}>
+        <div className={s.container}>
           <ShieldLogo size={40} />
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: c.tx, margin: 0 }}>Something went wrong</h1>
-          <p style={{ fontSize: 13, color: c.tm, maxWidth: 400, lineHeight: 1.6 }}>
+          <h1 className={s.title}>Something went wrong</h1>
+          <p className={s.message}>
             An unexpected error occurred. Please try refreshing the page. If the problem persists, contact support.
           </p>
           <Btn onClick={() => window.location.reload()}>Refresh Page</Btn>

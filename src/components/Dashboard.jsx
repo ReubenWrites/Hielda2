@@ -1,10 +1,13 @@
 import { useState, useMemo, useEffect } from "react"
-import { colors as c, FONT, MONO, CHASE_STAGES } from "../constants"
+import { useNavigate } from "react-router-dom"
+import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
 import { supabase } from "../supabase"
+import s from "./Dashboard.module.css"
 
-export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
+export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
+  const navigate = useNavigate()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("created_at")
@@ -74,7 +77,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
   }
 
   const SortIcon = ({ col }) => (
-    <span style={{ fontSize: 9, marginLeft: 3, color: sortBy === col ? c.ac : c.td }}>
+    <span className={sortBy === col ? s.sortActive : s.sortInactive}>
       {sortBy === col ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
     </span>
   )
@@ -135,31 +138,26 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
 
   return (
     <div>
-      <div style={{ marginBottom: isMobile ? 18 : 24 }}>
-        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 700, color: c.tx, margin: 0 }}>Dashboard</h1>
-        <p style={{ color: c.tm, margin: "5px 0 0", fontSize: 13 }}>
+      <div className={s.header}>
+        <h1 className={s.title}>Dashboard</h1>
+        <p className={s.subtitle}>
           Your payment overview for {formatDate(new Date())}
         </p>
       </div>
 
       {needsPaymentDetails && !dismissedBanner && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: isMobile ? "12px 14px" : "12px 18px",
-          background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 10,
-          marginBottom: isMobile ? 14 : 18, gap: 12, flexWrap: "wrap",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 18, flexShrink: 0 }}>💳</span>
-            <span style={{ fontSize: 13, color: c.tx }}>
+        <div className={s.banner}>
+          <div className={s.bannerBody}>
+            <span className={s.bannerIcon}>💳</span>
+            <span className={s.bannerText}>
               Add your payment details so clients know where to pay.
             </span>
           </div>
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            <Btn sz="sm" onClick={() => nav("settings")}>Add now</Btn>
+          <div className={s.bannerActions}>
+            <Btn sz="sm" onClick={() => navigate("/settings")}>Add now</Btn>
             <button
               onClick={() => setDismissedBanner(true)}
-              style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 16, padding: "0 4px" }}
+              className={s.dismissBtn}
               aria-label="Dismiss"
             >
               ✕
@@ -168,7 +166,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4,1fr)", gap: isMobile ? 8 : 10, marginBottom: isMobile ? 18 : 24 }}>
+      <div className={s.statsGrid}>
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color={c.go} borderColor="#d4a017" />
         <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color={c.or} borderColor="#d97706" />
         <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color={c.am} borderColor="#b45309" />
@@ -176,61 +174,61 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
       </div>
 
       {overdue.length > 0 && (
-        <div style={{ marginBottom: isMobile ? 18 : 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ position: "relative", width: 8, height: 8 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: c.ac }} />
+        <div className={s.chasingSection}>
+          <div className={s.chasingHeader}>
+            <div className={s.pulseWrapper}>
+              <div className={s.pulseDot} />
               <div className="pulse-ring" />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: c.ac }}>Hielda is chasing these</span>
+            <span className={s.chasingLabel}>Hielda is chasing these</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className={s.chasingList}>
             {overdue.map((i) => {
               const dl = daysLate(i.due_date)
               const ex = round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)))
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
               return (
-                <Card key={i.id} onClick={() => nav("detail", i.id)} style={{ padding: isMobile ? "12px 14px" : "13px 18px" }}>
+                <Card key={i.id} onClick={() => navigate(`/invoice/${i.id}`)} style={{ padding: isMobile ? "12px 14px" : "13px 18px" }}>
                   {isMobile ? (
                     /* Mobile: stacked layout */
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 7, background: c.acd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }} aria-hidden="true">
+                      <div className={s.chaseMobileTop}>
+                        <div className={s.chaseMobileAvatar} aria-hidden="true">
                           🛡️
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, color: c.tx, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.client_name || "Client"}</div>
-                          <div style={{ fontSize: 10, color: c.tm, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.ref} · {i.description}</div>
+                        <div className={s.chaseMobileInfo}>
+                          <div className={s.chaseMobileClient}>{i.client_name || "Client"}</div>
+                          <div className={s.chaseMobileRef}>{i.ref} · {i.description}</div>
                         </div>
-                        <span style={{ color: c.td, fontSize: 15 }} aria-hidden="true">→</span>
+                        <span className={s.arrowIcon} aria-hidden="true">→</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div className={s.chaseMobileBottom}>
                         <div>
-                          <span style={{ fontWeight: 600, color: c.tx, fontFamily: MONO, fontSize: 14 }}>{fmt(Number(i.amount) + ex)}</span>
-                          <span style={{ fontSize: 10, color: c.go, fontWeight: 600, marginLeft: 6 }}>+{fmt(ex)}</span>
+                          <span className={s.chaseMobileTotal}>{fmt(Number(i.amount) + ex)}</span>
+                          <span className={s.chaseMobileExtra}>+{fmt(ex)}</span>
                         </div>
                         {stg && <Badge color={stg.col}>{stg.label}</Badge>}
                       </div>
                     </div>
                   ) : (
                     /* Desktop: horizontal layout */
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: c.acd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }} aria-hidden="true">
+                    <div className={s.chaseRow}>
+                      <div className={s.chaseLeft}>
+                        <div className={s.chaseAvatar} aria-hidden="true">
                           🛡️
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, color: c.tx, fontSize: 13 }}>{i.client_name || "Client"}</div>
-                          <div style={{ fontSize: 11, color: c.tm, marginTop: 1 }}>{i.ref} · {i.description}</div>
+                          <div className={s.chaseClient}>{i.client_name || "Client"}</div>
+                          <div className={s.chaseRef}>{i.ref} · {i.description}</div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 600, color: c.tx, fontFamily: MONO, fontSize: 14 }}>{fmt(Number(i.amount) + ex)}</div>
-                          <div style={{ fontSize: 10, color: c.go, fontWeight: 600, marginTop: 1 }}>+{fmt(ex)} extra</div>
+                      <div className={s.chaseRight}>
+                        <div className={s.chaseAmounts}>
+                          <div className={s.chaseTotal}>{fmt(Number(i.amount) + ex)}</div>
+                          <div className={s.chaseExtra}>+{fmt(ex)} extra</div>
                         </div>
                         {stg && <Badge color={stg.col}>{stg.label}</Badge>}
-                        <span style={{ color: c.td, fontSize: 15 }} aria-hidden="true">→</span>
+                        <span className={s.arrowIcon} aria-hidden="true">→</span>
                       </div>
                     </div>
                   )}
@@ -242,32 +240,21 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
       )}
 
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, marginBottom: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: c.tx, margin: 0, flexShrink: 0 }}>All invoices</h2>
-          <div style={{ flex: 1, minWidth: isMobile ? "100%" : "auto", order: isMobile ? 3 : 0 }}>
+        <div className={s.invoicesHeader}>
+          <h2 className={s.invoicesTitle}>All invoices</h2>
+          <div className={s.searchWrap}>
             <input
               type="text"
               placeholder="Search invoices..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search invoices"
-              style={{
-                width: "100%",
-                maxWidth: isMobile ? "100%" : 280,
-                padding: "7px 12px",
-                background: c.bg,
-                border: `1px solid ${c.bd}`,
-                borderRadius: 8,
-                fontFamily: FONT,
-                fontSize: 12,
-                color: c.tx,
-                outline: "none",
-              }}
+              className={s.searchInput}
             />
           </div>
-          <Btn sz="sm" onClick={() => nav("create")}>+ New</Btn>
+          <Btn sz="sm" onClick={() => navigate("/create")}>+ New</Btn>
         </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        <div className={s.filterBar}>
           {[
             { id: "all", label: "All", count: invs.length },
             { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
@@ -278,12 +265,11 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
             <button
               key={f.id}
               onClick={() => setStatusFilter(f.id)}
+              className={s.filterPill}
               style={{
-                padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 600,
-                border: `1px solid ${statusFilter === f.id ? (f.color || c.ac) : c.bd}`,
-                background: statusFilter === f.id ? (f.color || c.ac) + "12" : c.sf,
-                color: statusFilter === f.id ? (f.color || c.ac) : c.tm,
-                cursor: "pointer", fontFamily: FONT,
+                borderColor: statusFilter === f.id ? (f.color || c.ac) : undefined,
+                background: statusFilter === f.id ? (f.color || c.ac) + "12" : undefined,
+                color: statusFilter === f.id ? (f.color || c.ac) : undefined,
               }}
             >
               {f.label} ({f.count})
@@ -293,25 +279,19 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
 
         {invs.length === 0 ? (
           <Card style={{ textAlign: "center", padding: isMobile ? "30px 20px" : "40px 24px" }}>
-            <div style={{ fontSize: 28, marginBottom: 10 }} aria-hidden="true">📋</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: c.tx, marginBottom: 4 }}>No invoices yet</div>
-            <div style={{ fontSize: 13, color: c.tm, marginBottom: 16 }}>Create your first invoice and Hielda will handle the rest.</div>
-            <Btn onClick={() => nav("create")}>+ Create Invoice</Btn>
+            <div className={s.emptyIcon} aria-hidden="true">📋</div>
+            <div className={s.emptyTitle}>No invoices yet</div>
+            <div className={s.emptyText}>Create your first invoice and Hielda will handle the rest.</div>
+            <Btn onClick={() => navigate("/create")}>+ Create Invoice</Btn>
           </Card>
         ) : (
           <>
           {selected.size > 0 && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: isMobile ? "8px 12px" : "10px 16px",
-              background: c.acd, border: `1px solid rgba(30,95,160,0.15)`,
-              borderRadius: 10, marginBottom: 10,
-              flexWrap: isMobile ? "wrap" : "nowrap", gap: 8,
-            }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: c.ac }}>
+            <div className={s.bulkBar}>
+              <span className={s.bulkCount}>
                 {selected.size} selected
               </span>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className={s.bulkActions}>
                 <Btn sz="sm" v="primary" onClick={bulkMarkPaid} dis={bulkLoading}>
                   ✓ Paid
                 </Btn>
@@ -327,10 +307,10 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
 
           {isMobile ? (
             /* Mobile: card-based invoice list */
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className={s.mobileList}>
               {filtered.length === 0 ? (
                 <Card style={{ textAlign: "center", padding: "24px 16px" }}>
-                  <span style={{ color: c.tm, fontSize: 13 }}>No invoices match your search.</span>
+                  <span className={s.noMatch}>No invoices match your search.</span>
                 </Card>
               ) : (
                 filtered.map((i) => {
@@ -339,37 +319,37 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                   return (
                     <Card
                       key={i.id}
-                      onClick={() => nav("detail", i.id)}
+                      onClick={() => navigate(`/invoice/${i.id}`)}
                       style={{
                         padding: "12px 14px",
                         borderLeft: `3px solid ${i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}`,
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <div className={s.mobileCardInner}>
                         <input
                           type="checkbox"
                           checked={selected.has(i.id)}
                           onChange={() => toggleOne(i.id)}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: "pointer", marginTop: 3, flexShrink: 0 }}
+                          className={s.mobileCheckbox}
                         />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                            <span style={{ fontWeight: 600, color: c.tx, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.client_name || "—"}</span>
+                        <div className={s.mobileCardBody}>
+                          <div className={s.mobileCardTop}>
+                            <span className={s.mobileClientName}>{i.client_name || "—"}</span>
                             <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>
                               {i.status === "overdue" ? "chasing" : i.status}
                             </Badge>
                           </div>
-                          <div style={{ fontSize: 11, color: c.td, fontFamily: MONO, marginBottom: 6 }}>{i.ref}</div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div className={s.mobileRef}>{i.ref}</div>
+                          <div className={s.mobileCardBottom}>
                             <div>
-                              <span style={{ fontFamily: MONO, fontWeight: 600, fontSize: 14, color: c.tx }}>{fmt(Number(i.amount) + ex)}</span>
-                              {ex > 0 && <span style={{ fontSize: 10, color: c.go, fontWeight: 600, marginLeft: 6 }}>+{fmt(ex)}</span>}
+                              <span className={s.mobileAmount}>{fmt(Number(i.amount) + ex)}</span>
+                              {ex > 0 && <span className={s.mobileExtra}>+{fmt(ex)}</span>}
                             </div>
-                            <span style={{ fontSize: 11, color: c.tm }}>Due {formatDate(i.due_date)}</span>
+                            <span className={s.mobileDue}>Due {formatDate(i.due_date)}</span>
                           </div>
                         </div>
-                        <span style={{ color: c.td, fontSize: 14, flexShrink: 0, marginTop: 2 }} aria-hidden="true">→</span>
+                        <span className={s.mobileArrow} aria-hidden="true">→</span>
                       </div>
                     </Card>
                   )
@@ -379,11 +359,11 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
           ) : (
             /* Desktop: table view */
             <Card style={{ padding: 0, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${c.bd}`, background: "#f8f9fb" }}>
-                    <th style={{ padding: "10px 8px", width: 36 }}>
-                      <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} style={{ cursor: "pointer" }} />
+              <table className={s.table}>
+                <thead className={s.tableHead}>
+                  <tr>
+                    <th className={s.thCheck}>
+                      <input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} className={s.checkbox} />
                     </th>
                     {[
                       { label: "Ref", col: null },
@@ -397,18 +377,18 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                       <th
                         key={h.label}
                         onClick={h.col ? () => toggleSort(h.col) : undefined}
-                        style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: c.tm, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em", cursor: h.col ? "pointer" : "default", userSelect: "none" }}
+                        className={h.col ? s.thSortable : s.th}
                       >
                         {h.label}{h.col && <SortIcon col={h.col} />}
                       </th>
                     ))}
-                    <th style={{ width: 30 }}><span className="sr-only">View</span></th>
+                    <th className={s.thView}><span className="sr-only">View</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ padding: "24px 12px", textAlign: "center", color: c.tm, fontSize: 13 }}>
+                      <td colSpan={9} className={s.tdEmpty}>
                         No invoices match your search.
                       </td>
                     </tr>
@@ -419,29 +399,28 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                       return (
                         <tr
                           key={i.id}
-                          style={{ borderBottom: `1px solid ${c.bdl}`, cursor: "pointer" }}
-                          onClick={() => nav("detail", i.id)}
+                          className={`${s.tableRow} table-row-hover`}
+                          onClick={() => navigate(`/invoice/${i.id}`)}
                           tabIndex={0}
-                          onKeyDown={(e) => { if (e.key === "Enter") nav("detail", i.id) }}
-                          className="table-row-hover"
+                          onKeyDown={(e) => { if (e.key === "Enter") navigate(`/invoice/${i.id}`) }}
                         >
-                          <td style={{ padding: "10px 8px" }} onClick={e => e.stopPropagation()}>
-                            <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggleOne(i.id)} style={{ cursor: "pointer" }} />
+                          <td className={s.tdCheck} onClick={e => e.stopPropagation()}>
+                            <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggleOne(i.id)} className={s.checkbox} />
                           </td>
-                          <td style={{ padding: "10px 12px", fontFamily: MONO, fontSize: 11, color: c.td }}>{i.ref}</td>
-                          <td style={{ padding: "10px 12px", color: c.tx, fontWeight: 500 }}>{i.client_name || "—"}</td>
-                          <td style={{ padding: "10px 12px", fontFamily: MONO }}>{fmt(i.amount)}</td>
-                          <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600, color: ex > 0 ? c.go : c.td }}>
+                          <td className={s.tdRef}>{i.ref}</td>
+                          <td className={s.tdClient}>{i.client_name || "—"}</td>
+                          <td className={s.tdMono}>{fmt(i.amount)}</td>
+                          <td className={s.tdMonoBold} style={{ color: ex > 0 ? c.go : c.td }}>
                             {ex > 0 ? `+${fmt(ex)}` : "—"}
                           </td>
-                          <td style={{ padding: "10px 12px", fontFamily: MONO, fontWeight: 600 }}>{fmt(Number(i.amount) + ex)}</td>
-                          <td style={{ padding: "10px 12px", color: c.tm }}>{formatDate(i.due_date)}</td>
-                          <td style={{ padding: "10px 12px" }}>
+                          <td className={s.tdMonoBold}>{fmt(Number(i.amount) + ex)}</td>
+                          <td className={s.tdDue}>{formatDate(i.due_date)}</td>
+                          <td className={s.td}>
                             <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>
                               {i.status === "overdue" ? "being chased" : i.status}
                             </Badge>
                           </td>
-                          <td style={{ padding: "10px 12px", color: c.td }} aria-hidden="true">→</td>
+                          <td className={s.tdArrow} aria-hidden="true">→</td>
                         </tr>
                       )
                     })

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../supabase"
-import { colors as c, FONT, MONO, REFERRAL_STATUSES, REFERRAL_THRESHOLD, REFERRAL_REWARD, REFERRAL_BONUS_COUNT, REFERRAL_BONUS_AMOUNT } from "../constants"
+import { REFERRAL_STATUSES, REFERRAL_THRESHOLD, REFERRAL_REWARD, REFERRAL_BONUS_COUNT, REFERRAL_BONUS_AMOUNT } from "../constants"
 import { fmt } from "../utils"
 import { Card, Btn, Inp, ErrorBanner } from "./ui"
 import { trackEvent } from "../posthog"
+import s from './Referrals.module.css'
 
 function generateCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -12,7 +13,7 @@ function generateCode() {
   return `HIELDA-${code}`
 }
 
-export default function Referrals({ profile, userId, isMobile }) {
+export default function Referrals({ profile, userId }) {
   const [referrals, setReferrals] = useState([])
   const [payouts, setPayouts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -28,7 +29,6 @@ export default function Referrals({ profile, userId, isMobile }) {
 
   const loadData = async () => {
     setLoading(true)
-    // Ensure user has a referral code
     let myCode = profile?.referral_code
     if (!myCode) {
       myCode = generateCode()
@@ -79,11 +79,11 @@ export default function Referrals({ profile, userId, isMobile }) {
 
   const eligibleCount = referrals.filter(r => r.status === "eligible" || r.status === "paid_out").length
   const bonusEarned = eligibleCount >= REFERRAL_BONUS_COUNT
-  const totalEarned = (payouts.filter(p => p.status === "paid").reduce((s, p) => s + Number(p.amount), 0))
-  const pendingPayout = payouts.filter(p => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0)
+  const totalEarned = (payouts.filter(p => p.status === "paid").reduce((sum, p) => sum + Number(p.amount), 0))
+  const pendingPayout = payouts.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0)
 
   const getStatusMessage = (ref) => {
-    const s = REFERRAL_STATUSES[ref.status]
+    const st = REFERRAL_STATUSES[ref.status]
     if (ref.status === "subscribed") {
       const spent = Number(ref.total_spent) || 0
       const remaining = REFERRAL_THRESHOLD - spent
@@ -91,18 +91,18 @@ export default function Referrals({ profile, userId, isMobile }) {
       const monthsLeft = Math.ceil(remaining / 3.99)
       return `${fmt(spent)}/${fmt(REFERRAL_THRESHOLD)} spent — ~${monthsLeft} month${monthsLeft !== 1 ? "s" : ""} to go`
     }
-    return s?.desc || ""
+    return st?.desc || ""
   }
 
   if (loading) {
-    return <div style={{ textAlign: "center", padding: 40, color: c.tm, fontSize: 13 }}>Loading referrals...</div>
+    return <div className={s.loading}>Loading referrals...</div>
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>Refer & Earn</h1>
-        <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>
+      <div className={s.header}>
+        <h1 className={s.title}>Refer & Earn</h1>
+        <p className={s.subtitle}>
           Earn {fmt(REFERRAL_REWARD)} for every friend who subscribes and spends {fmt(REFERRAL_THRESHOLD)} with Hielda. Get {REFERRAL_BONUS_COUNT} referrals and earn an extra {fmt(REFERRAL_BONUS_AMOUNT)} bonus.
         </p>
       </div>
@@ -110,72 +110,64 @@ export default function Referrals({ profile, userId, isMobile }) {
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div className={s.statsGrid}>
         {[
-          { label: "Referrals", value: referrals.length },
-          { label: "Eligible", value: eligibleCount },
+          { label: "Referrals", value: referrals.length, mono: false },
+          { label: "Eligible", value: eligibleCount, mono: false },
           { label: "Earned", value: fmt(totalEarned), mono: true },
           { label: "Pending", value: fmt(pendingPayout), mono: true },
-        ].map(s => (
-          <div key={s.label} style={{ background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, color: c.tm, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: c.tx, fontFamily: s.mono ? MONO : FONT }}>{s.value}</div>
+        ].map(stat => (
+          <div key={stat.label} className={s.statCard}>
+            <div className={s.statLabel}>{stat.label}</div>
+            <div className={stat.mono ? s.statValueMono : s.statValue}>{stat.value}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div className={s.twoColGrid}>
         {/* Share link */}
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 12px" }}>Your Referral Link</h3>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input
-              readOnly
-              value={referralLink}
-              style={{
-                flex: 1, padding: "9px 12px", background: c.bg, border: `1px solid ${c.bd}`,
-                borderRadius: 8, fontFamily: MONO, fontSize: 11, color: c.tx, outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
+          <h3 className={s.sectionLabel}>Your Referral Link</h3>
+          <div className={s.linkRow}>
+            <input readOnly value={referralLink} className={s.linkInput} />
             <Btn onClick={copyLink} sz="sm">{copied ? "Copied!" : "Copy"}</Btn>
           </div>
-          <p style={{ fontSize: 11, color: c.td, margin: 0 }}>Share this link with anyone. When they sign up and spend {fmt(REFERRAL_THRESHOLD)}, you earn {fmt(REFERRAL_REWARD)}.</p>
+          <p className={s.hint}>Share this link with anyone. When they sign up and spend {fmt(REFERRAL_THRESHOLD)}, you earn {fmt(REFERRAL_REWARD)}.</p>
         </Card>
 
         {/* Invite by email */}
         <Card>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: "0 0 12px" }}>Invite by Email</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1 }}>
+          <h3 className={s.sectionLabel}>Invite by Email</h3>
+          <div className={s.inviteRow}>
+            <div className={s.inviteInputWrap}>
               <Inp label="" value={inviteEmail} onChange={setInviteEmail} ph="friend@email.com" type="email" />
             </div>
             <Btn onClick={sendInvite} dis={sending || !inviteEmail.trim()} sz="sm">
               {sending ? "Sending..." : "Send"}
             </Btn>
           </div>
-          <p style={{ fontSize: 11, color: c.td, margin: "4px 0 0" }}>We'll track this referral for you.</p>
+          <p className={s.hintTop}>We'll track this referral for you.</p>
         </Card>
       </div>
 
       {/* Bonus progress */}
       <Card style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", margin: 0 }}>
+        <div className={s.bonusHeader}>
+          <h3 className={s.bonusLabel}>
             Bonus Progress — {eligibleCount}/{REFERRAL_BONUS_COUNT} referrals
           </h3>
-          {bonusEarned && <span style={{ fontSize: 12, fontWeight: 700, color: c.gn }}>Bonus earned!</span>}
+          {bonusEarned && <span className={s.bonusEarned}>Bonus earned!</span>}
         </div>
-        <div style={{ height: 8, background: c.bg, borderRadius: 4, overflow: "hidden" }}>
-          <div style={{
-            height: "100%",
-            width: `${Math.min(100, (eligibleCount / REFERRAL_BONUS_COUNT) * 100)}%`,
-            background: bonusEarned ? c.gn : c.ac,
-            borderRadius: 4,
-            transition: "width 0.3s ease",
-          }} />
+        <div className={s.progressTrack}>
+          <div
+            className={s.progressBar}
+            style={{
+              width: `${Math.min(100, (eligibleCount / REFERRAL_BONUS_COUNT) * 100)}%`,
+              background: bonusEarned ? "var(--gn)" : "var(--ac)",
+            }}
+          />
         </div>
-        <p style={{ fontSize: 11, color: c.td, marginTop: 6, marginBottom: 0 }}>
+        <p className={s.bonusHint}>
           {bonusEarned
             ? `You've earned an extra ${fmt(REFERRAL_BONUS_AMOUNT)} bonus!`
             : `${REFERRAL_BONUS_COUNT - eligibleCount} more successful referral${REFERRAL_BONUS_COUNT - eligibleCount !== 1 ? "s" : ""} to unlock the ${fmt(REFERRAL_BONUS_AMOUNT)} bonus.`
@@ -185,34 +177,33 @@ export default function Referrals({ profile, userId, isMobile }) {
 
       {/* Referral list */}
       <Card>
-        <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
+        <h3 className={s.listTitle}>
           Your Referrals ({referrals.length})
         </h3>
         {referrals.length === 0 && (
-          <div style={{ fontSize: 13, color: c.td, textAlign: "center", padding: "20px 0" }}>
+          <div className={s.emptyState}>
             No referrals yet. Share your link to get started!
           </div>
         )}
         {referrals.map(ref => {
           const statusInfo = REFERRAL_STATUSES[ref.status]
           return (
-            <div key={ref.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${c.bdl}`, flexWrap: "wrap" }}>
-              <div style={{
-                width: 8, height: 8, borderRadius: "50%",
-                background: statusInfo?.color || c.td, flexShrink: 0,
-              }} />
-              <span style={{ fontSize: 13, color: c.tx, flex: 1, minWidth: 120 }}>
+            <div key={ref.id} className={s.referralRow}>
+              <div className={s.statusDot} style={{ background: statusInfo?.color || "var(--td)" }} />
+              <span className={s.referralEmail}>
                 {ref.referred_email || "Via link"}
               </span>
-              <span style={{
-                fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-                background: `${statusInfo?.color || c.td}15`,
-                color: statusInfo?.color || c.td,
-                border: `1px solid ${statusInfo?.color || c.td}30`,
-              }}>
+              <span
+                className={s.statusBadge}
+                style={{
+                  background: `${statusInfo?.color || "var(--td)"}15`,
+                  color: statusInfo?.color || "var(--td)",
+                  border: `1px solid ${statusInfo?.color || "var(--td)"}30`,
+                }}
+              >
                 {statusInfo?.label || ref.status}
               </span>
-              <span style={{ fontSize: 11, color: c.td, minWidth: isMobile ? "100%" : 180, textAlign: isMobile ? "left" : "right", paddingLeft: isMobile ? 18 : 0 }}>
+              <span className={s.statusMessage}>
                 {getStatusMessage(ref)}
               </span>
             </div>
@@ -223,21 +214,21 @@ export default function Referrals({ profile, userId, isMobile }) {
       {/* Payouts */}
       {payouts.length > 0 && (
         <Card style={{ marginTop: 16 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
-            Payouts
-          </h3>
+          <h3 className={s.listTitle}>Payouts</h3>
           {payouts.map(p => (
-            <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${c.bdl}` }}>
-              <span style={{ fontSize: 13, color: c.tx }}>
+            <div key={p.id} className={s.payoutRow}>
+              <span className={s.payoutType}>
                 {p.payout_type === "bonus" ? "Bonus reward" : "Referral reward"}
               </span>
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontFamily: MONO, fontWeight: 600, color: c.tx }}>{fmt(p.amount)}</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
-                  background: p.status === "paid" ? c.gnd : p.status === "approved" ? c.acd : c.sf,
-                  color: p.status === "paid" ? c.gn : p.status === "approved" ? c.ac : c.td,
-                }}>
+              <div className={s.payoutRight}>
+                <span className={s.payoutAmount}>{fmt(p.amount)}</span>
+                <span
+                  className={s.payoutBadge}
+                  style={{
+                    background: p.status === "paid" ? "var(--gnd)" : p.status === "approved" ? "var(--acd)" : "var(--sf)",
+                    color: p.status === "paid" ? "var(--gn)" : p.status === "approved" ? "var(--ac)" : "var(--td)",
+                  }}
+                >
                   {p.status}
                 </span>
               </div>

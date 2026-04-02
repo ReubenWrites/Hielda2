@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../supabase"
-import { colors as c, FONT, MONO } from "../../constants"
 import { fmt, formatDate } from "../../utils"
 import { Card, Btn, Spinner } from "../ui"
+import s from './AdminReferrals.module.css'
 
 export default function AdminReferrals({ isMobile }) {
   const [payouts, setPayouts] = useState([])
@@ -49,52 +49,50 @@ export default function AdminReferrals({ isMobile }) {
 
   const pendingPayouts = payouts.filter(p => p.status === "pending")
   const approvedPayouts = payouts.filter(p => p.status === "approved")
-  const totalPending = pendingPayouts.reduce((s, p) => s + Number(p.amount), 0)
+  const totalPending = pendingPayouts.reduce((sum, p) => sum + Number(p.amount), 0)
   const totalReferrals = referrals.length
   const eligibleCount = referrals.filter(r => r.status === "eligible" || r.status === "paid_out").length
 
-  if (loading) return <div style={{ textAlign: "center", padding: 40 }}><Spinner size={20} /></div>
+  if (loading) return <div className={s.loading}><Spinner size={20} /></div>
 
   return (
     <div>
-      {error && (
-        <div style={{ padding: "10px 14px", background: c.ord, color: c.or, borderRadius: 8, fontSize: 12, marginBottom: 16 }}>{error}</div>
-      )}
+      {error && <div className={s.errorBox}>{error}</div>}
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div className={s.statsGrid}>
         {[
-          { label: "Total referrals", value: totalReferrals },
-          { label: "Converted", value: eligibleCount },
-          { label: "Pending payouts", value: pendingPayouts.length, alert: pendingPayouts.length > 0 },
+          { label: "Total referrals", value: totalReferrals, mono: false, alert: false },
+          { label: "Converted", value: eligibleCount, mono: false, alert: false },
+          { label: "Pending payouts", value: pendingPayouts.length, mono: false, alert: pendingPayouts.length > 0 },
           { label: "Amount pending", value: fmt(totalPending), mono: true, alert: totalPending > 0 },
-        ].map(s => (
-          <div key={s.label} style={{ background: s.alert ? c.ord : c.sf, border: `1px solid ${s.alert ? c.or + "40" : c.bd}`, borderRadius: 10, padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, color: s.alert ? c.or : c.tm, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: s.alert ? c.or : c.tx, fontFamily: s.mono ? MONO : FONT }}>{s.value}</div>
+        ].map(stat => (
+          <div key={stat.label} className={stat.alert ? s.statCardAlert : s.statCard}>
+            <div className={stat.alert ? s.statLabelAlert : s.statLabel}>{stat.label}</div>
+            <div className={stat.alert ? s.statValueAlert : (stat.mono ? s.statValueMono : s.statValue)}>{stat.value}</div>
           </div>
         ))}
       </div>
 
       {/* Pending payouts */}
       <Card style={{ marginBottom: 16 }}>
-        <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
+        <h3 className={s.sectionLabel}>
           Pending Payouts ({pendingPayouts.length})
         </h3>
         {pendingPayouts.length === 0 && (
-          <div style={{ fontSize: 13, color: c.td }}>No pending payouts.</div>
+          <div className={s.emptyState}>No pending payouts.</div>
         )}
         {pendingPayouts.map(p => (
-          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${c.bdl}`, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: c.tx, flex: 1 }}>{p.referrer_email || p.referrer_id}</span>
-            <span style={{ fontSize: 12, color: c.tm }}>{p.payout_type === "bonus" ? "Bonus" : "Referral"}</span>
-            <span style={{ fontSize: 13, fontFamily: MONO, fontWeight: 600, color: c.tx }}>{fmt(p.amount)}</span>
+          <div key={p.id} className={s.payoutRow}>
+            <span className={s.payoutEmail}>{p.referrer_email || p.referrer_id}</span>
+            <span className={s.payoutType}>{p.payout_type === "bonus" ? "Bonus" : "Referral"}</span>
+            <span className={s.payoutAmount}>{fmt(p.amount)}</span>
             {p.bank_details?.sort_code && (
-              <span style={{ fontSize: 10, fontFamily: MONO, color: c.td }}>
+              <span className={s.payoutBankDetails}>
                 {p.bank_details.sort_code} / {p.bank_details.account_number}
               </span>
             )}
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className={s.payoutActions}>
               <Btn sz="sm" onClick={() => updatePayout(p.id, "approved")}>Approve</Btn>
               <Btn sz="sm" v="ghost" onClick={() => updatePayout(p.id, "paid")}>Mark Paid</Btn>
             </div>
@@ -105,15 +103,15 @@ export default function AdminReferrals({ isMobile }) {
       {/* Approved (awaiting payment) */}
       {approvedPayouts.length > 0 && (
         <Card style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
+          <h3 className={s.sectionLabel}>
             Approved — Awaiting Payment ({approvedPayouts.length})
           </h3>
           {approvedPayouts.map(p => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${c.bdl}`, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, color: c.tx, flex: 1 }}>{p.referrer_email || p.referrer_id}</span>
-              <span style={{ fontSize: 13, fontFamily: MONO, fontWeight: 600 }}>{fmt(p.amount)}</span>
+            <div key={p.id} className={s.payoutRow}>
+              <span className={s.payoutEmail}>{p.referrer_email || p.referrer_id}</span>
+              <span className={s.payoutAmount}>{fmt(p.amount)}</span>
               {p.bank_details?.sort_code && (
-                <span style={{ fontSize: 10, fontFamily: MONO, color: c.td }}>
+                <span className={s.payoutBankDetails}>
                   {p.bank_details.bank_name} {p.bank_details.sort_code} / {p.bank_details.account_number} ({p.bank_details.account_name})
                 </span>
               )}
@@ -125,20 +123,22 @@ export default function AdminReferrals({ isMobile }) {
 
       {/* All referrals */}
       <Card>
-        <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>
+        <h3 className={s.sectionLabel}>
           All Referrals ({referrals.length})
         </h3>
         {referrals.map(r => (
-          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${c.bdl}`, fontSize: 12, flexWrap: "wrap" }}>
-            <span style={{ color: c.tx, flex: 1, minWidth: 120 }}>{r.referrer_email}</span>
-            <span style={{ color: c.tm }}>→</span>
-            <span style={{ color: c.tx, flex: 1, minWidth: 120 }}>{r.referred_email || "Via link"}</span>
-            <span style={{ fontFamily: MONO, color: c.tm, minWidth: 60 }}>{fmt(r.total_spent || 0)}</span>
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 999,
-              background: r.status === "eligible" || r.status === "paid_out" ? c.gnd : c.sf,
-              color: r.status === "eligible" || r.status === "paid_out" ? c.gn : c.tm,
-            }}>
+          <div key={r.id} className={s.referralRow}>
+            <span className={s.referralEmail}>{r.referrer_email}</span>
+            <span className={s.referralArrow}>→</span>
+            <span className={s.referralEmail}>{r.referred_email || "Via link"}</span>
+            <span className={s.referralSpent}>{fmt(r.total_spent || 0)}</span>
+            <span
+              className={s.referralBadge}
+              style={{
+                background: r.status === "eligible" || r.status === "paid_out" ? "var(--gnd)" : "var(--sf)",
+                color: r.status === "eligible" || r.status === "paid_out" ? "var(--gn)" : "var(--tm)",
+              }}
+            >
               {r.status}
             </span>
           </div>

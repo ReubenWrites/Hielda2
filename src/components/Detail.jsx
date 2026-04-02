@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { trackEvent } from "../posthog"
+import s from "./Detail.module.css"
 
 const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"]
 
@@ -68,8 +70,8 @@ function ChaseTimeline({ inv, si }) {
 
   return (
     <Card>
-      <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" }}>Chase Timeline</h3>
-      <p style={{ fontSize: 11, color: c.td, marginBottom: 14 }}>We check in with you before every step. Click a section to see details.</p>
+      <h3 className={s.timelineSectionHeading}>Chase Timeline</h3>
+      <p className={s.timelineDesc}>We check in with you before every step. Click a section to see details.</p>
       {TIMELINE_GROUPS.map((group) => {
         const groupStages = CHASE_STAGES.filter((s) => group.stages.includes(s.id))
         const isCurrentGroup = currentGroup?.label === group.label
@@ -83,55 +85,57 @@ function ChaseTimeline({ inv, si }) {
           : `${formatDate(addDays(inv.due_date, firstStage.dfd))} — ${formatDate(addDays(inv.due_date, lastStage.dfd))}`
 
         return (
-          <div key={group.label} style={{ marginBottom: 8 }}>
+          <div key={group.label} className={s.timelineGroupWrap}>
             <button
               onClick={() => toggle(group.label)}
+              className={s.timelineGroupBtn}
               style={{
-                width: "100%", textAlign: "left", background: allPast ? "rgba(22,163,74,0.05)" : somePast ? "rgba(30,95,160,0.05)" : c.bg,
+                background: allPast ? "rgba(22,163,74,0.05)" : somePast ? "rgba(30,95,160,0.05)" : c.bg,
                 border: `1px solid ${allPast ? "rgba(22,163,74,0.15)" : somePast ? "rgba(30,95,160,0.15)" : c.bd}`,
-                borderRadius: 8, padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
               }}
             >
-              <div style={{
-                width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                background: allPast ? c.gn : somePast ? group.col : c.bg,
-                border: `2px solid ${allPast ? c.gn : somePast ? group.col : c.bd}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, color: allPast || somePast ? c.w : c.td,
-              }}>
+              <div
+                className={s.timelineGroupCircle}
+                style={{
+                  background: allPast ? c.gn : somePast ? group.col : c.bg,
+                  border: `2px solid ${allPast ? c.gn : somePast ? group.col : c.bd}`,
+                  color: allPast || somePast ? c.w : c.td,
+                }}
+              >
                 {allPast ? "✓" : somePast ? "•" : ""}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontWeight: 600, color: allPast ? c.gn : somePast ? c.tx : c.td, fontSize: 12 }}>{group.label}</span>
+              <div className={s.timelineGroupContent}>
+                <div className={s.timelineGroupHeader}>
+                  <span className={s.timelineGroupLabel} style={{ color: allPast ? c.gn : somePast ? c.tx : c.td }}>{group.label}</span>
                   {isCurrentGroup && <Badge color={group.col}>Active</Badge>}
-                  <span style={{ fontSize: 10, color: c.td, marginLeft: "auto" }}>{groupStages.length} {groupStages.length === 1 ? "email" : "emails"}</span>
+                  <span className={s.timelineGroupCount}>{groupStages.length} {groupStages.length === 1 ? "email" : "emails"}</span>
                 </div>
-                <div style={{ fontSize: 10, color: c.td, marginTop: 2 }}>{dateRange}</div>
+                <div className={s.timelineGroupDate}>{dateRange}</div>
               </div>
-              <span style={{ fontSize: 11, color: c.td, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }}>▼</span>
+              <span className={isOpen ? s.timelineGroupArrowOpen : s.timelineGroupArrow}>▼</span>
             </button>
 
             {isOpen && (
-              <div style={{ paddingLeft: 20, borderLeft: `2px solid ${group.col}20`, marginLeft: 12, marginTop: 6 }}>
-                <p style={{ fontSize: 10, color: c.tm, margin: "0 0 8px", fontStyle: "italic" }}>{group.desc}</p>
+              <div className={s.timelineStageList} style={{ borderLeft: `2px solid ${group.col}20` }}>
+                <p className={s.timelineStageDesc}>{group.desc}</p>
                 {groupStages.map((stg) => {
                   const act = stg.id === inv.chase_stage
                   const past = si >= 0 && CHASE_STAGES.indexOf(stg) <= si
                   return (
-                    <div key={stg.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", borderBottom: `1px solid ${c.bdl}` }}>
-                      <div style={{
-                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                        background: past ? stg.col : "transparent",
-                        border: `2px solid ${past ? stg.col : c.bd}`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 8, color: past ? c.w : c.td,
-                      }}>
+                    <div key={stg.id} className={s.timelineStageRow}>
+                      <div
+                        className={s.timelineStageDot}
+                        style={{
+                          background: past ? stg.col : "transparent",
+                          border: `2px solid ${past ? stg.col : c.bd}`,
+                          color: past ? c.w : c.td,
+                        }}
+                      >
                         {past ? "✓" : ""}
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: act ? 700 : 400, color: past ? c.tx : c.td, flex: 1 }}>{stg.label}</span>
+                      <span className={s.timelineStageLabel} style={{ fontWeight: act ? 700 : 400, color: past ? c.tx : c.td }}>{stg.label}</span>
                       {act && <Badge color={stg.col}>Next</Badge>}
-                      <span style={{ fontSize: 10, color: c.td, fontFamily: MONO, flexShrink: 0 }}>
+                      <span className={s.timelineStageDfd}>
                         {stg.dfd < 0 ? `${Math.abs(stg.dfd)}d before` : stg.dfd === 0 ? "Due date" : `+${stg.dfd}d`}
                       </span>
                     </div>
@@ -189,8 +193,8 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
   ]
 
   return (
-    <div style={{ marginBottom: isMobile ? 14 : 20, padding: isMobile ? "12px 10px" : "14px 18px", background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 10 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", position: "relative" }}>
+    <div className={isMobile ? s.lifecycleBarMobile : s.lifecycleBar}>
+      <div className={s.lifecycleRow}>
         {LIFECYCLE_MILESTONES.map((m, i) => {
           const done = i <= current
           const isNext = i === current + 1 && !isPaid
@@ -198,34 +202,39 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
           const dotCol = isPaidDot ? "#16a34a" : done ? (i <= 2 ? "#1e5fa0" : LIFECYCLE_MILESTONES[i].col) : isNext ? LIFECYCLE_MILESTONES[i].col : c.bd
 
           return (
-            <div key={m.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+            <div key={m.key} className={s.lifecycleMilestone}>
               {/* Connecting line (not on first) */}
               {i > 0 && (
-                <div style={{
-                  position: "absolute", top: 9, right: "50%", width: "100%", height: 3,
-                  background: i <= current ? (isPaid && i === 5 ? "#16a34a" : LIFECYCLE_MILESTONES[Math.min(i, current)].col) : `${c.bd}`,
-                  zIndex: 0,
-                }} />
+                <div
+                  className={s.lifecycleLine}
+                  style={{
+                    background: i <= current ? (isPaid && i === 5 ? "#16a34a" : LIFECYCLE_MILESTONES[Math.min(i, current)].col) : c.bd,
+                  }}
+                />
               )}
               {/* Dot */}
-              <div style={{
-                width: isNext ? 22 : 18, height: isNext ? 22 : 18, borderRadius: "50%",
-                background: done || isNext ? dotCol : c.bg,
-                border: `2.5px solid ${dotCol}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 10, color: "#fff", fontWeight: 700, zIndex: 1,
-                position: "relative",
-                boxShadow: isNext ? `0 0 0 3px ${dotCol}25` : "none",
-              }}>
+              <div
+                className={s.lifecycleDot}
+                style={{
+                  width: isNext ? 22 : 18,
+                  height: isNext ? 22 : 18,
+                  background: done || isNext ? dotCol : c.bg,
+                  border: `2.5px solid ${dotCol}`,
+                  boxShadow: isNext ? `0 0 0 3px ${dotCol}25` : "none",
+                }}
+              >
                 {done ? "✓" : ""}
               </div>
               {/* Label */}
-              <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: done || isNext ? 700 : 500, color: done || isNext ? c.tx : c.td, marginTop: 5, textAlign: "center", lineHeight: 1.2 }}>
+              <div
+                className={isMobile ? s.lifecycleLabelMobile : s.lifecycleLabel}
+                style={{ fontWeight: done || isNext ? 700 : 500, color: done || isNext ? c.tx : c.td }}
+              >
                 {isMobile ? m.short : m.label}
               </div>
               {/* Date */}
               {dates[i] && (
-                <div style={{ fontSize: 9, color: c.td, marginTop: 2, textAlign: "center", fontFamily: MONO }}>
+                <div className={s.lifecycleDate}>
                   {dates[i]}
                 </div>
               )}
@@ -237,7 +246,8 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
   )
 }
 
-export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChase, onEditChaseDone }) {
+export default function Detail({ inv, profile, onUpdate, isMobile, editChase, onEditChaseDone }) {
+  const navigate = useNavigate()
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
@@ -288,11 +298,11 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
   if (!inv) {
     return (
-      <div style={{ textAlign: "center", padding: "60px 24px" }}>
-        <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: c.tx, marginBottom: 4 }}>Invoice not found</div>
-        <div style={{ fontSize: 13, color: c.tm, marginBottom: 16 }}>This invoice may have been deleted.</div>
-        <Btn onClick={() => nav("dash")}>Back to Dashboard</Btn>
+      <div className={s.notFound}>
+        <div className={s.notFoundIcon}>🔍</div>
+        <div className={s.notFoundTitle}>Invoice not found</div>
+        <div className={s.notFoundBody}>This invoice may have been deleted.</div>
+        <Btn onClick={() => navigate("/dashboard")}>Back to Dashboard</Btn>
       </div>
     )
   }
@@ -367,7 +377,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
       const { error: err } = await supabase.from("invoices").delete().eq("id", inv.id)
       if (err) throw err
       onUpdate()
-      nav("dash")
+      navigate("/dashboard")
     } catch (e) {
       setError("Failed to delete: " + e.message)
     }
@@ -385,7 +395,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
       if (err) throw err
       trackEvent("invoice_paid", { amount: Number(inv.amount), ref: inv.ref })
       onUpdate()
-      nav("dash")
+      navigate("/dashboard")
     } catch (e) {
       setError("Failed to mark as paid: " + e.message)
     }
@@ -623,34 +633,28 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
   return (
     <div>
-      <button onClick={() => nav("dash")} style={{ background: "none", border: "none", color: c.tm, cursor: "pointer", fontSize: 13, padding: 0, marginBottom: 18 }}>
+      <button onClick={() => navigate("/dashboard")} className={s.backBtn}>
         ← Back to Dashboard
       </button>
 
       {/* Header: title + badges */}
-      <div style={{ marginBottom: isMobile ? 14 : 22 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5, flexWrap: "wrap" }}>
-          <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, color: c.tx, margin: 0 }}>{inv.ref}</h1>
+      <div className={isMobile ? s.headerSectionMobile : s.headerSection}>
+        <div className={s.headerRow}>
+          <h1 className={isMobile ? s.headerTitleMobile : s.headerTitle}>{inv.ref}</h1>
           <Badge color={inv.status === "paid" ? c.gn : ov ? c.or : isDisputed ? "#7c3aed" : c.am}>
             {ov ? "being chased" : isDisputed ? "disputed" : inv.status}
           </Badge>
           {isConsumer && <Badge color={c.am}>consumer</Badge>}
           {!isConsumer && inv.no_fines && <Badge color={c.td}>no fines</Badge>}
         </div>
-        <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
+        <p className={s.headerSub}>{inv.client_name} · {inv.description}</p>
       </div>
 
       {/* Lifecycle progress bar */}
       <InvoiceLifecycleBar inv={inv} isMobile={isMobile} />
 
       {/* Action buttons — primary row + More menu */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: isMobile ? 14 : 22,
-        flexWrap: "wrap",
-      }}>
+      <div className={isMobile ? s.actionRowMobile : s.actionRow}>
         {/* Primary actions */}
         {inv.status !== "paid" && (
           <Btn v="successAction" onClick={markPaid} dis={marking} sz={isMobile ? "sm" : undefined}>
@@ -660,7 +664,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
         {inv.status !== "paid" && (
           <Btn v="ghost" onClick={() => {
             try { localStorage.setItem("hielda_edit", JSON.stringify(inv)) } catch {}
-            nav("create")
+            navigate("/create")
           }} sz="sm">
             ✏ Edit
           </Btn>
@@ -682,46 +686,33 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
         )}
 
         {/* More menu */}
-        <div style={{ position: "relative" }}>
+        <div className={s.moreWrap}>
           <Btn v="ghost" onClick={() => setShowMore(v => !v)} sz="sm">
             ··· More
           </Btn>
           {showMore && (
             <>
               {/* Backdrop to close on click outside */}
-              <div onClick={() => setShowMore(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-              <div style={{
-                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 41,
-                background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 10,
-                boxShadow: "0 4px 16px rgba(0,0,0,0.10)", minWidth: 220, padding: "6px 0",
-              }}>
+              <div onClick={() => setShowMore(false)} className={s.moreBackdrop} />
+              <div className={s.moreMenu}>
                 {inv.status !== "paid" && inv.client_email && (
-                  <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} style={{
-                    display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
-                    padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
-                  }}>
-                    <div style={{ fontWeight: 600 }}>📤 Send Chase</div>
-                    <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>Next: {getStageLabel(currentSendStage)}</div>
+                  <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}>📤 Send Chase</div>
+                    <div className={s.menuBtnSub}>Next: {getStageLabel(currentSendStage)}</div>
                   </button>
                 )}
                 {inv.status !== "paid" && inv.client_email && (
-                  <button onClick={() => { setShowMore(false); showEmailPreview() }} style={{
-                    display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
-                    padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
-                  }}>
+                  <button onClick={() => { setShowMore(false); showEmailPreview() }} className={s.menuBtn}>
                     📧 Preview Chase Email
                   </button>
                 )}
                 {inv.status !== "paid" && !inv.client_email && (
-                  <div style={{ padding: "10px 16px", fontSize: 11, color: c.or }}>
+                  <div className={s.menuNoEmail}>
                     ⚠ No client email — chase unavailable
                   </div>
                 )}
-                <div style={{ height: 1, background: c.bd, margin: "4px 0" }} />
-                <button onClick={() => { setShowMore(false); downloadPdf() }} disabled={downloading} style={{
-                  display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
-                  padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
-                }}>
+                <div className={s.menuDivider} />
+                <button onClick={() => { setShowMore(false); downloadPdf() }} disabled={downloading} className={s.menuBtn}>
                   📥 Download PDF
                 </button>
                 <button onClick={() => {
@@ -732,18 +723,12 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
                     clientRef: inv.client_ref || "", cc: inv.cc_emails || "", bcc: inv.bcc_emails || "",
                     terms: String(inv.payment_term_days || 30), noFines: inv.no_fines || false,
                   })) } catch {}
-                  nav("create")
-                }} style={{
-                  display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
-                  padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
-                }}>
+                  navigate("/create")
+                }} className={s.menuBtn}>
                   📋 Clone Invoice
                 </button>
-                <div style={{ height: 1, background: c.bd, margin: "4px 0" }} />
-                <button onClick={() => { setShowMore(false); deleteInvoice() }} disabled={deleting} style={{
-                  display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
-                  padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#dc2626",
-                }}>
+                <div className={s.menuDivider} />
+                <button onClick={() => { setShowMore(false); deleteInvoice() }} disabled={deleting} className={s.menuBtnDanger}>
                   🗑 Delete Invoice
                 </button>
               </div>
@@ -755,14 +740,10 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
       {isDisputed && (
-        <div style={{
-          padding: "14px 18px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)",
-          borderLeft: "3px solid #7c3aed", borderRadius: "0 10px 10px 0", marginBottom: 16,
-          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
-        }}>
+        <div className={s.disputeBanner}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#7c3aed", marginBottom: 3 }}>Invoice under dispute</div>
-            <div style={{ fontSize: 12, color: c.tm, lineHeight: 1.5 }}>
+            <div className={s.disputeTitle}>Invoice under dispute</div>
+            <div className={s.disputeBody}>
               Chasing is paused while this is resolved. Click <strong>Resolve Dispute</strong> above to resume chasing, or <strong>✓ Paid</strong> if it has been settled.
             </div>
           </div>
@@ -771,14 +752,14 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
       {/* Partial payment form */}
       {showPartialPayment && inv.status !== "paid" && (
-        <div style={{ padding: "14px 16px", background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: c.tx, marginBottom: 8 }}>Record a partial payment</div>
+        <div className={s.partialForm}>
+          <div className={s.partialFormTitle}>Record a partial payment</div>
           {amountPaid > 0 && (
-            <div style={{ fontSize: 11, color: c.tm, marginBottom: 8 }}>
+            <div className={s.partialFormInfo}>
               Already received: <strong>{fmt(amountPaid)}</strong> of {fmt(inv.amount)} · Remaining: <strong>{fmt(amountRemaining)}</strong>
             </div>
           )}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className={s.partialFormRow}>
             <input
               type="number"
               value={partialAmount}
@@ -786,46 +767,46 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
               placeholder={`Up to ${fmt(amountRemaining)}`}
               step="0.01"
               max={amountRemaining}
-              style={{ flex: 1, maxWidth: 160, padding: "8px 10px", border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: MONO, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+              className={s.partialInput}
             />
             <Btn sz="sm" onClick={recordPartialPayment} dis={savingPartial || !partialAmount || parseFloat(partialAmount) <= 0}>
               {savingPartial ? "..." : "Record"}
             </Btn>
-            <button onClick={() => setShowPartialPayment(false)} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Cancel</button>
+            <button onClick={() => setShowPartialPayment(false)} className={s.cancelBtn}>Cancel</button>
           </div>
           {parseFloat(partialAmount) >= amountRemaining && partialAmount && (
-            <div style={{ fontSize: 11, color: c.gn, marginTop: 6 }}>This will mark the invoice as fully paid.</div>
+            <div className={s.partialFullNote}>This will mark the invoice as fully paid.</div>
           )}
         </div>
       )}
 
       {/* Partial payment progress */}
       {amountPaid > 0 && inv.status !== "paid" && (
-        <div style={{ padding: "10px 14px", background: c.gnd, border: `1px solid ${c.gn}20`, borderRadius: 8, marginBottom: 14 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: c.gn }}>Partial payment received</span>
-            <span style={{ fontSize: 12, fontFamily: MONO, color: c.gn, fontWeight: 600 }}>{fmt(amountPaid)} / {fmt(inv.amount)}</span>
+        <div className={s.partialProgress}>
+          <div className={s.partialProgressHeader}>
+            <span className={s.partialProgressLabel}>Partial payment received</span>
+            <span className={s.partialProgressAmt}>{fmt(amountPaid)} / {fmt(inv.amount)}</span>
           </div>
-          <div style={{ height: 6, background: `${c.gn}20`, borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", background: c.gn, borderRadius: 3, width: `${Math.min(100, (amountPaid / Number(inv.amount)) * 100)}%`, transition: "width 0.3s" }} />
+          <div className={s.partialProgressTrack}>
+            <div className={s.partialProgressFill} style={{ width: `${Math.min(100, (amountPaid / Number(inv.amount)) * 100)}%` }} />
           </div>
-          <div style={{ fontSize: 10, color: c.tm, marginTop: 4 }}>{fmt(amountRemaining)} still outstanding</div>
+          <div className={s.partialProgressRemaining}>{fmt(amountRemaining)} still outstanding</div>
         </div>
       )}
 
       {sendSuccess && (
-        <div style={{ padding: "10px 14px", background: c.gnd, color: c.gn, borderRadius: 8, fontSize: 12, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <div className={s.successBanner}>
           <span>✓</span> {sendSuccess}
         </div>
       )}
 
       {emailChanged && (
-        <div style={{ padding: "14px 16px", background: "#fffbeb", border: "1px solid #f59e0b40", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>
-          <div style={{ fontWeight: 600, color: c.tx, marginBottom: 8 }}>📬 Client email updated</div>
-          <div style={{ color: c.tm, marginBottom: 12, lineHeight: 1.5 }}>
+        <div className={s.emailChangedBanner}>
+          <div className={s.emailChangedTitle}>📬 Client email updated</div>
+          <div className={s.emailChangedBody}>
             The new recipient hasn't received any previous emails. What would you like to do?
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className={s.emailChangedActions}>
             <Btn sz="sm" onClick={() => resendEmail("reminder_1", true)} dis={resending}>
               {resending ? "Sending…" : "Restart from day 1"}
             </Btn>
@@ -834,80 +815,73 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
                 Resend last email only
               </Btn>
             )}
-            <button onClick={() => setEmailChanged(false)} style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}>Dismiss</button>
+            <button onClick={() => setEmailChanged(false)} className={s.cancelBtn}>Dismiss</button>
           </div>
         </div>
       )}
 
       {ov && ex > 0 && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: isMobile ? "10px 14px" : "13px 18px",
-          background: c.god, border: `1px solid rgba(161,98,7,0.15)`,
-          borderLeft: "3px solid #d4a017", borderRadius: "0 12px 12px 0",
-          marginBottom: isMobile ? 14 : 18,
-          flexWrap: isMobile ? "wrap" : "nowrap", gap: 8,
-        }}>
+        <div className={isMobile ? s.extrasBarMobile : s.extrasBar}>
           <div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: c.go }}>Extra added by Hielda</span>
-            <span style={{ fontSize: 12, color: c.tm, marginLeft: 8 }}>penalty + {dl}d interest</span>
+            <span className={s.extrasLabel}>Extra added by Hielda</span>
+            <span className={s.extrasDetail}>penalty + {dl}d interest</span>
           </div>
-          <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700, color: c.go, fontFamily: MONO }}>+{fmt(ex)}</div>
+          <div className={isMobile ? s.extrasAmountMobile : s.extrasAmount}>+{fmt(ex)}</div>
         </div>
       )}
 
       {/* Line items breakdown */}
       {inv.line_items?.length > 0 && (
         <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px" }}>Line Items</h3>
-          <div style={{ display: "grid", gridTemplateColumns: hasVat ? "1fr auto auto" : "1fr auto", gap: 8, padding: "4px 0 6px", fontSize: 10, fontWeight: 600, color: c.td, textTransform: "uppercase" }}>
+          <h3 className={s.sectionHeading}>Line Items</h3>
+          <div className={hasVat ? s.lineItemsHeaderVat : s.lineItemsHeaderNoVat}>
             <span>Description</span>
-            {hasVat && <span style={{ textAlign: "right" }}>VAT</span>}
-            <span style={{ textAlign: "right" }}>Amount</span>
+            {hasVat && <span className={s.textRight}>VAT</span>}
+            <span className={s.textRight}>Amount</span>
           </div>
           {inv.line_items.map((li, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: hasVat ? "1fr auto auto" : "1fr auto", gap: 8, padding: "7px 0", borderTop: `1px solid ${c.bdl}` }}>
-              <span style={{ color: c.tx, fontSize: 13 }}>{li.description}</span>
-              {hasVat && <span style={{ color: c.td, fontSize: 12, textAlign: "right", minWidth: 50 }}>{li.vatRate === "exempt" ? "Exempt" : `${li.vatRate || 0}%`}</span>}
-              <span style={{ color: c.tx, fontSize: 13, fontFamily: MONO, fontWeight: 500, textAlign: "right" }}>{fmt(li.amount)}</span>
+            <div key={i} className={hasVat ? s.lineItemRowVat : s.lineItemRowNoVat}>
+              <span className={s.lineItemDesc}>{li.description}</span>
+              {hasVat && <span className={s.lineItemVatRate}>{li.vatRate === "exempt" ? "Exempt" : `${li.vatRate || 0}%`}</span>}
+              <span className={s.lineItemAmount}>{fmt(li.amount)}</span>
             </div>
           ))}
           {hasVat ? (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", borderTop: `1px solid ${c.bd}`, marginTop: 2 }}>
-                <span style={{ fontSize: 12, color: c.tm }}>Subtotal (ex. VAT)</span>
-                <span style={{ fontSize: 13, fontFamily: MONO, color: c.tx }}>{fmt(netAmount)}</span>
+              <div className={s.subtotalRow}>
+                <span className={s.subtotalLabel}>Subtotal (ex. VAT)</span>
+                <span className={s.subtotalValue}>{fmt(netAmount)}</span>
               </div>
               {Object.entries(vatBreakdown).filter(([, v]) => v > 0).map(([rate, amount]) => (
-                <div key={rate} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
-                  <span style={{ fontSize: 12, color: c.tm }}>VAT @ {rate}%</span>
-                  <span style={{ fontSize: 13, fontFamily: MONO, color: c.tx }}>{fmt(amount)}</span>
+                <div key={rate} className={s.vatRow}>
+                  <span className={s.subtotalLabel}>VAT @ {rate}%</span>
+                  <span className={s.subtotalValue}>{fmt(amount)}</span>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${c.ac}33`, marginTop: 2 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: c.tx }}>Total (inc. VAT)</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: c.ac, fontFamily: MONO }}>{fmt(invoiceTotal)}</span>
+              <div className={s.totalRow}>
+                <span className={s.totalLabel}>Total (inc. VAT)</span>
+                <span className={s.totalValue}>{fmt(invoiceTotal)}</span>
               </div>
             </>
           ) : (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${c.ac}33`, marginTop: 2 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: c.tx }}>Total</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: c.ac, fontFamily: MONO }}>{fmt(netAmount)}</span>
+            <div className={s.totalRow}>
+              <span className={s.totalLabel}>Total</span>
+              <span className={s.totalValue}>{fmt(netAmount)}</span>
             </div>
           )}
         </Card>
       )}
 
       {/* Invoice details + breakdown — stacks on mobile */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16, marginBottom: isMobile ? 14 : 22 }}>
+      <div className={isMobile ? s.detailGridMobile : s.detailGrid}>
         <Card>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>Invoice details</h3>
+          <div className={s.detailCardHeader}>
+            <h3 className={s.detailCardHeading}>Invoice details</h3>
             {!editingClient && inv.status !== "paid" && (
               <button
                 onClick={startEditClient}
                 title="Edit client details"
-                style={{ background: "none", border: `1px solid ${c.bd}`, borderRadius: 6, cursor: "pointer", fontSize: 12, color: c.tm, padding: "3px 10px", fontFamily: FONT }}
+                className={s.editBtn}
               >
                 ✏ Edit
               </button>
@@ -922,15 +896,15 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
                 { label: "Address", key: "address", ph: "Full address", ta: true },
                 { label: "Client ref / PO", key: "ref", ph: "Optional PO number" },
               ].map(({ label, key, ph, type, ta }) => (
-                <div key={key} style={{ marginBottom: 10 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: c.tm, display: "block", marginBottom: 4 }}>{label}</label>
+                <div key={key} className={s.editFieldGroup}>
+                  <label className={s.editLabel}>{label}</label>
                   {ta ? (
                     <textarea
                       value={clientEdit[key]}
                       onChange={e => setClientEdit(prev => ({ ...prev, [key]: e.target.value }))}
                       placeholder={ph}
                       rows={2}
-                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                      className={s.editTextarea}
                     />
                   ) : (
                     <input
@@ -938,18 +912,18 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
                       value={clientEdit[key]}
                       onChange={e => setClientEdit(prev => ({ ...prev, [key]: e.target.value }))}
                       placeholder={ph}
-                      style={{ width: "100%", padding: "8px 10px", border: `1px solid ${c.bd}`, borderRadius: 7, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+                      className={s.editInput}
                     />
                   )}
                 </div>
               ))}
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <div className={s.editActions}>
                 <Btn onClick={saveClientDetails} dis={savingClient || !clientEdit.name.trim() || !clientEdit.email.trim()} sz="sm">
                   {savingClient ? "Saving…" : "Save"}
                 </Btn>
                 <button
                   onClick={() => setEditingClient(false)}
-                  style={{ background: "none", border: "none", color: c.td, cursor: "pointer", fontSize: 12, fontFamily: FONT }}
+                  className={s.cancelBtn}
                 >
                   Cancel
                 </button>
@@ -971,9 +945,9 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
               ]
                 .filter(Boolean)
                 .map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${c.bdl}` }}>
-                    <span style={{ color: c.tm, fontSize: 13 }}>{k}</span>
-                    <span style={{ color: c.tx, fontSize: 13, fontWeight: 500, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>{v}</span>
+                  <div key={k} className={s.detailRow}>
+                    <span className={s.detailRowKey}>{k}</span>
+                    <span className={s.detailRowValue}>{v}</span>
                   </div>
                 ))}
             </>
@@ -982,31 +956,31 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
         {ov && (
           <Card>
-            <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>What they now owe you</h3>
-            <div style={{ fontSize: 10, color: c.td, marginBottom: 12 }}>Late Payment of Commercial Debts (Interest) Act 1998</div>
+            <h3 className={s.oweHeading}>What they now owe you</h3>
+            <div className={s.oweLaw}>Late Payment of Commercial Debts (Interest) Act 1998</div>
             {[
               [hasVat ? "Invoice (inc. VAT)" : "Original invoice", fmt(invoiceTotal), c.tx],
               ["Fixed penalty", `+${fmt(pen)}`, c.go],
               [`Interest (${dl}d)`, `+${fmt(interest)}`, c.go],
             ].map(([k, v, cl]) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${c.bdl}` }}>
-                <span style={{ color: c.tm, fontSize: 12 }}>{k}</span>
-                <span style={{ color: cl, fontSize: 13, fontFamily: MONO, fontWeight: 600 }}>{v}</span>
+              <div key={k} className={s.oweRow}>
+                <span className={s.oweRowKey}>{k}</span>
+                <span className={s.oweRowValue} style={{ color: cl }}>{v}</span>
               </div>
             ))}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 10, borderTop: `2px solid ${c.ac}33` }}>
-              <span style={{ color: c.tx, fontSize: 13, fontWeight: 700 }}>TOTAL NOW OWED</span>
-              <span style={{ color: c.ac, fontSize: isMobile ? 17 : 20, fontWeight: 700, fontFamily: MONO }}>{fmt(tot)}</span>
+            <div className={s.oweTotalRow}>
+              <span className={s.oweTotalLabel}>TOTAL NOW OWED</span>
+              <span className={isMobile ? s.oweTotalValueMobile : s.oweTotalValue}>{fmt(tot)}</span>
             </div>
-            <div style={{ fontSize: 10, color: c.td, marginTop: 5, textAlign: "right" }}>+{fmt(netAmount * getDailyRate())}/day interest</div>
+            <div className={s.oweDailyRate}>+{fmt(netAmount * getDailyRate())}/day interest</div>
           </Card>
         )}
 
         {inv.status === "paid" && (
-          <Card style={{ background: c.gnd, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ fontSize: 42, marginBottom: 10 }} aria-hidden="true">✓</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: c.gn }}>Paid</div>
-            <div style={{ fontSize: 13, color: c.tm, marginTop: 4 }}>{formatDate(inv.paid_date)}</div>
+          <Card style={{ background: c.gnd }} className={s.paidCard}>
+            <div className={s.paidIcon} aria-hidden="true">✓</div>
+            <div className={s.paidLabel}>Paid</div>
+            <div className={s.paidDate}>{formatDate(inv.paid_date)}</div>
           </Card>
         )}
       </div>
@@ -1015,18 +989,18 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
       {/* Post-final-notice guidance */}
       {inv.chase_stage === "final_notice" && inv.status !== "paid" && si >= CHASE_STAGES.length - 1 && (
-        <Card style={{ marginTop: 16, background: "#fef2f2", borderColor: "#fca5a540" }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: "#991b1b", margin: "0 0 8px" }}>All chase stages complete</h3>
-          <p style={{ fontSize: 12, color: c.tx, lineHeight: 1.6, margin: "0 0 10px" }}>
+        <Card className={s.finalNoticeCard} style={{ marginTop: 16, background: "#fef2f2", borderColor: "#fca5a540" }}>
+          <h3 className={s.finalNoticeTitle}>All chase stages complete</h3>
+          <p className={s.finalNoticeBody}>
             Hielda has sent all automated chase emails for this invoice. If payment still hasn't been received, here are your next steps:
           </p>
-          <ul style={{ fontSize: 12, color: c.tx, lineHeight: 1.8, margin: "0 0 0 16px", padding: 0 }}>
+          <ul className={s.finalNoticeList}>
             <li><strong>Contact the client directly</strong> — a phone call can sometimes resolve things faster.</li>
             <li><strong>Send a Letter Before Action (LBA)</strong> — a formal letter giving 14 days to pay before court proceedings. Templates are available online.</li>
-            <li><strong>Small Claims Court</strong> — for debts under £10,000 in England/Wales, you can file a claim online at <span style={{ fontFamily: MONO, fontSize: 11 }}>gov.uk/make-money-claim</span> for a small fee.</li>
+            <li><strong>Small Claims Court</strong> — for debts under £10,000 in England/Wales, you can file a claim online at <span className={s.finalNoticeMono}>gov.uk/make-money-claim</span> for a small fee.</li>
             <li><strong>Debt recovery agency</strong> — for larger amounts, consider instructing a commercial debt recovery service.</li>
           </ul>
-          <p style={{ fontSize: 11, color: c.tm, margin: "10px 0 0" }}>
+          <p className={s.finalNoticeFooter}>
             Interest and penalties continue to accrue. You can reference the total amount shown above in any formal correspondence.
           </p>
         </Card>
@@ -1034,32 +1008,20 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
       {/* Auto-chase toggle */}
       {inv.status !== "paid" && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: isMobile ? "10px 14px" : "12px 18px",
-          background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10,
-          marginTop: 16, marginBottom: 16, gap: 12,
-        }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Automatic chasing</div>
-            <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
+        <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.autoChaseMargin}`}>
+          <div className={s.toggleContent}>
+            <div className={s.toggleTitle}>Automatic chasing</div>
+            <div className={s.toggleSub}>
               {autoChase ? "Hielda will send chase emails automatically" : "Chase emails paused for this invoice"}
             </div>
           </div>
           <button
             onClick={toggleAutoChase}
-            style={{
-              width: 44, height: 24, borderRadius: 12, border: "none",
-              background: autoChase ? c.ac : c.bd,
-              cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0,
-            }}
+            className={s.toggleTrack}
+            style={{ background: autoChase ? c.ac : c.bd }}
             aria-label={autoChase ? "Disable automatic chasing" : "Enable automatic chasing"}
           >
-            <div style={{
-              width: 18, height: 18, borderRadius: "50%", background: "#fff",
-              position: "absolute", top: 3, left: autoChase ? 23 : 3,
-              transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-            }} />
+            <div className={s.toggleThumb} style={{ left: autoChase ? 23 : 3 }} />
           </button>
         </div>
       )}
@@ -1068,41 +1030,32 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
       {inv.status !== "paid" && (() => {
         const finesActive = !noFines
         return (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: isMobile ? "10px 14px" : "12px 18px",
-          background: c.sf, border: `1px solid ${c.bd}`, borderRadius: 10,
-          marginBottom: 16, gap: 12,
-        }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>
+        <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.finesMargin}`}>
+          <div className={s.toggleContentFlex}>
+            <div className={s.toggleTitleRow}>
+              <div className={s.toggleTitle}>
                 Statutory penalties {finesActive ? "on" : "off"}
               </div>
               <button
                 type="button"
                 onClick={() => setShowFinesInfo(v => !v)}
+                className={s.finesInfoBtn}
                 style={{
-                  width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${c.bd}`,
-                  background: showFinesInfo ? c.acd : c.sf, color: showFinesInfo ? c.ac : c.td,
-                  fontSize: 11, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
+                  background: showFinesInfo ? c.acd : c.sf,
+                  color: showFinesInfo ? c.ac : c.td,
                 }}
                 aria-label="About statutory penalties"
               >
                 ?
               </button>
             </div>
-            <div style={{ fontSize: 11, color: finesActive ? c.gn : c.tm, marginTop: 2 }}>
+            <div className={s.toggleSub} style={{ color: finesActive ? c.gn : undefined }}>
               {finesActive
                 ? "Statutory interest and a fixed penalty will be applied when overdue"
                 : "Chase emails won't include fines or interest — chasing only"}
             </div>
             {showFinesInfo && (
-              <div style={{
-                marginTop: 8, padding: "10px 12px", background: c.acd, borderRadius: 8,
-                border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
-              }}>
+              <div className={s.finesInfoPanel}>
                 <strong>On:</strong> Overdue chase emails include statutory interest and a fixed penalty under the Late Payment Act 1998.<br />
                 <strong>Off:</strong> Hielda still chases this invoice but emails won't mention additional charges. Useful for keeping things informal with a particular client.
               </div>
@@ -1110,18 +1063,11 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
           </div>
           <button
             onClick={toggleNoFines}
-            style={{
-              width: 44, height: 24, borderRadius: 12, border: "none",
-              background: finesActive ? c.ac : c.bd,
-              cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0,
-            }}
+            className={s.toggleTrack}
+            style={{ background: finesActive ? c.ac : c.bd }}
             aria-label={finesActive ? "Turn off statutory penalties" : "Turn on statutory penalties"}
           >
-            <div style={{
-              width: 18, height: 18, borderRadius: "50%", background: "#fff",
-              position: "absolute", top: 3, left: finesActive ? 23 : 3,
-              transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-            }} />
+            <div className={s.toggleThumb} style={{ left: finesActive ? 23 : 3 }} />
           </button>
         </div>
         )
@@ -1130,25 +1076,25 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
       {/* CC / BCC recipients */}
       {inv.status !== "paid" && (
         <Card style={{ marginTop: 0, marginBottom: 16 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>Email recipients</h3>
-          <p style={{ fontSize: 11, color: c.td, margin: "0 0 14px" }}>You're always CC'd automatically. Add others below.</p>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          <h3 className={s.recipientsHeading}>Email recipients</h3>
+          <p className={s.recipientsDesc}>You're always CC'd automatically. Add others below.</p>
+          <div className={s.recipientsGrid}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: c.tx, display: "block", marginBottom: 5 }}>CC (optional)</label>
+              <label className={s.recipientLabel}>CC (optional)</label>
               <input
                 value={ccEmails}
                 onChange={(e) => setCcEmails(e.target.value)}
                 placeholder="sarah@company.com, boss@company.com"
-                style={{ width: "100%", padding: "9px 12px", border: `1px solid ${c.bd}`, borderRadius: 8, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+                className={s.recipientInput}
               />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: c.tx, display: "block", marginBottom: 5 }}>BCC (optional)</label>
+              <label className={s.recipientLabel}>BCC (optional)</label>
               <input
                 value={bccEmails}
                 onChange={(e) => setBccEmails(e.target.value)}
                 placeholder="accountant@mine.com"
-                style={{ width: "100%", padding: "9px 12px", border: `1px solid ${c.bd}`, borderRadius: 8, fontFamily: FONT, fontSize: 12, color: c.tx, background: c.bg, outline: "none", boxSizing: "border-box" }}
+                className={s.recipientInput}
               />
             </div>
           </div>
@@ -1172,11 +1118,11 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
       {/* Delivery failure warning */}
       {chaseLogs.some(l => l.delivery_status === "bounced" || l.delivery_status === "complained") && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <span style={{ fontSize: 18 }}>⚠️</span>
+        <div className={s.deliveryWarning}>
+          <span className={s.deliveryWarningIcon}>⚠️</span>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#991b1b", marginBottom: 2 }}>Email delivery problem</div>
-            <div style={{ fontSize: 12, color: "#7f1d1d" }}>
+            <div className={s.deliveryWarningTitle}>Email delivery problem</div>
+            <div className={s.deliveryWarningBody}>
               {chaseLogs.some(l => l.delivery_status === "bounced")
                 ? `One or more emails failed to reach ${inv.client_email}. The address may be incorrect — check it and contact the client directly if needed.`
                 : `An email was marked as spam by ${inv.client_email}. Consider contacting the client directly.`}
@@ -1188,7 +1134,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
       {/* Chase log */}
       {chaseLogs.length > 0 && (
         <Card style={{ marginTop: 0 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 600, color: c.tm, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 14px" }}>Chase log</h3>
+          <h3 className={s.chaseLogHeading}>Chase log</h3>
           {chaseLogs.map((log) => {
             const stg = CHASE_STAGES.find((s) => s.id === log.chase_stage)
             const isCheckIn = log.status === "check_in_sent"
@@ -1213,26 +1159,22 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
               : null
 
             return (
-              <div key={log.id} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "8px 0", borderBottom: `1px solid ${c.bdl}`,
-                flexWrap: isMobile ? "wrap" : "nowrap", gap: isMobile ? 4 : 0,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: c.tx }}>{statusLabel}</span>
+              <div key={log.id} className={isMobile ? s.chaseLogEntryMobile : s.chaseLogEntry}>
+                <div className={s.chaseLogLeft}>
+                  <div className={s.chaseLogDot} style={{ background: dotColor }} />
+                  <div className={s.chaseLogContent}>
+                    <div className={s.chaseLogLabelRow}>
+                      <span className={s.chaseLogLabel}>{statusLabel}</span>
                       {deliveryBadge && (
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: deliveryBadge.bg, color: deliveryBadge.color }}>
+                        <span className={s.deliveryBadge} style={{ background: deliveryBadge.bg, color: deliveryBadge.color }}>
                           {deliveryBadge.label}
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, color: c.td }}>{isCheckIn ? "Sent to you" : `Sent to ${log.email_to}`}</div>
+                    <div className={s.chaseLogRecipient}>{isCheckIn ? "Sent to you" : `Sent to ${log.email_to}`}</div>
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: c.td, marginLeft: isMobile ? 16 : 0 }}>{formatDate(log.sent_at)}</div>
+                <div className={isMobile ? s.chaseLogDateMobile : s.chaseLogDate}>{formatDate(log.sent_at)}</div>
               </div>
             )
           })}
@@ -1241,24 +1183,18 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
 
       {/* Email preview modal — responsive */}
       {previewHtml && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: isMobile ? 12 : 0 }}>
-          <div style={{
-            background: c.sf, borderRadius: 14,
-            width: isMobile ? "100%" : 680,
-            maxWidth: "100%",
-            maxHeight: isMobile ? "90vh" : "80vh",
-            overflow: "hidden", display: "flex", flexDirection: "column",
-          }}>
-            <div style={{ padding: "14px 20px", borderBottom: `1px solid ${c.bd}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600, fontSize: 14, color: c.tx }}>Email Preview</span>
-              <button onClick={() => setPreviewHtml(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: c.tm }}>×</button>
+        <div className={isMobile ? s.modalOverlayMobile : s.modalOverlay}>
+          <div className={isMobile ? s.modalBoxMobile : s.modalBox}>
+            <div className={s.modalHeader}>
+              <span className={s.modalTitle}>Email Preview</span>
+              <button onClick={() => setPreviewHtml(null)} className={s.modalCloseBtn}>×</button>
             </div>
             <iframe
               srcDoc={previewHtml}
-              style={{ flex: 1, border: "none", minHeight: isMobile ? 300 : 400 }}
+              className={isMobile ? s.modalIframeMobile : s.modalIframe}
               title="Email preview"
             />
-            <div style={{ padding: "12px 20px", borderTop: `1px solid ${c.bd}`, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+            <div className={s.modalFooter}>
               <Btn v="ghost" onClick={() => setPreviewHtml(null)} sz="sm">Close</Btn>
               <Btn
                 onClick={() => { setPreviewHtml(null); sendChaseEmail() }}
