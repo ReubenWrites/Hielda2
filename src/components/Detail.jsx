@@ -6,6 +6,8 @@ import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } fro
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { trackEvent } from "../posthog"
+import DisputeModal from "./DisputeModal"
+import ResolveDisputeModal from "./ResolveDisputeModal"
 import s from "./Detail.module.css"
 
 const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"]
@@ -271,6 +273,8 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const [partialAmount, setPartialAmount] = useState("")
   const [savingPartial, setSavingPartial] = useState(false)
   const [disputing, setDisputing] = useState(false)
+  const [showDisputeModal, setShowDisputeModal] = useState(false)
+  const [showResolveModal, setShowResolveModal] = useState(false)
   const [showMore, setShowMore] = useState(false)
 
   useEffect(() => {
@@ -290,7 +294,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   // Auto-open email preview when arriving via "edit the chase email" link
   useEffect(() => {
     if (editChase && inv && profile) {
-      const email = buildChaseEmail(inv, profile, getStageToBeSent(inv))
+      const email = buildChaseEmail(inv, profile, getStageToBeSent(inv), profile.chase_tone || 'firm')
       if (email) setPreviewHtml(email.html)
       if (onEditChaseDone) onEditChaseDone()
     }
@@ -358,7 +362,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
   const showEmailPreview = () => {
     try {
-      const email = buildChaseEmail(inv, profile, currentSendStage)
+      const email = buildChaseEmail(inv, profile, currentSendStage, profile.chase_tone || 'firm')
       if (email) {
         setPreviewHtml(email.html)
       } else {
@@ -594,16 +598,32 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setSavingPartial(false)
   }
 
-  const markDisputed = async () => {
-    if (!window.confirm(`Mark this invoice as disputed?\n\nChasing will be paused while you resolve this. You can resume at any time.`)) return
+  const handleDispute = async ({ reason, notes, sendEmail }) => {
     setDisputing(true)
     setError("")
     try {
       const { error: err } = await supabase
         .from("invoices")
-        .update({ status: "disputed", auto_chase: false })
+        .update({
+          status: "disputed",
+          auto_chase: false,
+          dispute_reason: reason,
+          dispute_notes: notes,
+          dispute_date: new Date().toISOString(),
+        })
         .eq("id", inv.id)
       if (err) throw err
+
+      if (sendEmail) {
+        const session = await supabase.auth.getSession()
+        await fetch("/api/send-dispute-ack", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_id: inv.id, user_token: session.data.session?.access_token }),
+        })
+      }
+
+      setShowDisputeModal(false)
       onUpdate()
     } catch (e) {
       setError("Failed to mark as disputed: " + e.message)
@@ -611,16 +631,28 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setDisputing(false)
   }
 
-  const clearDispute = async () => {
+  const handleResolve = async ({ outcome, notes }) => {
     setDisputing(true)
     setError("")
     try {
-      const resumeStatus = new Date(inv.due_date) < new Date() ? "overdue" : "pending"
+      const resumeStatus = outcome === "paid" ? "paid" : new Date(inv.due_date) < new Date() ? "overdue" : "pending"
+      const updates = {
+        status: resumeStatus,
+        auto_chase: outcome !== "paid" && outcome !== "written_off",
+        resolution_outcome: outcome,
+        resolution_notes: notes,
+        resolution_date: new Date().toISOString(),
+      }
+      if (outcome === "paid") {
+        updates.paid_date = new Date().toISOString().split("T")[0]
+        updates.chase_stage = null
+      }
       const { error: err } = await supabase
         .from("invoices")
-        .update({ status: resumeStatus, auto_chase: true })
+        .update(updates)
         .eq("id", inv.id)
       if (err) throw err
+      setShowResolveModal(false)
       onUpdate()
     } catch (e) {
       setError("Failed to resolve dispute: " + e.message)
@@ -675,12 +707,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
           </Btn>
         )}
         {inv.status !== "paid" && !isDisputed && (
-          <Btn v="ghost" onClick={markDisputed} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
+          <Btn v="ghost" onClick={() => setShowDisputeModal(true)} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
             ⚑ Dispute
           </Btn>
         )}
         {isDisputed && (
-          <Btn v="ghost" onClick={clearDispute} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
+          <Btn v="ghost" onClick={() => setShowResolveModal(true)} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
             {disputing ? "..." : "↩ Resolve"}
           </Btn>
         )}
@@ -746,6 +778,20 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.disputeBody}>
               Chasing is paused while this is resolved. Click <strong>Resolve Dispute</strong> above to resume chasing, or <strong>✓ Paid</strong> if it has been settled.
             </div>
+            {inv.dispute_reason && (
+              <div style={{ marginTop: 8, fontSize: 12, color: "#5b21b6" }}>
+                <strong>Reason:</strong> {inv.dispute_reason.replace(/_/g, " ")}
+                {inv.dispute_notes && <> — {inv.dispute_notes}</>}
+                {inv.dispute_date && <span style={{ color: "#94a3b8", marginLeft: 8 }}>{formatDate(inv.dispute_date)}</span>}
+              </div>
+            )}
+            {inv.resolution_outcome && (
+              <div style={{ marginTop: 4, fontSize: 12, color: "#16a34a" }}>
+                <strong>Resolved:</strong> {inv.resolution_outcome.replace(/_/g, " ")}
+                {inv.resolution_notes && <> — {inv.resolution_notes}</>}
+                {inv.resolution_date && <span style={{ color: "#94a3b8", marginLeft: 8 }}>{formatDate(inv.resolution_date)}</span>}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1206,6 +1252,13 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             </div>
           </div>
         </div>
+      )}
+
+      {showDisputeModal && (
+        <DisputeModal invoice={inv} onConfirm={handleDispute} onClose={() => setShowDisputeModal(false)} />
+      )}
+      {showResolveModal && (
+        <ResolveDisputeModal invoice={inv} onConfirm={handleResolve} onClose={() => setShowResolveModal(false)} />
       )}
     </div>
   )

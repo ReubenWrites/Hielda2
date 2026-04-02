@@ -4,6 +4,7 @@ import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
 import { supabase } from "../supabase"
+import EmailQueue from "./EmailQueue"
 import s from "./Dashboard.module.css"
 
 export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
@@ -238,6 +239,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           </div>
         </div>
       )}
+
+      <EmailQueue invs={invs} profile={profile} onUpdate={onUpdate} />
 
       <div>
         <div className={s.invoicesHeader}>

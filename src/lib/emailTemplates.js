@@ -1,12 +1,14 @@
 import { getRate, CHASE_STAGES } from "../constants"
 import { fmt, formatDate, daysLate, calcInterest, penalty, round2 } from "../utils"
+import { friendlySubject, friendlyBody, legalSubject, legalBody } from "./toneModifiers"
 
 /**
  * Generate chase email HTML for a given stage.
  * Used both client-side (preview) and server-side (sending).
  * All 19 stages are supported.
+ * @param {string} tone - 'friendly', 'firm' (default), or 'legal'
  */
-export function buildChaseEmail(invoice, profile, stage) {
+export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const dl = daysLate(invoice.due_date)
   const finesEnabled = !invoice.no_fines
   const interest = finesEnabled ? calcInterest(Number(invoice.amount), dl) : 0
@@ -228,8 +230,23 @@ export function buildChaseEmail(invoice, profile, stage) {
     `,
   }
 
-  const subject = subjects[stage]
-  const body = bodies[stage]
+  const toneCtx = {
+    invoice, profile, dl, total, interest, pen, fromName, poRef,
+    interestTable, totalBlock, lineBlock, payBlock,
+  }
+
+  let subject, body
+  if (tone === 'friendly') {
+    subject = friendlySubject(stage, toneCtx)
+    body = friendlyBody(stage, toneCtx)
+  } else if (tone === 'legal') {
+    subject = legalSubject(stage, toneCtx)
+    body = legalBody(stage, toneCtx)
+  } else {
+    subject = subjects[stage]
+    body = bodies[stage]
+  }
+
   if (!subject || !body) return null
 
   return {

@@ -61,6 +61,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           invoice_signoff: p.invoice_signoff || null,
           website_url: p.website_url || null,
           payment_terms_note: p.payment_terms_note || null,
+          chase_tone: p.chase_tone || "firm",
         })
         .eq("id", p.id)
       if (dbError) throw dbError
@@ -280,6 +281,35 @@ export default function Settings({ profile, onUpdate, isMobile }) {
             </div>
           </div>
         </CollapsibleSection>
+      </div>
+
+      <div className={s.section}>
+        <Card>
+          <h3 className={s.sectionHeading}>Chase Email Tone</h3>
+          <p className={s.toneDesc}>Controls the language and formality of chase emails sent to your clients.</p>
+          <div className={s.toneOptions}>
+            {[
+              { value: "friendly", label: "Friendly", desc: "Softer, relationship-focused language. Good for clients you work with regularly." },
+              { value: "firm", label: "Firm", desc: "Direct and professional. The standard Hielda tone." },
+              { value: "legal", label: "Legal", desc: "Formal, cites legislation explicitly. Best for difficult or corporate clients." },
+            ].map((t) => (
+              <label key={t.value} className={`${s.toneOption} ${(p.chase_tone || "firm") === t.value ? s.toneOptionActive : ""}`}>
+                <input
+                  type="radio"
+                  name="chase_tone"
+                  value={t.value}
+                  checked={(p.chase_tone || "firm") === t.value}
+                  onChange={() => update("chase_tone", t.value)}
+                  className={s.toneRadio}
+                />
+                <div>
+                  <div className={s.toneLabel}>{t.label}</div>
+                  <div className={s.toneHint}>{t.desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </Card>
       </div>
 
       <div className={s.section}>

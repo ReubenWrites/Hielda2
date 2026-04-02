@@ -1,0 +1,67 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--sf);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  max-width: 460px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--tx);
+  margin: 0 0 8px;
+}
+
+.desc {
+  font-size: 13px;
+  color: var(--tm);
+  margin: 0 0 18px;
+  line-height: 1.6;
+}
+
+.emailToggle {
+  margin: 14px 0;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tx);
+}
+
+.check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ac);
+}
+
+.emailHint {
+  font-size: 11px;
+  color: var(--td);
+  margin: 4px 0 0 24px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}

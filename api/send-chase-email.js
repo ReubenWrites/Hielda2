@@ -2,6 +2,7 @@
 // Called from the frontend when user clicks "Send Chase Email"
 
 import { createClient } from '@supabase/supabase-js'
+import { friendlySubject, friendlyBody, legalSubject, legalBody } from '../src/lib/toneModifiers.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -91,7 +92,7 @@ function paymentDetailsBlock(invoice, profile) {
   `
 }
 
-function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
+function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
   const fromName = profile.business_name || profile.full_name || 'Hielda'
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const payBlock = paymentDetailsBlock(invoice, profile)
@@ -307,8 +308,22 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total) {
     `,
   }
 
-  const subject = subjects[stage] || subjects.first_chase
-  const body = bodies[stage] || bodies.first_chase
+  const toneCtx = {
+    invoice, profile, dl, total, interest, pen, fromName, poRef,
+    interestTable, totalBlock, lineBlock, payBlock,
+  }
+
+  let subject, body
+  if (tone === 'friendly') {
+    subject = friendlySubject(stage, toneCtx)
+    body = friendlyBody(stage, toneCtx)
+  } else if (tone === 'legal') {
+    subject = legalSubject(stage, toneCtx)
+    body = legalBody(stage, toneCtx)
+  } else {
+    subject = subjects[stage] || subjects.first_chase
+    body = bodies[stage] || bodies.first_chase
+  }
 
   const html = `<!DOCTYPE html>
     <html>
@@ -412,8 +427,9 @@ export default async function handler(req, res) {
     const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
     const total = Math.round((Number(invoice.amount) + interest + pen) * 100) / 100
 
-    // Build email
-    const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total)
+    // Build email (use profile's chase_tone, default to 'firm')
+    const tone = profile.chase_tone || 'firm'
+    const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total, tone)
 
     // Build CC list: always include the freelancer, plus any custom CC on the invoice
     const ccList = [profile.email].filter(Boolean)

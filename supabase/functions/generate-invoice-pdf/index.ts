@@ -8,8 +8,7 @@ import { jsPDF } from "https://esm.sh/jspdf@2.5.1"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
-const RATE = 11.75
-const DAILY_RATE = RATE / 365 / 100
+const DEFAULT_RATE = 11.75
 
 function penalty(amount: number): number {
   if (amount < 1000) return 40
@@ -50,7 +49,9 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    const { invoice_id } = await req.json()
+    const { invoice_id, rate: requestedRate } = await req.json()
+    const RATE = (typeof requestedRate === "number" && requestedRate > 0) ? requestedRate : DEFAULT_RATE
+    const DAILY_RATE = RATE / 365 / 100
     if (!invoice_id) {
       return new Response(JSON.stringify({ error: "invoice_id required" }), { status: 400 })
     }
@@ -87,8 +88,9 @@ serve(async (req) => {
     const vatAmount = Number(invoice.vat_amount) || 0
     const invoiceTotal = Number(invoice.total_with_vat) || netAmount
     const hasVat = vatAmount > 0
+    const finesEnabled = !invoice.no_fines
     const interest = isOverdue ? netAmount * DAILY_RATE * daysOverdue : 0
-    const pen = isOverdue && !isConsumer ? penalty(netAmount) : 0
+    const pen = isOverdue && !isConsumer && finesEnabled ? penalty(netAmount) : 0
     const total = invoiceTotal + interest + pen
 
     // Build VAT breakdown from line items
@@ -117,8 +119,14 @@ serve(async (req) => {
     const bizName = profile.business_name || profile.full_name || ""
     if (logoImg) {
       try {
-        // Add logo — max 50mm wide, 20mm tall, right-aligned
-        doc.addImage(`data:image/${logoImg.format.toLowerCase()};base64,${logoImg.data}`, logoImg.format, 140, y - 5, 50, 20, undefined, "FAST")
+        // Add logo — proportional within 50mm wide x 20mm tall bounding box, right-aligned
+        const imgData = `data:image/${logoImg.format.toLowerCase()};base64,${logoImg.data}`
+        const imgProps = doc.getImageProperties(imgData)
+        const maxW = 50, maxH = 20
+        const scale = Math.min(maxW / imgProps.width, maxH / imgProps.height)
+        const w = imgProps.width * scale
+        const h = imgProps.height * scale
+        doc.addImage(imgData, logoImg.format, 190 - w, y - 5, w, h, undefined, "FAST")
         y += 5
       } catch {
         // Fallback to text if image fails
@@ -194,11 +202,12 @@ serve(async (req) => {
     }
 
     // Dates column
-    const details = [
+    const details: string[][] = [
       ["Issue Date", formatDate(invoice.issue_date)],
       ["Due Date", formatDate(invoice.due_date)],
       ["Terms", `${invoice.payment_term_days} days`],
     ]
+    if (invoice.client_ref) details.push(["Client Ref", invoice.client_ref])
     if (invoice.paid_date) details.push(["Paid", formatDate(invoice.paid_date)])
 
     details.forEach(([k, v], i) => {
@@ -291,12 +300,15 @@ serve(async (req) => {
       doc.text(hasVat ? "Invoice total" : "Original amount", 120, y)
       doc.text(fmt(invoiceTotal), 190, y, { align: "right" })
 
-      y += 6
-      doc.setTextColor("#a16207")
-      doc.text("Fixed penalty", 120, y)
-      doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
+      if (pen > 0) {
+        y += 6
+        doc.setTextColor("#a16207")
+        doc.text("Fixed penalty", 120, y)
+        doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
+      }
 
       y += 6
+      doc.setTextColor("#a16207")
       doc.text(`Interest (${daysOverdue}d at ${RATE}% p.a.)`, 120, y)
       doc.text(`+${fmt(interest)}`, 190, y, { align: "right" })
 
@@ -329,6 +341,9 @@ serve(async (req) => {
     const hasBankDetails = profile.bank_name || profile.sort_code || profile.account_number
     const hasIntlDetails = profile.swift_bic || profile.iban
 
+    if (profile.account_name) {
+      payLines.push(`Account Name: ${profile.account_name}`)
+    }
     if (hasBankDetails) {
       payLines.push(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Acct: ${profile.account_number || "—"}`)
     }
@@ -365,6 +380,11 @@ serve(async (req) => {
       doc.setTextColor(gray)
       doc.setFont("helvetica", "italic")
       const signoffLines = doc.splitTextToSize(profile.invoice_signoff, 160)
+      // Check if signoff would collide with footer — add page break if needed
+      if (y + signoffLines.length * 5 > 265) {
+        doc.addPage()
+        y = 20
+      }
       doc.text(signoffLines, 20, y)
       y += signoffLines.length * 5
     }

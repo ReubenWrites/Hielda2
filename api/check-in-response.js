@@ -3,6 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { friendlySubject, friendlyBody, legalSubject, legalBody } from '../src/lib/toneModifiers.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -97,9 +98,10 @@ function respondHtml(title, body, color = '#1e5fa0') {
 </html>`
 }
 
-function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total) {
+function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
   const fromName = profile.business_name || profile.full_name || 'Hielda'
   const color = STAGE_COLORS[stage] || '#1e5fa0'
+  const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ''
 
   const payBlock = `
     <div style="background:#f1f3f6;padding:14px 18px;border-radius:8px;margin:16px 0;font-size:13px;">
@@ -169,8 +171,38 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total) 
       <p>Regards,<br/>${fromName}</p>`,
   }
 
-  const subject = subjects[stage] || subjects.first_chase
-  const body = bodies[stage] || bodies.first_chase
+  // Build shared blocks for tone modifiers
+  const lineBlock = ''
+  const interestTable = `
+    <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
+      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
+      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
+      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+      <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
+    </table>`
+  const totalBlock = `
+    <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
+      <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
+      <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Penalty: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
+    </div>`
+
+  const toneCtx = {
+    invoice, profile, dl, total, interest, pen, fromName, poRef,
+    interestTable, totalBlock, lineBlock, payBlock,
+  }
+
+  let subject, body
+  if (tone === 'friendly') {
+    subject = friendlySubject(stage, toneCtx)
+    body = friendlyBody(stage, toneCtx)
+  } else if (tone === 'legal') {
+    subject = legalSubject(stage, toneCtx)
+    body = legalBody(stage, toneCtx)
+  } else {
+    subject = subjects[stage] || subjects.first_chase
+    body = bodies[stage] || bodies.first_chase
+  }
 
   const html = `<!DOCTYPE html>
 <html>
@@ -407,7 +439,8 @@ export default async function handler(req, res) {
       const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
       const total = Number(invoice.amount) + interest + pen
 
-      const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total)
+      const tone = profile.chase_tone || 'firm'
+      const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total, tone)
 
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',

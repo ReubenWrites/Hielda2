@@ -23,8 +23,6 @@ const Calculator = lazy(() => import("./components/Calculator"))
 const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"))
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"))
 const Referrals = lazy(() => import("./components/Referrals"))
-const Clients = lazy(() => import("./components/Clients"))
-const Analytics = lazy(() => import("./components/Analytics"))
 const NotificationDropdown = lazy(() => import("./components/NotificationDropdown"))
 const OnboardingTour = lazy(() => import("./components/OnboardingTour"))
 
@@ -37,8 +35,6 @@ const PageLoader = () => (
 const NAV_ITEMS = [
   { id: "dash", l: "Dashboard", i: "◉", path: "/dashboard" },
   { id: "create", l: "New Invoice", i: "+", path: "/create" },
-  { id: "clients", l: "Clients", i: "👤", path: "/clients" },
-  { id: "analytics", l: "Analytics", i: "📊", path: "/analytics" },
   { id: "referrals", l: "Refer & Earn", i: "♦", path: "/referrals" },
   { id: "how", l: "How It Works", i: "?", path: "/how" },
   { id: "settings", l: "Your Details", i: "⚙", path: "/settings" },
@@ -212,7 +208,7 @@ export default function App() {
     try {
       const [{ data: profs, error: profErr }, { data: invoices, error: invErr }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id),
-        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,amount_paid,subtotal,vat_amount,total_with_vat,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,client_type,payment_term_days,send_method,line_items,client_ref,cc_emails,bcc_emails,paid_date").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
+        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,amount_paid,subtotal,vat_amount,total_with_vat,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,client_type,payment_term_days,send_method,line_items,client_ref,cc_emails,bcc_emails,paid_date,dispute_reason,dispute_notes,dispute_date,resolution_outcome,resolution_notes,resolution_date").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
       ])
 
       if (profErr) throw profErr
@@ -441,8 +437,6 @@ export default function App() {
                 <Route path="/settings" element={<Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />} />
                 <Route path="/how" element={<HowItWorks isMobile={isMobile} />} />
                 <Route path="/referrals" element={<Referrals profile={profile} userId={user?.id} isMobile={isMobile} />} />
-                <Route path="/clients" element={<Clients userId={user?.id} invs={invs} isMobile={isMobile} />} />
-                <Route path="/analytics" element={<Analytics invs={invs} isMobile={isMobile} />} />
                 <Route path="/billing" element={<Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />} />
                 {isAdmin && <Route path="/admin" element={<AdminDashboard isMobile={isMobile} />} />}
                 <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/dashboard")} />} />

@@ -28,6 +28,25 @@ serve(async (req) => {
     return new Response(`Webhook signature verification failed: ${e.message}`, { status: 400 })
   }
 
+  // ── Idempotency guard ──
+  const { data: existingLog } = await supabase
+    .from("webhook_event_log")
+    .select("status")
+    .eq("event_id", event.id)
+    .maybeSingle()
+
+  if (existingLog?.status === "completed") {
+    return new Response(JSON.stringify({ received: true, deduplicated: true }), {
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  // Upsert as 'processing' (handles retries where row already exists)
+  await supabase.from("webhook_event_log").upsert(
+    { event_id: event.id, event_type: event.type, status: "processing" },
+    { onConflict: "event_id" }
+  )
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -39,9 +58,11 @@ serve(async (req) => {
         if (userId && session.subscription) {
           const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string)
 
+          // Upsert for retry safety
           await supabase
             .from("subscriptions")
-            .update({
+            .upsert({
+              user_id: userId,
               stripe_subscription_id: stripeSubscription.id,
               stripe_customer_id: session.customer as string,
               status: "active",
@@ -49,8 +70,7 @@ serve(async (req) => {
               current_period_start: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
               current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
               updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", userId)
+            }, { onConflict: "user_id" })
         }
         break
       }
@@ -60,16 +80,17 @@ serve(async (req) => {
         const userId = subscription.metadata.supabase_user_id
 
         if (userId) {
+          // Upsert for retry safety
           await supabase
             .from("subscriptions")
-            .update({
+            .upsert({
+              user_id: userId,
               status: subscription.status === "active" ? "active" : subscription.status === "past_due" ? "past_due" : subscription.status,
               current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
               current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
               cancel_at_period_end: subscription.cancel_at_period_end,
               updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", userId)
+            }, { onConflict: "user_id" })
         }
         break
       }
@@ -91,14 +112,12 @@ serve(async (req) => {
       }
 
       case "invoice.payment_succeeded": {
-        // Track referral spend: when a referred user pays, update their referral record
         const paidInvoice = event.data.object as Stripe.Invoice
         if (paidInvoice.subscription) {
           const sub = await stripe.subscriptions.retrieve(paidInvoice.subscription as string)
           const paidUserId = sub.metadata.supabase_user_id
 
           if (paidUserId) {
-            // Check if this user was referred
             const { data: referral } = await supabase
               .from("referrals")
               .select("*")
@@ -107,11 +126,9 @@ serve(async (req) => {
               .single()
 
             if (referral) {
-              // amount_paid is in cents, convert to pounds
               const amountPaid = (paidInvoice.amount_paid || 0) / 100
               const newTotal = Number(referral.total_spent) + amountPaid
 
-              // Update status
               let newStatus = "subscribed"
               if (newTotal >= Number(referral.spend_threshold)) {
                 newStatus = "eligible"
@@ -126,25 +143,32 @@ serve(async (req) => {
                 })
                 .eq("id", referral.id)
 
-              // If newly eligible, create payout record
               if (newStatus === "eligible" && referral.status !== "eligible") {
-                // Get referrer's bank details for payout snapshot
-                const { data: referrerProfile } = await supabase
-                  .from("profiles")
-                  .select("account_name,bank_name,sort_code,account_number")
-                  .eq("id", referral.referrer_id)
-                  .single()
+                // Prevent duplicate payouts on retry
+                const { data: existingPayout } = await supabase
+                  .from("referral_payouts")
+                  .select("id")
+                  .eq("referral_id", referral.id)
+                  .eq("payout_type", "referral")
+                  .maybeSingle()
 
-                await supabase.from("referral_payouts").insert({
-                  referrer_id: referral.referrer_id,
-                  referral_id: referral.id,
-                  amount: 10,
-                  payout_type: "referral",
-                  status: "pending",
-                  bank_details: referrerProfile || {},
-                })
+                if (!existingPayout) {
+                  const { data: referrerProfile } = await supabase
+                    .from("profiles")
+                    .select("account_name,bank_name,sort_code,account_number")
+                    .eq("id", referral.referrer_id)
+                    .single()
 
-                // Check if referrer now has 10 eligible referrals (bonus!)
+                  await supabase.from("referral_payouts").insert({
+                    referrer_id: referral.referrer_id,
+                    referral_id: referral.id,
+                    amount: 10,
+                    payout_type: "referral",
+                    status: "pending",
+                    bank_details: referrerProfile || {},
+                  })
+                }
+
                 const { count } = await supabase
                   .from("referrals")
                   .select("id", { count: "exact", head: true })
@@ -152,7 +176,6 @@ serve(async (req) => {
                   .in("status", ["eligible", "paid_out"])
 
                 if (count && count >= 10) {
-                  // Check if bonus already awarded
                   const { data: existingBonus } = await supabase
                     .from("referral_payouts")
                     .select("id")
@@ -197,10 +220,22 @@ serve(async (req) => {
       }
     }
 
+    // Mark event as successfully processed
+    await supabase
+      .from("webhook_event_log")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("event_id", event.id)
+
     return new Response(JSON.stringify({ received: true }), {
       headers: { "Content-Type": "application/json" },
     })
   } catch (e) {
+    // Log the failure for debugging
+    await supabase
+      .from("webhook_event_log")
+      .update({ status: "failed", error_message: e.message })
+      .eq("event_id", event.id)
+
     console.error("Webhook handler error:", e)
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,

@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { friendlySubject, friendlyBody, legalSubject, legalBody } from '../src/lib/toneModifiers.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -173,7 +174,7 @@ function buildCheckInEmail(invoice, profile, stage) {
 
 // ── Chase email (to the client — 48h auto-fire) ───────────────────────────────
 
-function buildChaseEmail(invoice, profile, stage, dl, interest, pen, total) {
+function buildChaseEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const fromName = profile.business_name || profile.full_name || 'Hielda'
   const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ''
@@ -396,8 +397,22 @@ function buildChaseEmail(invoice, profile, stage, dl, interest, pen, total) {
       <p>Regards,<br/>${fromName}</p>`,
   }
 
-  const subject = subjects[stage] || subjects.first_chase
-  const body = bodies[stage] || bodies.first_chase
+  const toneCtx = {
+    invoice, profile, dl, total, interest, pen, fromName, poRef,
+    interestTable, totalBlock, lineBlock, payBlock,
+  }
+
+  let subject, body
+  if (tone === 'friendly') {
+    subject = friendlySubject(stage, toneCtx)
+    body = friendlyBody(stage, toneCtx)
+  } else if (tone === 'legal') {
+    subject = legalSubject(stage, toneCtx)
+    body = legalBody(stage, toneCtx)
+  } else {
+    subject = subjects[stage] || subjects.first_chase
+    body = bodies[stage] || bodies.first_chase
+  }
 
   const html = `<!DOCTYPE html>
 <html>
