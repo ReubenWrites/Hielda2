@@ -204,7 +204,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           </button>
         </div>
         <p style={{ fontSize: 11, color: c.td, marginTop: 12 }}>
-          No credit card required · 7-day free trial · Cancel anytime
+          No credit card required · 6-week free trial · Cancel anytime
         </p>
       </section>
 
@@ -537,7 +537,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           </div>
         </div>
         <p style={{ fontSize: 11, color: c.td, marginTop: 14 }}>
-          Full access during your 7-day trial — no card needed, no auto-charge · Cancel any time · UK businesses only
+          Full access during your 6-week trial — no card needed, no auto-charge · Cancel any time · UK businesses only
         </p>
         <p style={{ fontSize: 12, color: c.tm, marginTop: 10, textAlign: "center" }}>
           Know a freelancer who'd benefit? <button onClick={onGetStarted} style={{ background: "none", border: "none", color: c.ac, fontWeight: 600, cursor: "pointer", fontFamily: FONT, fontSize: 12, padding: 0 }}>Sign up</button> and refer friends to earn £10 per referral.
@@ -601,7 +601,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           Start Your Free Trial
         </button>
         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 10 }}>
-          No credit card required · 7-day free trial
+          No credit card required · 6-week free trial
         </p>
       </section>
 

@@ -1,7 +1,7 @@
 import { colors as c, FONT } from "../constants"
 import { Btn } from "./ui"
 
-const TRIAL_DAYS = 7
+const TRIAL_DAYS = 42
 
 function getTrialDaysRemaining(sub) {
   if (!sub || sub.status !== "trialing") return 0

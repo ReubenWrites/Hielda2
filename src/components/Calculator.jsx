@@ -355,7 +355,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
             Start Free Trial
           </button>
           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 10, marginBottom: 0 }}>
-            No credit card required · 7-day free trial
+            No credit card required · 6-week free trial
           </p>
         </div>
       </section>

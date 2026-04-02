@@ -146,6 +146,98 @@ function ChaseTimeline({ inv, si }) {
   )
 }
 
+const LIFECYCLE_MILESTONES = [
+  { key: "created", label: "Created", short: "Created", col: "#1e5fa0" },
+  { key: "reminders", label: "Reminders", short: "Remind", col: "#2d72b8" },
+  { key: "due", label: "Due Date", short: "Due", col: "#b45309" },
+  { key: "overdue", label: "Overdue", short: "Overdue", col: "#d97706" },
+  { key: "escalation", label: "Escalation", short: "Escalate", col: "#9f1239" },
+  { key: "resolved", label: "Resolved", short: "Resolved", col: "#16a34a" },
+]
+
+function stageToMilestone(stage) {
+  if (!stage) return 0
+  if (["reminder_1", "reminder_2"].includes(stage)) return 1
+  if (stage === "final_warning") return 2
+  if (["first_chase", "second_chase", "third_chase"].includes(stage)) return 3
+  if (["chase_4","chase_5","chase_6","chase_7","chase_8","chase_9","chase_10","chase_11","escalation_1","escalation_2","escalation_3","escalation_4"].includes(stage)) return 4
+  if (stage === "final_notice") return 5
+  return 0
+}
+
+function InvoiceLifecycleBar({ inv, isMobile }) {
+  const isPaid = inv.status === "paid"
+  const isDisputed = inv.status === "disputed"
+  const today = new Date()
+  const dueDate = new Date(inv.due_date)
+
+  // Determine current milestone index
+  let current = stageToMilestone(inv.chase_stage)
+  // Date-based minimum: if past due, at least at "due"
+  if (!isPaid && today > dueDate && current < 2) current = 2
+  if (!isPaid && today > dueDate && daysLate(inv.due_date) > 0 && current < 3) current = 3
+  if (isPaid) current = 5
+
+  // Milestone dates
+  const dates = [
+    inv.issue_date ? formatDate(inv.issue_date) : "",
+    formatDate(addDays(inv.due_date, -5)),
+    formatDate(inv.due_date),
+    daysLate(inv.due_date) > 0 ? formatDate(addDays(inv.due_date, 1)) : "",
+    formatDate(addDays(inv.due_date, 11)),
+    isPaid && inv.paid_date ? formatDate(inv.paid_date) : formatDate(addDays(inv.due_date, 30)),
+  ]
+
+  return (
+    <div style={{ marginBottom: isMobile ? 14 : 20, padding: isMobile ? "12px 10px" : "14px 18px", background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", position: "relative" }}>
+        {LIFECYCLE_MILESTONES.map((m, i) => {
+          const done = i < current
+          const active = i === current
+          const isPaidDot = isPaid && i === 5
+          const dotCol = isPaidDot ? "#16a34a" : done ? (i <= 2 ? "#1e5fa0" : LIFECYCLE_MILESTONES[i].col) : active ? LIFECYCLE_MILESTONES[i].col : c.bd
+          const lineCol = done ? dotCol : c.bd
+
+          return (
+            <div key={m.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+              {/* Connecting line (not on first) */}
+              {i > 0 && (
+                <div style={{
+                  position: "absolute", top: 9, right: "50%", width: "100%", height: 3,
+                  background: i <= current ? (isPaid && i === 5 ? "#16a34a" : LIFECYCLE_MILESTONES[Math.min(i, current)].col) : `${c.bd}`,
+                  zIndex: 0,
+                }} />
+              )}
+              {/* Dot */}
+              <div style={{
+                width: active ? 22 : 18, height: active ? 22 : 18, borderRadius: "50%",
+                background: done || active ? dotCol : c.bg,
+                border: `2.5px solid ${dotCol}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, color: "#fff", fontWeight: 700, zIndex: 1,
+                position: "relative",
+                boxShadow: active ? `0 0 0 3px ${dotCol}25` : "none",
+              }}>
+                {isPaidDot ? "✓" : done ? "✓" : isDisputed && active ? "⏸" : ""}
+              </div>
+              {/* Label */}
+              <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: active ? 700 : 500, color: done || active ? c.tx : c.td, marginTop: 5, textAlign: "center", lineHeight: 1.2 }}>
+                {isMobile ? m.short : m.label}
+              </div>
+              {/* Date */}
+              {dates[i] && (
+                <div style={{ fontSize: 9, color: c.td, marginTop: 2, textAlign: "center", fontFamily: MONO }}>
+                  {dates[i]}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChase, onEditChaseDone }) {
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -170,6 +262,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
   const [partialAmount, setPartialAmount] = useState("")
   const [savingPartial, setSavingPartial] = useState(false)
   const [disputing, setDisputing] = useState(false)
+  const [showMore, setShowMore] = useState(false)
 
   useEffect(() => {
     if (!inv?.id) return
@@ -548,21 +641,21 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
         <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>{inv.client_name} · {inv.description}</p>
       </div>
 
-      {/* Action buttons — responsive */}
+      {/* Lifecycle progress bar */}
+      <InvoiceLifecycleBar inv={inv} isMobile={isMobile} />
+
+      {/* Action buttons — primary row + More menu */}
       <div style={{
         display: "flex",
+        alignItems: "center",
         gap: 8,
         marginBottom: isMobile ? 14 : 22,
         flexWrap: "wrap",
       }}>
+        {/* Primary actions */}
         {inv.status !== "paid" && (
           <Btn v="successAction" onClick={markPaid} dis={marking} sz={isMobile ? "sm" : undefined}>
             {marking ? "..." : "✓ Paid"}
-          </Btn>
-        )}
-        {inv.status !== "paid" && (
-          <Btn v="ghost" onClick={() => setShowPartialPayment(v => !v)} sz="sm">
-            💰 Part Paid
           </Btn>
         )}
         {inv.status !== "paid" && (
@@ -573,34 +666,10 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
             ✏ Edit
           </Btn>
         )}
-        <Btn v="ghost" onClick={() => {
-          try { localStorage.setItem("hielda_clone", JSON.stringify({
-            cn: inv.client_name, ce: inv.client_email, ca: inv.client_address || "",
-            lineItems: inv.line_items?.length ? inv.line_items : [{ description: inv.description || "", amount: String(inv.amount) }],
-            clientRef: inv.client_ref || "", cc: inv.cc_emails || "", bcc: inv.bcc_emails || "",
-            terms: String(inv.payment_term_days || 30), noFines: inv.no_fines || false,
-          })) } catch {}
-          nav("create")
-        }} sz="sm">
-          📋 Clone
-        </Btn>
-        <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
-          {downloading ? "..." : "📥 PDF"}
-        </Btn>
-        {inv.status !== "paid" && inv.client_email && (
-          <Btn v="ghost" onClick={showEmailPreview} sz="sm">
-            📧 Preview
+        {inv.status !== "paid" && (
+          <Btn v="ghost" onClick={() => setShowPartialPayment(v => !v)} sz="sm">
+            💰 Part Paid
           </Btn>
-        )}
-        {inv.status !== "paid" && inv.client_email && (
-          <Btn v="ghost" onClick={sendChaseEmail} dis={sending} sz="sm">
-            {sending ? "..." : `📤 Send`}
-          </Btn>
-        )}
-        {inv.status !== "paid" && !inv.client_email && (
-          <div style={{ fontSize: 11, color: c.or, padding: "6px 10px", background: c.ord, borderRadius: 7, display: "flex", alignItems: "center", gap: 5 }}>
-            ⚠ No client email — chase emails unavailable
-          </div>
         )}
         {inv.status !== "paid" && !isDisputed && (
           <Btn v="ghost" onClick={markDisputed} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
@@ -609,12 +678,79 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChas
         )}
         {isDisputed && (
           <Btn v="ghost" onClick={clearDispute} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
-            {disputing ? "..." : "↩ Resolve Dispute"}
+            {disputing ? "..." : "↩ Resolve"}
           </Btn>
         )}
-        <Btn v="danger" onClick={deleteInvoice} dis={deleting} sz="sm">
-          {deleting ? "..." : "🗑 Delete"}
-        </Btn>
+
+        {/* More menu */}
+        <div style={{ position: "relative" }}>
+          <Btn v="ghost" onClick={() => setShowMore(v => !v)} sz="sm">
+            ··· More
+          </Btn>
+          {showMore && (
+            <>
+              {/* Backdrop to close on click outside */}
+              <div onClick={() => setShowMore(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+              <div style={{
+                position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 41,
+                background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 10,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.10)", minWidth: 220, padding: "6px 0",
+              }}>
+                {inv.status !== "paid" && inv.client_email && (
+                  <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} style={{
+                    display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
+                    padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
+                  }}>
+                    <div style={{ fontWeight: 600 }}>📤 Send Chase</div>
+                    <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>Next: {getStageLabel(currentSendStage)}</div>
+                  </button>
+                )}
+                {inv.status !== "paid" && inv.client_email && (
+                  <button onClick={() => { setShowMore(false); showEmailPreview() }} style={{
+                    display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
+                    padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
+                  }}>
+                    📧 Preview Chase Email
+                  </button>
+                )}
+                {inv.status !== "paid" && !inv.client_email && (
+                  <div style={{ padding: "10px 16px", fontSize: 11, color: c.or }}>
+                    ⚠ No client email — chase unavailable
+                  </div>
+                )}
+                <div style={{ height: 1, background: c.bd, margin: "4px 0" }} />
+                <button onClick={() => { setShowMore(false); downloadPdf() }} disabled={downloading} style={{
+                  display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
+                  padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
+                }}>
+                  📥 Download PDF
+                </button>
+                <button onClick={() => {
+                  setShowMore(false)
+                  try { localStorage.setItem("hielda_clone", JSON.stringify({
+                    cn: inv.client_name, ce: inv.client_email, ca: inv.client_address || "",
+                    lineItems: inv.line_items?.length ? inv.line_items : [{ description: inv.description || "", amount: String(inv.amount) }],
+                    clientRef: inv.client_ref || "", cc: inv.cc_emails || "", bcc: inv.bcc_emails || "",
+                    terms: String(inv.payment_term_days || 30), noFines: inv.no_fines || false,
+                  })) } catch {}
+                  nav("create")
+                }} style={{
+                  display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
+                  padding: "10px 16px", cursor: "pointer", fontSize: 13, color: c.tx,
+                }}>
+                  📋 Clone Invoice
+                </button>
+                <div style={{ height: 1, background: c.bd, margin: "4px 0" }} />
+                <button onClick={() => { setShowMore(false); deleteInvoice() }} disabled={deleting} style={{
+                  display: "block", width: "100%", textAlign: "left", background: "none", border: "none",
+                  padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#dc2626",
+                }}>
+                  🗑 Delete Invoice
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />

@@ -85,7 +85,7 @@ export const CHASE_STAGES = [
 export const FONT = `'DM Sans',system-ui,-apple-system,sans-serif`
 export const MONO = `'JetBrains Mono','Fira Code',monospace`
 
-export const TRIAL_DAYS = 7
+export const TRIAL_DAYS = 42
 
 export const REFERRAL_STATUSES = {
   link_sent: { label: "Invite Sent", color: "#94a3b8", desc: "Hasn't signed up yet" },

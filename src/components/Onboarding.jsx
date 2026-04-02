@@ -36,9 +36,17 @@ export default function Onboarding({ user, profile, onComplete }) {
         onboarding_complete: true,
       }
 
-      const { error: profError } = await supabase
-        .from("profiles")
-        .upsert(profileData, { onConflict: "id" })
+      // Retry upsert up to 3 times — the auth token may not be fully
+      // propagated for RLS checks immediately after email verification
+      let profError
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await supabase
+          .from("profiles")
+          .upsert(profileData, { onConflict: "id" })
+        profError = res.error
+        if (!profError) break
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000))
+      }
 
       if (profError) throw profError
 
@@ -144,7 +152,7 @@ export default function Onboarding({ user, profile, onComplete }) {
               </Btn>
             </div>
             <p style={{ textAlign: "center", color: c.td, fontSize: 10.5, marginTop: 14, marginBottom: 0, lineHeight: 1.5 }}>
-              No card required · 7-day free trial
+              No card required · 6-week free trial
             </p>
           </div>
         )}

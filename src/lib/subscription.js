@@ -1,4 +1,4 @@
-export const TRIAL_DAYS = 7
+export const TRIAL_DAYS = 42
 
 export function getTrialDaysRemaining(sub) {
   if (!sub || sub.status !== "trialing") return 0

@@ -75,7 +75,7 @@ export default function App() {
       desc = "Hielda privacy policy — how we collect, use, and protect your data."
     } else if (showAuth) {
       title = "Start Free Trial — Hielda"
-      desc = "7-day free trial, no credit card required. Automatic invoice chasing and late payment enforcement for UK freelancers."
+      desc = "6-week free trial, no credit card required. Automatic invoice chasing and late payment enforcement for UK freelancers."
     } else {
       title = "Hielda — Invoice Chasing & Late Payment Enforcement for UK Freelancers"
       desc = "Automatically chase late invoices and enforce statutory interest and penalties under UK law. For freelancers and SMEs."

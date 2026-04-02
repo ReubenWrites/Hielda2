@@ -3,7 +3,7 @@ import { supabase } from "../supabase"
 import { colors as c, FONT, MONO } from "../constants"
 import { Card, Btn, Badge, ErrorBanner } from "./ui"
 
-const TRIAL_DAYS = 7
+const TRIAL_DAYS = 42
 
 function getTrialDaysRemaining(sub) {
   if (!sub || sub.status !== "trialing") return 0
