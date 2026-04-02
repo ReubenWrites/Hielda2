@@ -55,6 +55,7 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showCalculator, setShowCalculator] = useState(false)
   const [showTour, setShowTour] = useState(false)
+  const [editChase, setEditChase] = useState(false)
 
   useEffect(() => {
     const handler = () => setShowPrivacy(true)
@@ -210,6 +211,21 @@ export default function App() {
   useEffect(() => {
     if (user) loadData()
   }, [user, loadData])
+
+  // Deep-link: ?invoice=ID&edit_chase=true → open that invoice with email editor
+  useEffect(() => {
+    if (!invs.length) return
+    const params = new URLSearchParams(window.location.search)
+    const invoiceId = params.get("invoice")
+    const wantEdit = params.get("edit_chase") === "true"
+    if (invoiceId && invs.some(i => i.id === invoiceId)) {
+      setView("detail")
+      setSelId(invoiceId)
+      if (wantEdit) setEditChase(true)
+      // Clean the URL so refreshing doesn't re-trigger
+      window.history.replaceState(null, "", "/")
+    }
+  }, [invs])
 
   const handleAuth = (sess, usr) => {
     setSession(sess)
@@ -448,7 +464,7 @@ export default function App() {
                 </div>
               )}
               {view === "dash" && <Dashboard invs={invs} nav={nav} isMobile={isMobile} onUpdate={loadData} profile={profile} />}
-              {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} isMobile={isMobile} />}
+              {view === "detail" && <Detail inv={sel} nav={nav} profile={profile} onUpdate={loadData} isMobile={isMobile} editChase={editChase} onEditChaseDone={() => setEditChase(false)} />}
               {view === "create" && <Create profile={profile} nav={nav} userId={user?.id} onCreated={loadData} isMobile={isMobile} invs={invs} />}
               {view === "settings" && <Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />}
               {view === "how" && <HowItWorks isMobile={isMobile} />}

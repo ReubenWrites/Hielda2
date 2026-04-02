@@ -1,5 +1,5 @@
 import { getRate, CHASE_STAGES } from "../constants"
-import { fmt, formatDate, daysLate, calcInterest, penalty } from "../utils"
+import { fmt, formatDate, daysLate, calcInterest, penalty, round2 } from "../utils"
 
 /**
  * Generate chase email HTML for a given stage.
@@ -11,7 +11,7 @@ export function buildChaseEmail(invoice, profile, stage) {
   const finesEnabled = !invoice.no_fines
   const interest = finesEnabled ? calcInterest(Number(invoice.amount), dl) : 0
   const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-  const total = Number(invoice.amount) + interest + pen
+  const total = round2(Number(invoice.amount) + interest + pen)
 
   const stageConfig = CHASE_STAGES.find((s) => s.id === stage)
   const fromName = profile.business_name || profile.full_name || "Hielda User"

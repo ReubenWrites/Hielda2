@@ -11,28 +11,40 @@ export function getBoe() { return _boe }
 export function getRate() { return _rate }
 export function getDailyRate() { return _dailyRate }
 
-// Legacy named exports for backward compat — these update on load
-// but won't trigger re-renders. Components doing live calcs should use getRate().
-export { _boe as BOE, _rate as RATE, _dailyRate as DAILY_RATE }
+// REMOVED: Legacy named exports (BOE, RATE, DAILY_RATE) were bound at
+// module evaluation time and never updated after loadLiveBoeRate() resolved.
+// All code should use getBoe(), getRate(), getDailyRate() instead.
 
 export function onRateChange(cb) {
   _listeners.push(cb)
   return () => { _listeners = _listeners.filter(l => l !== cb) }
 }
 
-// Called on app load to update with live BoE rate
-export async function loadLiveBoeRate() {
-  try {
-    const res = await fetch('/api/boe-rate')
-    if (!res.ok) return
-    const data = await res.json()
-    _boe = data.boe_rate
-    _rate = data.statutory_rate
-    _dailyRate = data.daily_rate
-    _listeners.forEach(cb => cb({ boe: _boe, rate: _rate, dailyRate: _dailyRate }))
-  } catch {
-    // Keep fallback values
-  }
+// Called on app load to update with live BoE rate.
+// Updates all three values atomically then notifies listeners.
+let _loading = null
+export function loadLiveBoeRate() {
+  if (_loading) return _loading // Deduplicate concurrent calls
+  _loading = (async () => {
+    try {
+      const res = await fetch('/api/boe-rate')
+      if (!res.ok) return
+      const data = await res.json()
+      // Atomic update — compute all values before assigning
+      const newBoe = data.boe_rate
+      const newRate = data.statutory_rate
+      const newDailyRate = data.daily_rate
+      _boe = newBoe
+      _rate = newRate
+      _dailyRate = newDailyRate
+      _listeners.forEach(cb => cb({ boe: _boe, rate: _rate, dailyRate: _dailyRate }))
+    } catch {
+      // Keep fallback values
+    } finally {
+      _loading = null
+    }
+  })()
+  return _loading
 }
 
 export const TERMS = [

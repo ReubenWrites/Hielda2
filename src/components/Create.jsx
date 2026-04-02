@@ -737,8 +737,17 @@ export default function Create({ profile, nav, userId, onCreated, isMobile, invs
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
                 <span style={{ color: c.tm }}>Due</span>
-                <span style={{ color: c.tx, fontWeight: 500 }}>{formatDate(due)}</span>
+                <span style={{ color: due < new Date(todayStr()) ? c.or : c.tx, fontWeight: 500 }}>{formatDate(due)}</span>
               </div>
+              {due < new Date(todayStr()) && (
+                <div style={{
+                  marginTop: 8, padding: "8px 10px", background: "#fff7ed",
+                  border: "1px solid #f59e0b50", borderRadius: 6,
+                  fontSize: 11, color: "#92400e", lineHeight: 1.5,
+                }}>
+                  <strong>Heads up:</strong> This due date is in the past. The invoice will be created as <strong>overdue</strong> and chasing will begin immediately.
+                </div>
+              )}
               {parsedTotal > 0 && !noFines && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5, color: c.td, fontSize: 11 }}>
                   <span>Late penalty</span>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
-import { daysLate, calcInterest, penalty, fmt, formatDate, addDays } from "../utils"
+import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { trackEvent } from "../posthog"
@@ -146,7 +146,7 @@ function ChaseTimeline({ inv, si }) {
   )
 }
 
-export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
+export default function Detail({ inv, nav, profile, onUpdate, isMobile, editChase, onEditChaseDone }) {
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
@@ -185,6 +185,15 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
       })
   }, [inv?.id, inv?.auto_chase])
 
+  // Auto-open email preview when arriving via "edit the chase email" link
+  useEffect(() => {
+    if (editChase && inv && profile) {
+      const email = buildChaseEmail(inv, profile, getStageToBeSent(inv))
+      if (email) setPreviewHtml(email.html)
+      if (onEditChaseDone) onEditChaseDone()
+    }
+  }, [editChase, inv?.id])
+
   if (!inv) {
     return (
       <div style={{ textAlign: "center", padding: "60px 24px" }}>
@@ -207,8 +216,8 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const hasVat = vatAmount > 0
   const interest = ov && finesEnabled ? calcInterest(netAmount, dl) : 0
   const pen = ov && finesEnabled ? penalty(netAmount) : 0
-  const ex = interest + pen
-  const tot = invoiceTotal + ex
+  const ex = round2(interest + pen)
+  const tot = round2(invoiceTotal + ex)
   const si = CHASE_STAGES.findIndex((s) => s.id === inv.chase_stage)
 
   // VAT breakdown from line items
@@ -217,7 +226,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
     const rate = li.vatRate || "0"
     if (rate === "exempt" || rate === "0") return acc
     const rateNum = parseFloat(rate) || 0
-    acc[rate] = (acc[rate] || 0) + Math.round(amt * rateNum / 100 * 100) / 100
+    acc[rate] = round2((acc[rate] || 0) + round2(amt * rateNum / 100))
     return acc
   }, {}) : {}
 
@@ -246,8 +255,16 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   const currentSendStage = getStageToBeSent(inv)
 
   const showEmailPreview = () => {
-    const email = buildChaseEmail(inv, profile, currentSendStage)
-    if (email) setPreviewHtml(email.html)
+    try {
+      const email = buildChaseEmail(inv, profile, currentSendStage)
+      if (email) {
+        setPreviewHtml(email.html)
+      } else {
+        setError(`Unable to generate preview for stage "${getStageLabel(currentSendStage)}". The email will still send correctly.`)
+      }
+    } catch (e) {
+      setError("Failed to generate email preview: " + e.message)
+    }
   }
 
   const deleteInvoice = async () => {
@@ -284,6 +301,7 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
   }
 
   const sendChaseEmail = async () => {
+    if (sending) return // Guard against double-clicks
     const stage = currentSendStage
     const stageLabel = getStageLabel(stage)
 
@@ -310,7 +328,17 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to send")
+      if (!res.ok) {
+        // Handle idempotency: if already sent, treat as success
+        if (res.status === 409) {
+          setSendSuccess(`${stageLabel} was already sent — refreshing status.`)
+          onUpdate()
+          setTimeout(() => setSendSuccess(""), 5000)
+          setSending(false)
+          return
+        }
+        throw new Error(data.error || "Failed to send")
+      }
       setSendSuccess(`${stageLabel} email sent to ${data.email_to}`)
       trackEvent("chase_sent", { stage, ref: inv.ref })
 
@@ -901,8 +929,10 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         </div>
       )}
 
-      {/* Fines toggle — ON (blue) = fines applied, OFF (grey) = no fines */}
-      {inv.status !== "paid" && (
+      {/* Fines toggle — uses positive "finesActive" for clarity; ON (blue) = fines applied, OFF (grey) = chase only */}
+      {inv.status !== "paid" && (() => {
+        const finesActive = !noFines
+        return (
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: isMobile ? "10px 14px" : "12px 18px",
@@ -911,7 +941,9 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>Apply statutory penalties</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: c.tx }}>
+                Statutory penalties {finesActive ? "on" : "off"}
+              </div>
               <button
                 type="button"
                 onClick={() => setShowFinesInfo(v => !v)}
@@ -926,15 +958,18 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
                 ?
               </button>
             </div>
-            <div style={{ fontSize: 11, color: c.tm, marginTop: 2 }}>
-              {noFines ? "Chase emails won't include fines or interest — chasing only" : "Statutory interest and a fixed penalty will be applied when overdue"}
+            <div style={{ fontSize: 11, color: finesActive ? c.gn : c.tm, marginTop: 2 }}>
+              {finesActive
+                ? "Statutory interest and a fixed penalty will be applied when overdue"
+                : "Chase emails won't include fines or interest — chasing only"}
             </div>
             {showFinesInfo && (
               <div style={{
                 marginTop: 8, padding: "10px 12px", background: c.acd, borderRadius: 8,
                 border: `1px solid ${c.ac}30`, fontSize: 12, color: c.tx, lineHeight: 1.6,
               }}>
-                When enabled, overdue chase emails will include statutory interest and a fixed penalty under the Late Payment Act. When disabled, Hielda will still chase this invoice but emails won't mention any additional charges. Useful if you'd prefer to keep things informal with a particular client.
+                <strong>On:</strong> Overdue chase emails include statutory interest and a fixed penalty under the Late Payment Act 1998.<br />
+                <strong>Off:</strong> Hielda still chases this invoice but emails won't mention additional charges. Useful for keeping things informal with a particular client.
               </div>
             )}
           </div>
@@ -942,19 +977,20 @@ export default function Detail({ inv, nav, profile, onUpdate, isMobile }) {
             onClick={toggleNoFines}
             style={{
               width: 44, height: 24, borderRadius: 12, border: "none",
-              background: noFines ? c.bd : c.ac,
+              background: finesActive ? c.ac : c.bd,
               cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0,
             }}
-            aria-label={noFines ? "Enable statutory penalties" : "Disable statutory penalties"}
+            aria-label={finesActive ? "Turn off statutory penalties" : "Turn on statutory penalties"}
           >
             <div style={{
               width: 18, height: 18, borderRadius: "50%", background: "#fff",
-              position: "absolute", top: 3, left: noFines ? 3 : 23,
+              position: "absolute", top: 3, left: finesActive ? 23 : 3,
               transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             }} />
           </button>
         </div>
-      )}
+        )
+      })()}
 
       {/* CC / BCC recipients */}
       {inv.status !== "paid" && (

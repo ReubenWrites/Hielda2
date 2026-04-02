@@ -405,12 +405,12 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: 'This chase stage has already been sent for this invoice' })
     }
 
-    // Calculate amounts (respect no_fines flag)
+    // Calculate amounts (respect no_fines flag), rounded to avoid floating-point display issues
     const dl = daysLate(invoice.due_date)
     const finesEnabled = !invoice.no_fines
-    const interest = finesEnabled ? Number(invoice.amount) * DAILY_RATE * dl : 0
+    const interest = finesEnabled ? Math.round(Number(invoice.amount) * DAILY_RATE * dl * 100) / 100 : 0
     const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-    const total = Number(invoice.amount) + interest + pen
+    const total = Math.round((Number(invoice.amount) + interest + pen) * 100) / 100
 
     // Build email
     const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total)

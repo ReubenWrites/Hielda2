@@ -19,7 +19,19 @@ export default function Settings({ profile, onUpdate, isMobile }) {
 
   useEffect(() => onRateChange(({ boe, rate }) => setRateInfo({ boe, rate })), [])
 
+  // Validation checks
+  const sortCodeDigits = (p.sort_code || "").replace(/[^0-9]/g, "")
+  const sortCodeError = p.sort_code && sortCodeDigits.length !== 6
+  const acctNumError = p.account_number && p.account_number.length !== 8
+  const swiftError = p.swift_bic && (p.swift_bic.length < 8 || p.swift_bic.length > 11)
+  const ibanError = p.iban && (p.iban.length < 15 || p.iban.length > 34)
+  const hasValidationErrors = sortCodeError || acctNumError || swiftError || ibanError
+
   const save = async () => {
+    if (hasValidationErrors) {
+      setError("Please fix the validation errors before saving.")
+      return
+    }
     setSaving(true)
     setError("")
     try {
@@ -99,8 +111,8 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           <h1 style={{ fontSize: 21, fontWeight: 700, color: c.tx, margin: "0 0 5px" }}>Your Details</h1>
           <p style={{ color: c.tm, margin: 0, fontSize: 13 }}>Auto-fills every invoice.</p>
         </div>
-        <Btn onClick={save} dis={saving}>
-          {saving ? "Saving..." : saved ? "✓ Saved!" : "Save Changes"}
+        <Btn onClick={save} dis={saving || hasValidationErrors}>
+          {saving ? "Saving..." : saved ? "✓ Saved!" : hasValidationErrors ? "Fix errors" : "Save Changes"}
         </Btn>
       </div>
 
@@ -185,8 +197,10 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           <p style={{ fontSize: 11, color: c.td, margin: "-6px 0 12px", lineHeight: 1.5 }}>
             For overseas clients. Shown on invoices alongside your UK sort code and account number.
           </p>
-          <Inp label="SWIFT / BIC" value={p.swift_bic || ""} onChange={(v) => update("swift_bic", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} mono ph="e.g. HBUKGB4B" />
-          <Inp label="IBAN" value={p.iban || ""} onChange={(v) => update("iban", v.toUpperCase().replace(/\s/g, "").slice(0, 34))} mono ph="e.g. GB29NWBK60161331926819" />
+          <Inp label="SWIFT / BIC" value={p.swift_bic || ""} onChange={(v) => update("swift_bic", v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} mono ph="e.g. HBUKGB4B"
+            error={p.swift_bic && (p.swift_bic.length < 8 || p.swift_bic.length > 11) ? "Must be 8 or 11 characters" : ""} />
+          <Inp label="IBAN" value={p.iban || ""} onChange={(v) => update("iban", v.toUpperCase().replace(/\s/g, "").slice(0, 34))} mono ph="e.g. GB29NWBK60161331926819"
+            error={p.iban && (p.iban.length < 15 || p.iban.length > 34) ? "Must be 15-34 characters" : ""} />
         </Card>
 
         {/* Branding */}

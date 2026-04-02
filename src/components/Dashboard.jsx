@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { colors as c, FONT, MONO, CHASE_STAGES } from "../constants"
-import { daysLate, calcInterest, penalty, fmt, formatDate } from "../utils"
+import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
 import { supabase } from "../supabase"
 
@@ -22,15 +22,15 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90)
     const paid = invs.filter((i) => i.status === "paid" && (!i.paid_date || new Date(i.paid_date) >= cutoff))
 
-    const totExtra = overdue.reduce((s, i) => {
+    const totExtra = round2(overdue.reduce((s, i) => {
       const dl = daysLate(i.due_date)
       return s + calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
-    }, 0)
+    }, 0))
 
-    const totOwed = overdue.reduce((s, i) => {
+    const totOwed = round2(overdue.reduce((s, i) => {
       const dl = daysLate(i.due_date)
       return s + Number(i.amount) + calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
-    }, 0)
+    }, 0))
 
     return { overdue, pending, paid, disputed, totExtra, totOwed }
   }, [invs])
@@ -187,7 +187,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {overdue.map((i) => {
               const dl = daysLate(i.due_date)
-              const ex = calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
+              const ex = round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)))
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
               return (
                 <Card key={i.id} onClick={() => nav("detail", i.id)} style={{ padding: isMobile ? "12px 14px" : "13px 18px" }}>
@@ -335,7 +335,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
               ) : (
                 filtered.map((i) => {
                   const dl = daysLate(i.due_date)
-                  const ex = i.status === "overdue" ? calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)) : 0
+                  const ex = i.status === "overdue" ? round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))) : 0
                   return (
                     <Card
                       key={i.id}
@@ -415,7 +415,7 @@ export default function Dashboard({ invs, nav, isMobile, onUpdate, profile }) {
                   ) : (
                     filtered.map((i) => {
                       const dl = daysLate(i.due_date)
-                      const ex = i.status === "overdue" ? calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)) : 0
+                      const ex = i.status === "overdue" ? round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))) : 0
                       return (
                         <tr
                           key={i.id}

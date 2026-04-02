@@ -318,6 +318,35 @@ export default async function handler(req, res) {
       )
     }
 
+    // ── ACTION: SKIP (don't chase this invoice) ──
+    if (action === 'skip') {
+      // Turn off auto-chase so the system stops sending check-ins
+      await supabase
+        .from('invoices')
+        .update({ auto_chase: false })
+        .eq('id', invoice_id)
+
+      // Log the skip
+      await supabase.from('chase_log').insert({
+        invoice_id,
+        user_id: invoice.user_id,
+        chase_stage: invoice.chase_stage,
+        email_to: invoice.client_email,
+        status: 'skipped_via_check_in',
+      })
+
+      return res.status(200).setHeader('Content-Type', 'text/html').send(
+        respondHtml('Chasing Paused', `
+          <div style="font-size:48px;margin-bottom:16px;color:#64748b;">&#10074;&#10074;</div>
+          <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Automatic Chasing Paused</h2>
+          <p style="color:#0f172a;margin:0 0 4px;">Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong></p>
+          <p style="color:#64748b;margin:0 0 4px;">Client: ${invoice.client_name}</p>
+          <p style="color:#64748b;margin:0 0 20px;">No chase email will be sent. You can turn automatic chasing back on from your dashboard at any time.</p>
+          <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+        `, '#64748b')
+      )
+    }
+
     // ── ACTION: CHASE ──
     if (action === 'chase') {
       const chaseStage = stage || tokenData.chase_stage || invoice.chase_stage || 'first_chase'

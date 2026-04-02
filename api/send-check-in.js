@@ -43,6 +43,8 @@ function buildCheckInEmail(invoice, profile, stage, token) {
 
   const paidUrl = `${baseUrl}?action=paid&invoice_id=${invoice.id}&token=${encodeURIComponent(token)}`
   const chaseUrl = `${baseUrl}?action=chase&invoice_id=${invoice.id}&stage=${stage}&token=${encodeURIComponent(token)}`
+  const editUrl = `https://www.hielda.com/?invoice=${invoice.id}&edit_chase=true`
+  const skipUrl = `${baseUrl}?action=skip&invoice_id=${invoice.id}&token=${encodeURIComponent(token)}`
 
   const subject = `Check-in: Has ${invoice.client_name} paid invoice ${invoice.ref}?`
 
@@ -72,12 +74,17 @@ function buildCheckInEmail(invoice, profile, stage, token) {
 
         <p style="font-weight:600;margin-bottom:20px;">Has ${invoice.client_name} paid this invoice?</p>
 
-        <div style="text-align:center;margin:24px 0;">
+        <div style="text-align:center;margin:24px 0 16px;">
           <a href="${paidUrl}" style="display:inline-block;padding:14px 32px;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">Yes, they've paid</a>
-          <a href="${chaseUrl}" style="display:inline-block;padding:14px 32px;background:${color};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">No, please send the chase</a>
+          <a href="${chaseUrl}" style="display:inline-block;padding:14px 32px;background:${color};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">No, chase for me</a>
         </div>
 
-        <p style="font-size:12px;color:#94a3b8;text-align:center;">We won't send anything to your client until you give the go-ahead.</p>
+        <div style="border-top:1px solid #e2e8f0;margin:8px 0 0;padding:16px 0 0;text-align:center;">
+          <a href="${editUrl}" style="display:inline-block;padding:10px 20px;background:#fff;color:${color};text-decoration:none;border-radius:8px;font-weight:600;font-size:13px;border:1px solid ${color};margin:0 6px 8px;">Let me edit the chase email</a>
+          <a href="${skipUrl}" style="display:inline-block;padding:10px 20px;background:#fff;color:#64748b;text-decoration:none;border-radius:8px;font-weight:600;font-size:13px;border:1px solid #cbd5e1;margin:0 6px 8px;">Don't chase this one</a>
+        </div>
+
+        <p style="font-size:12px;color:#94a3b8;text-align:center;margin-top:16px;">We won't send anything to your client until you give the go-ahead.</p>
       </div>
     </div>
     <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">
