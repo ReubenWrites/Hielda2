@@ -192,11 +192,10 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
     <div style={{ marginBottom: isMobile ? 14 : 20, padding: isMobile ? "12px 10px" : "14px 18px", background: c.bg, border: `1px solid ${c.bd}`, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "flex-start", position: "relative" }}>
         {LIFECYCLE_MILESTONES.map((m, i) => {
-          const done = i < current
-          const active = i === current
+          const done = i <= current
+          const isNext = i === current + 1 && !isPaid
           const isPaidDot = isPaid && i === 5
-          const dotCol = isPaidDot ? "#16a34a" : done ? (i <= 2 ? "#1e5fa0" : LIFECYCLE_MILESTONES[i].col) : active ? LIFECYCLE_MILESTONES[i].col : c.bd
-          const lineCol = done ? dotCol : c.bd
+          const dotCol = isPaidDot ? "#16a34a" : done ? (i <= 2 ? "#1e5fa0" : LIFECYCLE_MILESTONES[i].col) : isNext ? LIFECYCLE_MILESTONES[i].col : c.bd
 
           return (
             <div key={m.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
@@ -210,18 +209,18 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
               )}
               {/* Dot */}
               <div style={{
-                width: active ? 22 : 18, height: active ? 22 : 18, borderRadius: "50%",
-                background: done || active ? dotCol : c.bg,
+                width: isNext ? 22 : 18, height: isNext ? 22 : 18, borderRadius: "50%",
+                background: done || isNext ? dotCol : c.bg,
                 border: `2.5px solid ${dotCol}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 10, color: "#fff", fontWeight: 700, zIndex: 1,
                 position: "relative",
-                boxShadow: active ? `0 0 0 3px ${dotCol}25` : "none",
+                boxShadow: isNext ? `0 0 0 3px ${dotCol}25` : "none",
               }}>
-                {isPaidDot ? "✓" : done ? "✓" : isDisputed && active ? "⏸" : ""}
+                {done ? "✓" : ""}
               </div>
               {/* Label */}
-              <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: active ? 700 : 500, color: done || active ? c.tx : c.td, marginTop: 5, textAlign: "center", lineHeight: 1.2 }}>
+              <div style={{ fontSize: isMobile ? 9 : 10, fontWeight: done || isNext ? 700 : 500, color: done || isNext ? c.tx : c.td, marginTop: 5, textAlign: "center", lineHeight: 1.2 }}>
                 {isMobile ? m.short : m.label}
               </div>
               {/* Date */}
