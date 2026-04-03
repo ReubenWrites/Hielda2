@@ -75,10 +75,10 @@ export default function AdminMetrics({ isMobile }) {
     setError("")
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch("/api/admin-metrics", {
+      const res = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_token: session?.access_token }),
+        body: JSON.stringify({ action: "metrics", user_token: session?.access_token }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Failed to load")

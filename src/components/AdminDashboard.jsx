@@ -56,10 +56,10 @@ export default function AdminDashboard({ isMobile }) {
     setExpandedInv(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch("/api/admin-lookup", {
+      const res = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_token: session?.access_token, lookup_email: email.trim() }),
+        body: JSON.stringify({ action: "lookup", user_token: session?.access_token, lookup_email: email.trim() }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Lookup failed")
