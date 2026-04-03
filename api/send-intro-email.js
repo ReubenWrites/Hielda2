@@ -155,6 +155,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         from: `${senderName} via Hielda <hello@hielda.com>`,
+        reply_to: profile?.email || undefined,
         to: [client_email],
         ...(profile?.email ? { cc: [profile.email] } : {}),
         subject: `A quick note from ${senderName}`,

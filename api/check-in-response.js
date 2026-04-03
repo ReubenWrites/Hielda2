@@ -444,9 +444,11 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           from: `${email.fromName} via Hielda <chase@hielda.com>`,
+          reply_to: profile.email,
           to: [invoice.client_email],
           subject: email.subject,
           html: email.html,
+          headers: { 'List-Unsubscribe': `<mailto:unsubscribe@hielda.com?subject=Unsubscribe%20${invoice.ref}>` },
         }),
       })
 

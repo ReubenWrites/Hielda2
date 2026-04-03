@@ -80,6 +80,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         from: `${fromName} via Hielda <chase@hielda.com>`,
+        reply_to: user.email,
         to: [invoice.client_email],
         cc: [user.email],
         subject: `Dispute Acknowledged — Invoice ${invoice.ref}`,

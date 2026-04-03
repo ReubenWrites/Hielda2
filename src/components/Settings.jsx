@@ -285,8 +285,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
 
       <div className={s.section}>
         <Card>
-          <h3 className={s.sectionHeading}>Chase Email Tone</h3>
-          <p className={s.toneDesc}>Controls the language and formality of chase emails sent to your clients.</p>
+          <CollapsibleSection title="Chase Email Tone" description="Controls the language and formality of chase emails sent to your clients.">
           <div className={s.toneOptions}>
             {[
               { value: "friendly", label: "Friendly", desc: "Softer, relationship-focused language. Good for clients you work with regularly." },
@@ -309,6 +308,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
               </label>
             ))}
           </div>
+          </CollapsibleSection>
         </Card>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { supabase } from "../supabase"
+import { trackEvent } from "../posthog"
 import { Card, Inp, Btn, ShieldLogo, ErrorBanner } from "./ui"
 import s from "./Onboarding.module.css"
 
@@ -47,6 +48,8 @@ export default function Onboarding({ user, profile, onComplete }) {
       }
 
       if (profError) throw profError
+
+      trackEvent("onboarding_completed", { business_name: form.business_name })
 
       const { error: subError } = await supabase
         .from("subscriptions")
@@ -112,7 +115,7 @@ export default function Onboarding({ user, profile, onComplete }) {
                 ))}
               </div>
 
-              <Btn onClick={() => setStep(1)} style={{ width: "100%", justifyContent: "center" }} sz="lg">
+              <Btn onClick={() => { trackEvent("onboarding_started"); setStep(1) }} style={{ width: "100%", justifyContent: "center" }} sz="lg">
                 Get Started
               </Btn>
             </div>

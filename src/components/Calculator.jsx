@@ -205,7 +205,10 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 </div>
               ) : (
                 <div className={s.leadSuccess}>
-                  <span className={s.leadSuccessText}>✓ Saved. We'll be in touch.</span>
+                  <span className={s.leadSuccessText}>✓ Saved! Check your inbox.</span>
+                  <button onClick={onGetStarted} className={s.leadBtn} style={{ marginTop: 12, width: "100%" }}>
+                    Start your free trial — chase this invoice now
+                  </button>
                 </div>
               )}
             </div>

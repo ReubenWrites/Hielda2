@@ -445,9 +445,11 @@ export default async function handler(req, res) {
     // Send via Resend
     const resendPayload = {
       from: `${email.fromName} via Hielda <chase@hielda.com>`,
+      reply_to: profile.email,
       to: [invoice.client_email],
       subject: email.subject,
       html: email.html,
+      headers: { 'List-Unsubscribe': `<mailto:unsubscribe@hielda.com?subject=Unsubscribe%20${invoice.ref}>` },
     }
     if (ccList.length > 0) resendPayload.cc = ccList
     if (bccList.length > 0) resendPayload.bcc = bccList

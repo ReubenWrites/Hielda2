@@ -1,6 +1,14 @@
+import { useEffect } from "react"
 import { getRate, getBoe } from "../constants"
 import { Card } from "./ui"
 import s from './HowItWorks.module.css'
+
+const HOW_FAQS = [
+  { q: "Will this damage my client relationships?", a: "Most late-paying clients expect to be chased. The early reminders are polite and professional — it's only unpaid invoices that escalate. You can also disable fines for specific invoices if you prefer a softer approach." },
+  { q: "Does this apply to all businesses?", a: "The Act applies to business-to-business transactions in England, Wales and Scotland. It doesn't cover consumer debts or contracts with public authorities (which have separate rules)." },
+  { q: "What if my client disputes the invoice?", a: "Hielda always checks in with you before sending each chase. If there's a dispute, simply tell us not to send the next email and resolve it directly with your client." },
+  { q: "Do I have to charge interest?", a: "No — it's your right, not an obligation. When creating an invoice, tick 'Chase without fines' to send reminders without adding penalties. You can always change this later." },
+]
 
 const TIMELINE_STEPS = [
   { day: "Day -5", title: "Friendly Reminder", desc: "We check in with you first. If unpaid, we send a polite heads-up to your client.", col: "var(--ac)", ico: "📋" },
@@ -13,6 +21,23 @@ const TIMELINE_STEPS = [
 ]
 
 export default function HowItWorks() {
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.type = "application/ld+json"
+    script.id = "faq-schema-how"
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": HOW_FAQS.map(({ q, a }) => ({
+        "@type": "Question",
+        "name": q,
+        "acceptedAnswer": { "@type": "Answer", "text": a },
+      })),
+    })
+    document.head.appendChild(script)
+    return () => document.getElementById("faq-schema-how")?.remove()
+  }, [])
+
   return (
     <div>
       <h1 className={s.title}>How It Works</h1>
@@ -81,12 +106,7 @@ export default function HowItWorks() {
       <div className={s.bottomGrid}>
         <Card>
           <h3 className={s.faqTitle}>Frequently Asked</h3>
-          {[
-            { q: "Will this damage my client relationships?", a: "Most late-paying clients expect to be chased. The early reminders are polite and professional — it's only unpaid invoices that escalate. You can also disable fines for specific invoices if you prefer a softer approach." },
-            { q: "Does this apply to all businesses?", a: "The Act applies to business-to-business transactions in England, Wales and Scotland. It doesn't cover consumer debts or contracts with public authorities (which have separate rules)." },
-            { q: "What if my client disputes the invoice?", a: "Hielda always checks in with you before sending each chase. If there's a dispute, simply tell us not to send the next email and resolve it directly with your client." },
-            { q: "Do I have to charge interest?", a: "No — it's your right, not an obligation. When creating an invoice, tick 'Chase without fines' to send reminders without adding penalties. You can always change this later." },
-          ].map((faq, i) => (
+          {HOW_FAQS.map((faq, i) => (
             <div key={i} className={i < 3 ? s.faqItem : s.faqItemLast}>
               <div className={s.faqQuestion}>{faq.q}</div>
               <div className={s.faqAnswer}>{faq.a}</div>

@@ -159,6 +159,8 @@ export default function App() {
     document.title = title
     const metaDesc = document.querySelector('meta[name="description"]')
     if (metaDesc) metaDesc.setAttribute("content", desc)
+    const canonical = document.querySelector('link[rel="canonical"]')
+    if (canonical) canonical.setAttribute("href", `https://hielda.com${location.pathname === "/" ? "" : location.pathname}`)
   }, [location.pathname, session])
 
   // Track page views on route changes
