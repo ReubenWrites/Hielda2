@@ -381,7 +381,9 @@ export default async function handler(req, res) {
 
     // ── ACTION: CHASE ──
     if (action === 'chase') {
-      const chaseStage = stage || tokenData.chase_stage || invoice.chase_stage || 'first_chase'
+      // Use the invoice's current chase_stage from DB (most up-to-date),
+      // falling back to the stage encoded in the check-in link
+      const chaseStage = invoice.chase_stage || stage || tokenData.chase_stage || 'first_chase'
 
       // Fetch profile for the chase email
       const { data: profile, error: profErr } = await supabase
@@ -412,23 +414,15 @@ export default async function handler(req, res) {
         )
       }
 
-      // Check if chase was already sent for this stage
-      const { data: existingChase } = await supabase
-        .from('chase_log')
-        .select('id')
-        .eq('invoice_id', invoice_id)
-        .eq('chase_stage', chaseStage)
-        .eq('status', 'sent')
-        .limit(1)
-
-      if (existingChase && existingChase.length > 0) {
+      // Guard: if invoice was already paid or chase paused, don't send
+      if (invoice.status === 'paid') {
         return res.status(200).setHeader('Content-Type', 'text/html').send(
-          respondHtml('Already Sent', `
-            <div style="font-size:48px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
-            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase Already Sent</h2>
-            <p style="color:#64748b;margin:0 0 20px;">A chase email for this stage was already sent to ${invoice.client_email}.</p>
+          respondHtml('Already Paid', `
+            <div style="font-size:48px;margin-bottom:16px;color:#16a34a;">&#10003;</div>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#16a34a;">Already Marked as Paid</h2>
+            <p style="color:#64748b;margin:0 0 20px;">Invoice <strong>${invoice.ref}</strong> was already marked as paid. No chase sent.</p>
             <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
-          `, '#1e5fa0')
+          `, '#16a34a')
         )
       }
 
