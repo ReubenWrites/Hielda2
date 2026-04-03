@@ -2,7 +2,7 @@
 // Called from the frontend when user clicks "Send Chase Email"
 
 import { createClient } from '@supabase/supabase-js'
-import { friendlySubject, friendlyBody, legalSubject, legalBody } from '../src/lib/toneModifiers.js'
+import { friendlySubject, friendlyBody, legalSubject, legalBody } from './_toneModifiers.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
