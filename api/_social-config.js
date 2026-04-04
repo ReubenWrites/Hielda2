@@ -162,4 +162,26 @@ export const ENGAGE_RULES = {
   minFollowers: 10,           // Don't engage with very new/empty accounts
   maxFollowers: 500000,       // Don't reply to huge accounts (looks spammy)
   avoidKeywords: ['ad', 'sponsored', 'promoted', '#ad'],  // Skip promotional tweets
+  // Don't like tweets containing these — too aggressive or off-brand to publicly endorse
+  noLikeKeywords: [
+    'fuck', 'shit', 'cunt', 'wanker', 'dickhead', 'arsehole', 'bastard',
+    'kill', 'die', 'kys', 'scam', 'scammer', 'name and shame',
+    '@',  // Don't like tweets directly calling out specific accounts
+  ],
+  // Only like tweets from these search queries (more wholesome/relatable)
+  likeableQueries: [
+    '"late payment" freelancer UK',
+    '"not been paid" invoice UK',
+    '"chasing invoices" UK',
+    '"overdue invoice" UK',
+    '"late paying clients" UK',
+    '"cash flow" freelancer UK',
+    '"small business" "late payment" UK',
+    '"Late Payment Act"',
+    '"statutory interest" invoice',
+    '"payment terms" freelancer',
+    '"SME" "late payment" UK',
+    '"freelancer" invoice "30 days" UK',
+    '"pay people on time"',
+  ],
 }

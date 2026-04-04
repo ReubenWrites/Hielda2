@@ -237,8 +237,13 @@ async function handleEngage(supabase) {
     const username = user?.username || 'there'
 
     try {
-      // Like the tweet
-      if (likeCount < ENGAGE_RULES.maxLikesPerRun) {
+      // Like the tweet — but only if the content is brand-safe
+      const tweetText = tweet.text.toLowerCase()
+      const isSafeToLike = !(ENGAGE_RULES.noLikeKeywords || []).some(kw => tweetText.includes(kw.toLowerCase()))
+      const isLikeableQuery = !(ENGAGE_RULES.likeableQueries) ||
+        ENGAGE_RULES.likeableQueries.some(q => query.toLowerCase().includes(q.toLowerCase().replace(/ -is:retweet.*$/, '').replace(/"/g, '')))
+
+      if (likeCount < ENGAGE_RULES.maxLikesPerRun && isSafeToLike && isLikeableQuery) {
         await likeTweet(tweet.id)
         likeCount++
 
