@@ -134,6 +134,14 @@ export const SEARCH_QUERIES = [
   '"waiting on payment" -is:retweet lang:en',
   '"where\'s my money" freelance OR client OR invoice -is:retweet lang:en',
 
+  // SME owners / cash flow pain
+  '"running a small business" payment OR invoice OR paid -is:retweet lang:en',
+  '"cash flow nightmare" -is:retweet lang:en',
+  '"cash flow" "small business" UK -is:retweet lang:en',
+  '"running a business" "not been paid" -is:retweet lang:en',
+  '"business owner" invoice OR payment OR "late" -is:retweet lang:en',
+  '"hardest part" "running a business" paid OR payment OR cash -is:retweet lang:en',
+
   // Formal/legal — people who already know their rights
   '"Late Payment Act" -is:retweet lang:en',
   '"statutory interest" invoice -is:retweet lang:en',

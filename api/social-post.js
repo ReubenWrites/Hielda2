@@ -282,7 +282,8 @@ async function handleEngage(supabase) {
 
   const MEDIUM_CONFIDENCE_KEYWORDS = [
     'client', 'payment', 'paid', 'pay me', 'bills', 'cash flow', 'accounts',
-    'small business', 'sme', 'owed',
+    'small business', 'sme', 'owed', 'running a business', 'business owner',
+    'cash flow nightmare', 'founder', 'director',
   ]
 
   function scoreConfidence(tweet, user) {
@@ -303,8 +304,10 @@ async function handleEngage(supabase) {
     if (/plumb|electric|carpenter|joiner|woodwork|metalwork|welder|fabricat|blacksmith|prop.mak|set.build|cabinet.?mak|kitchen.?fit|bathroom.?fit|tiler|plasterer|painter|decorat|roofer|builder|bricklayer|landscap|gardener|floorer|handyman|locksmith|glazier|fencer/i.test(bio)) score += 4
     // Professional services
     if (/consult|accountant|bookkeeper|solicitor|architect|surveyor|engineer|coach|trainer|tutor|therapist|nutritionist|pt |personal trainer|marketing|pr |public relations|recruiter|va |virtual assistant/i.test(bio)) score += 4
+    // Business owners & founders
+    if (/founder|co.?founder|owner|director|ceo|managing director|md |business owner|entrepreneur|startup/i.test(bio)) score += 4
     // Business signals
-    if (/small business|sme|ltd|limited|sole trader|agency|studio|workshop/i.test(bio)) score += 3
+    if (/small business|sme|ltd|limited|sole trader|agency|studio|workshop|running a business|my business/i.test(bio)) score += 3
 
     // UK location is a strong positive signal
     if (UK_SIGNALS.some(sig => loc.includes(sig) || bio.includes(sig))) score += 3
