@@ -255,20 +255,23 @@ export default function App() {
   }, [user, loadData])
 
   const handleAuth = (sess, usr) => {
+    setLoading(true)
     setSession(sess)
     setUser(usr)
     trackEvent("login")
   }
 
   const logout = async () => {
-    await supabase.auth.signOut()
-    resetUser()
+    // Clear state before signOut to prevent mid-teardown render crashes
     setSession(null)
     setUser(null)
     setProfile(null)
     setSubscription(null)
     setInvs([])
+    setLoading(false)
+    resetUser()
     navigate("/")
+    await supabase.auth.signOut()
   }
 
   // Pre-compute header stats
