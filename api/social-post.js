@@ -100,7 +100,7 @@ async function searchTweets(query, maxResults = 10) {
     max_results: String(maxResults),
     'tweet.fields': 'author_id,created_at,public_metrics',
     expansions: 'author_id',
-    'user.fields': 'public_metrics,username',
+    'user.fields': 'public_metrics,username,location,description',
   }
   const auth = oauthSign('GET', baseUrl, params)
   const qs = Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
@@ -215,15 +215,56 @@ async function handleEngage(supabase) {
 
   if (!tweets.length) return { ...results, message: 'No tweets found for query' }
 
-  // Filter tweets
+  // ── Contextual tweet filtering ──
+  // Goal: only engage with UK freelancers/SMEs talking about late payment.
+  // Skip: American accounts, adult content, healthcare/politics, off-topic rants.
+
+  const UK_SIGNALS = ['uk', 'london', 'manchester', 'birmingham', 'leeds', 'bristol', 'edinburgh',
+    'glasgow', 'cardiff', 'belfast', 'liverpool', 'sheffield', 'nottingham', 'england', 'scotland',
+    'wales', 'britain', 'british', 'united kingdom', '🇬🇧', 'freelancer uk', 'ltd', 'limited company',
+    'hmrc', 'companies house', 'vat', 'self-employed uk', 'contractor uk']
+
+  const US_SIGNALS = ['usa', 'us-based', 'california', 'new york', 'nyc', 'texas', 'florida',
+    'chicago', 'la based', 'sf based', 'medicare', 'medicaid', '401k', 'irs', 'w-9', '1099',
+    'venmo', 'zelle', 'cashapp', 'american', '🇺🇸', 'y\'all']
+
+  const OFF_TOPIC_SIGNALS = ['onlyfans', 'fansly', 'linktree', 'link in bio', 'dm for',
+    'cashapp', 'paypal.me', 'subscribe', 'content creator 18', 'nsfw', '🔞', '💋',
+    'trump', 'biden', 'congress', 'democrat', 'republican', 'nhs cuts', 'tory', 'labour',
+    'medicare', 'healthcare', 'insurance claim', 'crypto', 'nft', 'web3', 'airdrop']
+
+  const INVOICE_CONTEXT = ['invoice', 'invoic', 'client', 'freelanc', 'contractor', 'payment terms',
+    'overdue', 'chase', 'accounts', 'late payment', 'owed', 'paid late', 'not been paid',
+    'pay me', 'outstanding', 'debt', 'sme', 'small business', 'self-employed', 'self employed']
+
   const candidates = tweets.filter(t => {
     if (engagedIds.has(t.id)) return false
     const user = users[t.author_id]
     if (!user) return false
+
+    // Basic follower filter
     const followers = user.public_metrics?.followers_count || 0
     if (followers < ENGAGE_RULES.minFollowers || followers > ENGAGE_RULES.maxFollowers) return false
+
+    // Skip promoted/ad content
     const text = t.text.toLowerCase()
     if (ENGAGE_RULES.avoidKeywords.some(kw => text.includes(kw.toLowerCase()))) return false
+
+    // Combine user bio + location + tweet text for context
+    const bio = (user.description || '').toLowerCase()
+    const loc = (user.location || '').toLowerCase()
+    const allText = `${text} ${bio} ${loc}`
+
+    // Skip obviously American accounts
+    if (US_SIGNALS.some(sig => allText.includes(sig)) && !UK_SIGNALS.some(sig => allText.includes(sig))) return false
+
+    // Skip off-topic content (adult, politics, crypto, healthcare)
+    if (OFF_TOPIC_SIGNALS.some(sig => allText.includes(sig))) return false
+
+    // Require some invoice/freelance context in the tweet or bio
+    const hasInvoiceContext = INVOICE_CONTEXT.some(kw => allText.includes(kw))
+    if (!hasInvoiceContext) return false
+
     return true
   })
 
