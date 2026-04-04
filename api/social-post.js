@@ -157,12 +157,14 @@ export default async function handler(req, res) {
 
     // Log the post
     if (supabase) {
-      await supabase.from('social_posts').insert({
-        pillar: pillar.id,
-        text,
-        tweet_id: result.data?.id || null,
-        posted_at: new Date().toISOString(),
-      }).catch(() => {}) // Non-critical
+      try {
+        await supabase.from('social_posts').insert({
+          pillar: pillar.id,
+          text,
+          tweet_id: result.data?.id || null,
+          posted_at: new Date().toISOString(),
+        })
+      } catch {} // Non-critical
     }
 
     return res.status(200).json({
