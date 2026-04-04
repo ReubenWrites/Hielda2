@@ -268,62 +268,98 @@ async function handleEngage(supabase) {
     return true
   })
 
+  // ── Confidence scoring ──
+  // Score each candidate to decide: like only, like + sympathy reply, or like + promo reply
+  // Higher confidence = more relevant to UK freelancer late payment = more engagement
+
+  const HIGH_CONFIDENCE_KEYWORDS = [
+    'invoice', 'invoices', 'overdue', 'late payment', 'chasing payment', 'chasing invoices',
+    'client hasn\'t paid', 'client won\'t pay', 'haven\'t been paid', 'not been paid',
+    'waiting to be paid', 'still waiting', 'payment terms', 'net 30', 'net 60',
+    'supposed to be paid', 'where\'s my money', 'freelancer', 'freelancing',
+    'self-employed', 'self employed', 'contractor',
+  ]
+
+  const MEDIUM_CONFIDENCE_KEYWORDS = [
+    'client', 'payment', 'paid', 'pay me', 'bills', 'cash flow', 'accounts',
+    'small business', 'sme', 'owed',
+  ]
+
+  function scoreConfidence(tweet, user) {
+    let score = 0
+    const text = tweet.text.toLowerCase()
+    const bio = (user.description || '').toLowerCase()
+    const loc = (user.location || '').toLowerCase()
+
+    // Tweet content signals
+    HIGH_CONFIDENCE_KEYWORDS.forEach(kw => { if (text.includes(kw)) score += 3 })
+    MEDIUM_CONFIDENCE_KEYWORDS.forEach(kw => { if (text.includes(kw)) score += 1 })
+
+    // Bio signals — freelancer/SME bio is a strong signal
+    if (/freelanc|self.employ|contractor|designer|developer|writer|illustrat|photograph|consult/i.test(bio)) score += 4
+    if (/small business|sme|ltd|limited|sole trader|agency/i.test(bio)) score += 3
+
+    // UK location is a strong positive signal
+    if (UK_SIGNALS.some(sig => loc.includes(sig) || bio.includes(sig))) score += 3
+
+    // Tweet engagement — a tweet with replies/likes suggests a real conversation
+    const metrics = tweet.public_metrics || {}
+    if (metrics.like_count > 2) score += 1
+    if (metrics.reply_count > 0) score += 1
+
+    return score
+  }
+
   let replyCount = 0
   let likeCount = 0
 
-  for (const tweet of candidates) {
+  // Sort by confidence — engage with the best matches first
+  const scored = candidates.map(t => ({ tweet: t, score: scoreConfidence(t, users[t.author_id]) }))
+  scored.sort((a, b) => b.score - a.score)
+
+  for (const { tweet, score } of scored) {
     if (replyCount >= ENGAGE_RULES.maxRepliesPerRun && likeCount >= ENGAGE_RULES.maxLikesPerRun) break
 
     const user = users[tweet.author_id]
     const username = user?.username || 'there'
 
     try {
-      // Like the tweet — but only if the content is brand-safe
+      // Like — skip if tweet has profanity or query is in the no-like list
       const tweetText = tweet.text.toLowerCase()
       const isSafeToLike = !(ENGAGE_RULES.noLikeKeywords || []).some(kw => tweetText.includes(kw.toLowerCase()))
-      const isLikeableQuery = !(ENGAGE_RULES.likeableQueries) ||
-        ENGAGE_RULES.likeableQueries.some(q => query.toLowerCase().includes(q.toLowerCase().replace(/ -is:retweet.*$/, '').replace(/"/g, '')))
+      const isBlockedQuery = (ENGAGE_RULES.noLikeQueries || []).some(q => query.toLowerCase().includes(q.toLowerCase()))
 
-      if (likeCount < ENGAGE_RULES.maxLikesPerRun && isSafeToLike && isLikeableQuery) {
+      if (likeCount < ENGAGE_RULES.maxLikesPerRun && isSafeToLike && !isBlockedQuery) {
         await likeTweet(tweet.id)
         likeCount++
-
         if (supabase) {
-          try {
-            await supabase.from('social_engagements').insert({
-              tweet_id: tweet.id,
-              action: 'like',
-              author_username: username,
-            })
-          } catch {}
+          try { await supabase.from('social_engagements').insert({ tweet_id: tweet.id, action: 'like', author_username: username, confidence: score }) } catch {}
         }
       }
 
-      // Reply to some tweets (not all — don't be spammy)
-      if (replyCount < ENGAGE_RULES.maxRepliesPerRun && Math.random() < 0.6) {
-        // Pick reply type — mostly helpful, occasionally mention the calculator
-        let replyText
-        if (replyCount > 0 && replyCount % ENGAGE_RULES.replyToPromoRatio === 0) {
-          replyText = pickRandom(REPLY_TEMPLATES.calculator)
-        } else {
+      // Reply — confidence determines whether and how we reply
+      // score >= 10: very confident this is a UK freelancer with a late payment problem → promo reply mentioning Hielda
+      // score >= 6:  fairly confident → sympathy/advice reply (no promo)
+      // score < 6:   not confident enough → like only, no reply
+      if (replyCount < ENGAGE_RULES.maxRepliesPerRun) {
+        let replyText = null
+
+        if (score >= 10) {
+          // High confidence — this person would genuinely benefit from knowing about Hielda
+          replyText = pickRandom([...REPLY_TEMPLATES.advice, ...REPLY_TEMPLATES.calculator])
+        } else if (score >= 6) {
+          // Medium confidence — be helpful, don't sell
           replyText = pickRandom([...REPLY_TEMPLATES.sympathy, ...REPLY_TEMPLATES.advice])
         }
+        // score < 6: no reply, just like
 
-        // Ensure under 280 chars
-        if (replyText.length > 280) replyText = replyText.slice(0, 277) + '...'
-
-        await postTweet(replyText, tweet.id)
-        replyCount++
-
-        if (supabase) {
-          try {
-            await supabase.from('social_engagements').insert({
-              tweet_id: tweet.id,
-              action: 'reply',
-              author_username: username,
-              reply_text: replyText,
-            })
-          } catch {}
+        if (replyText) {
+          if (replyText.length > 280) replyText = replyText.slice(0, 277) + '...'
+          await postTweet(replyText, tweet.id)
+          replyCount++
+          if (supabase) {
+            try { await supabase.from('social_engagements').insert({ tweet_id: tweet.id, action: 'reply', author_username: username, reply_text: replyText, confidence: score }) } catch {}
+          }
         }
       }
     } catch (e) {

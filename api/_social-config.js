@@ -114,27 +114,37 @@ export const HASHTAGS = [
 // Search queries to find UK conversations to engage with
 // All queries include UK-specific terms or context to target UK freelancers/SMEs
 export const SEARCH_QUERIES = [
-  '"late payment" freelancer UK -is:retweet lang:en',
-  '"not been paid" invoice UK -is:retweet lang:en',
-  '"chasing invoices" UK -is:retweet lang:en',
-  '"client won\'t pay" UK -is:retweet lang:en',
-  '"overdue invoice" UK -is:retweet lang:en',
-  '"late paying clients" UK -is:retweet lang:en',
-  '"cash flow" freelancer UK invoice -is:retweet lang:en',
-  '"small business" "late payment" UK -is:retweet lang:en',
+  // Natural venting — how real freelancers actually talk about late payment
+  '"still waiting to be paid" -is:retweet lang:en',
+  '"supposed to be paid" weeks OR days OR ages -is:retweet lang:en',
+  '"client isn\'t responding" invoice OR paid OR payment -is:retweet lang:en',
+  '"client hasn\'t paid" -is:retweet lang:en',
+  '"haven\'t been paid" freelance OR invoice OR client -is:retweet lang:en',
+  '"when is this going to be paid" -is:retweet lang:en',
+  '"chasing payment" client OR invoice -is:retweet lang:en',
+  '"late paying" client OR clients -is:retweet lang:en',
+  '"bills to pay" client OR invoice OR freelance -is:retweet lang:en',
+  '"can\'t believe" client paid OR payment OR invoice -is:retweet lang:en',
+  '"months late" payment OR invoice OR paid -is:retweet lang:en',
+  '"30 days" overdue OR late OR invoice OR payment -is:retweet lang:en',
+  '"60 days" invoice OR payment OR overdue -is:retweet lang:en',
+  '"friendly reminder" invoice OR payment -is:retweet lang:en',
+  '"still chasing" invoice OR payment OR client -is:retweet lang:en',
+  '"just pay me" freelance OR invoice OR client -is:retweet lang:en',
+  '"waiting on payment" -is:retweet lang:en',
+  '"where\'s my money" freelance OR client OR invoice -is:retweet lang:en',
+
+  // Formal/legal — people who already know their rights
   '"Late Payment Act" -is:retweet lang:en',
   '"statutory interest" invoice -is:retweet lang:en',
-  '"payment terms" freelancer HMRC OR UK OR "limited company" -is:retweet lang:en',
-  '"self employed" "not been paid" -is:retweet lang:en',
-  '"SME" "late payment" UK -is:retweet lang:en',
-  '"freelancer" invoice "30 days" UK -is:retweet lang:en',
+  '"overdue invoice" UK -is:retweet lang:en',
   '"County Court" invoice -is:retweet lang:en',
-  '"fuck you pay me" -is:retweet lang:en',
+
+  // Community/movement phrases
   '"pay your freelancers" -is:retweet lang:en',
   '"pay people on time" -is:retweet lang:en',
-  '"exposure doesn\'t pay bills" -is:retweet lang:en',
+  '"fuck you pay me" freelance OR invoice OR client -is:retweet lang:en',
   '#PayYourFreelancers -is:retweet lang:en',
-  '#LatePayers -is:retweet lang:en',
 ]
 
 // Reply templates — helpful, not salesy. {author} is replaced with @username
@@ -168,20 +178,10 @@ export const ENGAGE_RULES = {
     'kill', 'die', 'kys', 'scam', 'scammer', 'name and shame',
     '@',  // Don't like tweets directly calling out specific accounts
   ],
-  // Only like tweets from these search queries (more wholesome/relatable)
-  likeableQueries: [
-    '"late payment" freelancer UK',
-    '"not been paid" invoice UK',
-    '"chasing invoices" UK',
-    '"overdue invoice" UK',
-    '"late paying clients" UK',
-    '"cash flow" freelancer UK',
-    '"small business" "late payment" UK',
-    '"Late Payment Act"',
-    '"statutory interest" invoice',
-    '"payment terms" freelancer',
-    '"SME" "late payment" UK',
-    '"freelancer" invoice "30 days" UK',
-    '"pay people on time"',
+  // Only like tweets from these search queries (relatable, not aggressive)
+  // Queries NOT in this list can still trigger replies, just not public likes
+  noLikeQueries: [
+    'fuck you pay me',
+    '#PayYourFreelancers',
   ],
 }
