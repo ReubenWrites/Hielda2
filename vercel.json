@@ -11,6 +11,14 @@
     {
       "path": "/api/social-post",
       "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/social-post?mode=engage",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/social-post?mode=engage",
+      "schedule": "0 15 * * *"
     }
   ]
 }
