@@ -352,6 +352,18 @@ export default function App() {
           })}
         </nav>
 
+        <div className={s.sidebarTools}>
+          <div className={s.sidebarToolsLabel}>Tools</div>
+          <button onClick={() => { navigate("/calculator"); if (isMobile) setSidebarOpen(false) }} className={s.navBtn}>
+            <span className={s.navIcon} aria-hidden="true">⚖</span>
+            Calculator
+          </button>
+          <button onClick={() => { navigate("/late-payment-letter-template"); if (isMobile) setSidebarOpen(false) }} className={s.navBtn}>
+            <span className={s.navIcon} aria-hidden="true">✉</span>
+            Letter Template
+          </button>
+        </div>
+
         <a href="mailto:support@hielda.com" className={s.supportLink}>
           Contact Support
         </a>
@@ -446,6 +458,8 @@ export default function App() {
                 <Route path="/referrals" element={<Referrals profile={profile} userId={user?.id} isMobile={isMobile} />} />
                 <Route path="/billing" element={<Billing subscription={subscription} userId={user?.id} onUpdate={loadData} isMobile={isMobile} />} />
                 {isAdmin && <Route path="/admin" element={<AdminDashboard isMobile={isMobile} />} />}
+                <Route path="/calculator" element={<Calculator onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} isMobile={isMobile} />} />
+                <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/dashboard")} />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>

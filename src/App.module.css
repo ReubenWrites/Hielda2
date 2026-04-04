@@ -158,6 +158,23 @@
   font-size: 12px;
 }
 
+.sidebarTools {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 2;
+}
+
+.sidebarToolsLabel {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 0 12px 6px;
+}
+
 .supportLink {
   display: block;
   text-align: center;
