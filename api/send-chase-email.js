@@ -8,6 +8,12 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+// HTML-escape user-controlled data to prevent XSS in emails
+function esc(text) {
+  if (!text) return ''
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 // Fallback rate — overridden by live BoE fetch
 let RATE = 11.75
 let DAILY_RATE = RATE / 365 / 100
@@ -55,7 +61,7 @@ function lineItemsBlock(invoice) {
   if (!invoice.line_items?.length) return ''
   const rows = invoice.line_items.map(li =>
     `<tr style="border-bottom:1px solid #e8ecf0;">
-      <td style="padding:7px 16px 7px 0;color:#374151;font-size:13px;">${li.description}</td>
+      <td style="padding:7px 16px 7px 0;color:#374151;font-size:13px;">${esc(li.description)}</td>
       <td style="padding:7px 0;font-size:13px;text-align:right;font-weight:500;font-family:monospace;">${fmt(li.amount)}</td>
     </tr>`
   ).join('')
@@ -82,22 +88,24 @@ function paymentDetailsBlock(invoice, profile) {
     <div style="background:#f1f3f6;padding:14px 18px;border-radius:8px;margin:16px 0;font-size:13px;">
       <div style="font-weight:600;color:#0f172a;margin-bottom:6px;">Payment Details</div>
       <div style="color:#64748b;">
-        Account Name: ${profile.account_name || '—'}<br/>
-        Bank: ${profile.bank_name || '—'}<br/>
-        Sort Code: ${profile.sort_code || '—'}<br/>
-        Account: ${profile.account_number || '—'}<br/>
-        Reference: ${invoice.ref}${invoice.client_ref ? `<br/>Your ref: ${invoice.client_ref}` : ''}
+        Account Name: ${esc(profile.account_name) || '—'}<br/>
+        Bank: ${esc(profile.bank_name) || '—'}<br/>
+        Sort Code: ${esc(profile.sort_code) || '—'}<br/>
+        Account: ${esc(profile.account_number) || '—'}<br/>
+        Reference: ${esc(invoice.ref)}${invoice.client_ref ? `<br/>Your ref: ${esc(invoice.client_ref)}` : ''}
       </div>
     </div>
   `
 }
 
 function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
-  const fromName = profile.business_name || profile.full_name || 'Hielda'
+  const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const payBlock = paymentDetailsBlock(invoice, profile)
   const lineBlock = lineItemsBlock(invoice)
-  const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ''
+  const poRef = invoice.client_ref ? ` (${esc(invoice.client_ref)})` : ''
+  // Escape user-controlled fields used in templates
+  invoice = { ...invoice, client_name: esc(invoice.client_name), ref: esc(invoice.ref) }
 
   const interestTable = `
       ${lineBlock}
@@ -363,6 +371,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'invoice_id and chase_stage required' })
     }
 
+    const VALID_STAGES = [
+      'reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase',
+      'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11',
+      'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice',
+    ]
+    if (!VALID_STAGES.includes(chase_stage)) {
+      return res.status(400).json({ error: 'Invalid chase stage' })
+    }
+
     if (!RESEND_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
       return res.status(500).json({ error: 'Server not configured — missing API keys' })
     }
@@ -420,6 +437,19 @@ export default async function handler(req, res) {
 
     if (!invoice.client_email) {
       return res.status(400).json({ error: 'No client email on this invoice' })
+    }
+
+    // Rate limiting: max 5 chase emails per user per hour (database-backed)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count: recentSends } = await supabase
+      .from('chase_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'sent')
+      .gte('created_at', oneHourAgo)
+
+    if (recentSends >= 5) {
+      return res.status(429).json({ error: 'Too many emails sent recently. Please wait before sending more.' })
     }
 
     // Idempotency: check if this stage was already sent

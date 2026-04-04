@@ -40,7 +40,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
-  const [sendIntro, setSendIntro] = useState(false)
+  const [sendIntro, setSendIntro] = useState(true)
   const [introMethod, setIntroMethod] = useState(null)
   const [introText, setIntroText] = useState("")
   const [introCopied, setIntroCopied] = useState(false)

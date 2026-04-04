@@ -293,8 +293,11 @@ async function handleEngage(supabase) {
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  if (!CRON_SECRET) {
+    return res.status(500).json({ error: 'CRON_SECRET not configured' })
+  }
   const authHeader = req.headers.authorization
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 

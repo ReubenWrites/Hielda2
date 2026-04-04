@@ -9,6 +9,11 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+function esc(text) {
+  if (!text) return ''
+  return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 let RATE = 11.75
 let DAILY_RATE = RATE / 365 / 100
 
@@ -99,18 +104,20 @@ function respondHtml(title, body, color = '#1e5fa0') {
 }
 
 function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
-  const fromName = profile.business_name || profile.full_name || 'Hielda'
+  const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const color = STAGE_COLORS[stage] || '#1e5fa0'
-  const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ''
+  const poRef = invoice.client_ref ? ` (${esc(invoice.client_ref)})` : ''
+  // Escape user-controlled fields used in templates
+  invoice = { ...invoice, client_name: esc(invoice.client_name), ref: esc(invoice.ref) }
 
   const payBlock = `
     <div style="background:#f1f3f6;padding:14px 18px;border-radius:8px;margin:16px 0;font-size:13px;">
       <div style="font-weight:600;color:#0f172a;margin-bottom:6px;">Payment Details</div>
       <div style="color:#64748b;">
-        Account Name: ${profile.account_name || '—'}<br/>
-        Bank: ${profile.bank_name || '—'}<br/>
-        Sort Code: ${profile.sort_code || '—'}<br/>
-        Account: ${profile.account_number || '—'}<br/>
+        Account Name: ${esc(profile.account_name) || '—'}<br/>
+        Bank: ${esc(profile.bank_name) || '—'}<br/>
+        Sort Code: ${esc(profile.sort_code) || '—'}<br/>
+        Account: ${esc(profile.account_number) || '—'}<br/>
         Reference: ${invoice.ref}
       </div>
     </div>`

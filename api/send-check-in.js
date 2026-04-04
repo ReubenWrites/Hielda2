@@ -157,6 +157,21 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Profile not found' })
     }
 
+    // ── Subscription check ──
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('status, trial_end')
+      .eq('user_id', user.id)
+      .single()
+
+    if (sub) {
+      const isActive = sub.status === 'active' ||
+        (sub.status === 'trialing' && new Date(sub.trial_end) > new Date())
+      if (!isActive) {
+        return res.status(403).json({ error: 'Your subscription has expired. Please renew to continue sending emails.' })
+      }
+    }
+
     // Check if a check-in was already sent for this stage
     const { data: existingCheckIn } = await supabase
       .from('chase_log')

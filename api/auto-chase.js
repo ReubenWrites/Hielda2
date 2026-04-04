@@ -180,8 +180,11 @@ function buildCheckInEmail(invoice, profile, stage) {
 
 export default async function handler(req, res) {
   // Verify the request is from Vercel Cron (or a manual test with the secret)
+  if (!CRON_SECRET) {
+    return res.status(500).json({ error: 'CRON_SECRET not configured' })
+  }
   const authHeader = req.headers.authorization
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
