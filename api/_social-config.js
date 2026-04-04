@@ -129,6 +129,12 @@ export const SEARCH_QUERIES = [
   '"SME" "late payment" UK -is:retweet lang:en',
   '"freelancer" invoice "30 days" UK -is:retweet lang:en',
   '"County Court" invoice -is:retweet lang:en',
+  '"fuck you pay me" -is:retweet lang:en',
+  '"pay your freelancers" -is:retweet lang:en',
+  '"pay people on time" -is:retweet lang:en',
+  '"exposure doesn\'t pay bills" -is:retweet lang:en',
+  '#PayYourFreelancers -is:retweet lang:en',
+  '#LatePayers -is:retweet lang:en',
 ]
 
 // Reply templates — helpful, not salesy. {author} is replaced with @username
