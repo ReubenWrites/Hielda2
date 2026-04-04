@@ -295,9 +295,16 @@ async function handleEngage(supabase) {
     HIGH_CONFIDENCE_KEYWORDS.forEach(kw => { if (text.includes(kw)) score += 3 })
     MEDIUM_CONFIDENCE_KEYWORDS.forEach(kw => { if (text.includes(kw)) score += 1 })
 
-    // Bio signals — freelancer/SME bio is a strong signal
-    if (/freelanc|self.employ|contractor|designer|developer|writer|illustrat|photograph|consult/i.test(bio)) score += 4
-    if (/small business|sme|ltd|limited|sole trader|agency/i.test(bio)) score += 3
+    // Bio signals — freelancer/SME/tradesperson bio is a strong signal
+    if (/freelanc|self.employ|contractor|sole trader/i.test(bio)) score += 4
+    // Creative freelancers
+    if (/designer|developer|writer|copywriter|illustrat|photograph|videograph|editor|animat|musician|composer|voice.over|artist|creative|graphic/i.test(bio)) score += 4
+    // Tradespeople & makers
+    if (/plumb|electric|carpenter|joiner|woodwork|metalwork|welder|fabricat|blacksmith|prop.mak|set.build|cabinet.?mak|kitchen.?fit|bathroom.?fit|tiler|plasterer|painter|decorat|roofer|builder|bricklayer|landscap|gardener|floorer|handyman|locksmith|glazier|fencer/i.test(bio)) score += 4
+    // Professional services
+    if (/consult|accountant|bookkeeper|solicitor|architect|surveyor|engineer|coach|trainer|tutor|therapist|nutritionist|pt |personal trainer|marketing|pr |public relations|recruiter|va |virtual assistant/i.test(bio)) score += 4
+    // Business signals
+    if (/small business|sme|ltd|limited|sole trader|agency|studio|workshop/i.test(bio)) score += 3
 
     // UK location is a strong positive signal
     if (UK_SIGNALS.some(sig => loc.includes(sig) || bio.includes(sig))) score += 3
