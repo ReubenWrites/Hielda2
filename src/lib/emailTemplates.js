@@ -23,9 +23,9 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const interestTable = `
     ${lineBlock}
     <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
-      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
-      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${getRate()}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
+      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
+      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Interest (${dl} days at ${getRate()}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
       <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
     </table>`
 
@@ -87,7 +87,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
       <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
-      <p>If payment is not received by end of business today, statutory interest and a fixed penalty will be applied. This means the amount owed will increase from tomorrow.</p>
+      <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>.</p>
       ${lineBlock}
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
@@ -95,7 +95,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
-      <p>As notified, statutory charges have now been applied:</p>
+      <p>As notified, under the Late Payment of Commercial Debts (Interest) Act 1998, the following statutory charges have now been applied:</p>
       ${interestTable}
       <p>Please arrange payment of <strong>${fmt(total)}</strong> immediately. Interest continues to accrue daily.</p>
       ${payBlock}
@@ -104,7 +104,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     second_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite previous correspondence, payment has not been received.</p>
-      <p>The amount owed continues to increase:</p>
+      <p>The amount owed continues to increase under the Late Payment of Commercial Debts (Interest) Act 1998:</p>
       ${interestTable}
       <p>Please settle this amount immediately to prevent further charges.</p>
       ${payBlock}
@@ -113,7 +113,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     third_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p>This is our third notice regarding invoice <strong>${invoice.ref}</strong>, which is now <strong>${dl} days overdue</strong>.</p>
-      <p>The current amount owed is <strong>${fmt(total)}</strong> and continues to grow daily.</p>
+      <p>The current amount owed is <strong>${fmt(total)}</strong> and continues to grow daily under the Late Payment of Commercial Debts (Interest) Act 1998.</p>
       ${interestTable}
       <p>We strongly urge you to settle this debt without further delay.</p>
       ${payBlock}
@@ -169,7 +169,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     `,
     chase_10: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> remains unpaid after <strong>${dl} days</strong>. Interest continues to accrue daily.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> remains unpaid after <strong>${dl} days</strong>. Interest continues to accrue daily under the Late Payment of Commercial Debts (Interest) Act 1998.</p>
       ${totalBlock}
       <p>Please arrange payment without further delay.</p>
       ${payBlock}
@@ -187,7 +187,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     escalation_1: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>ESCALATION NOTICE — 4 days remaining.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>4 days</strong> to settle this debt before the creditor may pursue formal recovery.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>4 days</strong> to settle this debt before we pursue formal recovery.</p>
       ${totalBlock}
       <p>Formal recovery may include referral to a debt recovery agency or County Court proceedings, which could adversely affect your credit rating.</p>
       ${payBlock}
@@ -196,7 +196,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     escalation_2: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>ESCALATION NOTICE — 3 days remaining.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>3 days</strong> to settle before the creditor may begin formal recovery.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>3 days</strong> to settle before formal recovery begins.</p>
       ${totalBlock}
       <p>This is your opportunity to resolve this matter without court involvement.</p>
       ${payBlock}
@@ -205,7 +205,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     escalation_3: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>ESCALATION NOTICE — 2 days remaining.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>2 days</strong> to pay before this matter may be escalated.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>2 days</strong> to pay before we escalate.</p>
       ${totalBlock}
       <p>We strongly advise you to settle this debt immediately to avoid formal proceedings.</p>
       ${payBlock}
@@ -214,14 +214,14 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     escalation_4: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>ESCALATION NOTICE — this is your final day to pay.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. If payment of <strong>${fmt(total)}</strong> is not received by end of business <strong>tomorrow</strong>, the creditor may commence formal recovery proceedings.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. If payment of <strong>${fmt(total)}</strong> is not received by end of business <strong>tomorrow</strong>, we will commence formal recovery proceedings.</p>
       ${totalBlock}
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,
     final_notice: `
       <p>Dear ${invoice.client_name},</p>
-      <p><strong>FINAL NOTICE — This is our last communication before the creditor may pursue formal recovery.</strong></p>
+      <p><strong>FINAL NOTICE — This is our last communication before we pursue formal recovery.</strong></p>
       <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite numerous attempts to resolve this, payment has not been received.</p>
       ${totalBlock}
       <p>If payment is not received within <strong>7 days</strong>, the creditor may have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or County Court proceedings.</p>
@@ -261,7 +261,7 @@ function lineItemsBlock(invoice) {
   if (!invoice.line_items?.length) return ""
   const rows = invoice.line_items.map(li =>
     `<tr style="border-bottom:1px solid #e8ecf0;">
-      <td style="padding:6px 16px 6px 0;color:#374151;font-size:13px;">${li.description}</td>
+      <td style="padding:7px 16px 7px 0;color:#374151;font-size:13px;">${li.description}</td>
       <td style="padding:6px 0;font-size:13px;text-align:right;font-weight:500;font-family:monospace;">${fmt(li.amount)}</td>
     </tr>`
   ).join("")
@@ -269,8 +269,8 @@ function lineItemsBlock(invoice) {
     <table style="width:100%;border-collapse:collapse;margin:14px 0 8px;">
       <thead>
         <tr>
-          <th style="padding:4px 16px 6px 0;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;text-align:left;">Description</th>
-          <th style="padding:4px 0 6px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;text-align:right;">Amount</th>
+          <th style="padding:4px 16px 6px 0;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Description</th>
+          <th style="padding:4px 0 6px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;text-align:right;">Amount</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

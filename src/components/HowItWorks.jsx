@@ -6,7 +6,7 @@ import s from './HowItWorks.module.css'
 const HOW_FAQS = [
   { q: "Will this damage my client relationships?", a: "Most late-paying clients expect to be chased. The early reminders are polite and professional — it's only unpaid invoices that escalate. You can also disable fines for specific invoices if you prefer a softer approach." },
   { q: "Does this apply to all businesses?", a: "The Act applies to business-to-business transactions in England, Wales and Scotland. It doesn't cover consumer debts or contracts with public authorities (which have separate rules)." },
-  { q: "What if my client disputes the invoice?", a: "Hielda always checks in with you before sending each chase. If there's a dispute, simply tell us not to send the next email and resolve it directly with your client." },
+  { q: "What if my client disputes the invoice?", a: "You can mark any invoice as disputed directly from your dashboard. Hielda will immediately pause all automated chasing and send a professional acknowledgement email to your client confirming the pause. Once the dispute is resolved, you choose the outcome — paid, adjusted, or written off — and Hielda notifies your client and resumes chasing if needed." },
   { q: "Do I have to charge interest?", a: "No — it's your right, not an obligation. When creating an invoice, tick 'Chase without fines' to send reminders without adding penalties. You can always change this later." },
 ]
 
@@ -40,8 +40,8 @@ export default function HowItWorks() {
 
   return (
     <div>
-      <h1 className={s.title}>How It Works</h1>
-      <p className={s.subtitle}>Your rights, and how Hielda enforces them.</p>
+      <h1 className={s.title}>How to Chase Late Invoices in the UK</h1>
+      <p className={s.subtitle}>Your legal rights under the Late Payment of Commercial Debts Act 1998 — and how Hielda enforces them for you.</p>
 
       <div className={s.topGrid}>
         <Card>

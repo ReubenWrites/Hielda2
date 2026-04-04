@@ -60,7 +60,7 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
   const bodies = {
     reminder_1: `
       <p>Hi ${invoice.client_name},</p>
-      <p>Just a gentle reminder that invoice <strong>${ref}</strong> for <strong>${amt}</strong> is due on <strong>${dueDate}</strong>. No rush — just wanted to make sure it's on your radar.</p>
+      <p>Just a gentle reminder that invoice <strong>${ref}</strong> for <strong>${amt}</strong> is due by <strong>${dueDate}</strong>. No rush — just wanted to make sure it's on your radar.</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
         Please note that after <strong>${dueDate}</strong>, statutory interest and penalties may apply under UK law. We'd love to get this wrapped up before then.
       </div>
@@ -90,7 +90,7 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
     `,
     first_chase: `
       <p>Hi ${invoice.client_name},</p>
-      <p>We hope everything is okay. Invoice <strong>${ref}</strong> for <strong>${amt}</strong> was due on <strong>${dueDate}</strong> and we haven't received payment yet.</p>
+      <p>We hope everything is okay. Invoice <strong>${ref}</strong> for <strong>${amt}</strong> was due by <strong>${dueDate}</strong> and we haven't received payment yet.</p>
       <p>As we mentioned, statutory charges have now been applied. Here's the updated position:</p>
       ${interestTable}
       <p>We'd really appreciate it if you could arrange payment of <strong>${t}</strong> when you get a chance. Interest does continue to accrue daily, so the sooner the better.</p>
@@ -270,7 +270,7 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
   const bodies = {
     reminder_1: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This letter serves as formal notice that invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> is due for payment on <strong>${dueDate}</strong>.</p>
+      <p>This letter serves as formal notice that invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> is due for payment by <strong>${dueDate}</strong>.</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
         Under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, the creditor is entitled to claim statutory interest at ${RATE}% per annum and a fixed penalty of <strong>${fmt(penalty(Number(invoice.amount)))}</strong> on any sum not paid by the contractual due date. Payment by <strong>${dueDate}</strong> will avoid these charges.
       </div>
@@ -302,7 +302,7 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>STATUTORY DEMAND FOR PAYMENT</strong></p>
-      <p>Invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> was due on <strong>${dueDate}</strong> and remains unpaid.</p>
+      <p>Invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> was due by <strong>${dueDate}</strong> and remains unpaid.</p>
       <p>Pursuant to the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, the following statutory charges have been applied to the outstanding debt:</p>
       ${interestTable}
       <p>The debtor is hereby required to remit the sum of <strong>${t}</strong> without further delay. Interest continues to accrue at a daily rate.</p>

@@ -141,7 +141,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
   const bodies = {
     reminder_1: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due on <strong>${formatDate(invoice.due_date)}</strong>.</p>
+      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
         <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
       </div>
@@ -172,7 +172,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
     `,
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due on <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
       <p>As notified, under the Late Payment of Commercial Debts (Interest) Act 1998, the following statutory charges have now been applied:</p>
       ${interestTable}
       <p>Please arrange payment of <strong>${fmt(total)}</strong> immediately. Interest continues to accrue daily.</p>
@@ -401,6 +401,21 @@ export default async function handler(req, res) {
 
     if (profErr || !profile) {
       return res.status(404).json({ error: 'Profile not found' })
+    }
+
+    // ── Subscription check: ensure user has active subscription ──
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('status, trial_end')
+      .eq('user_id', user.id)
+      .single()
+
+    if (sub) {
+      const isActive = sub.status === 'active' ||
+        (sub.status === 'trialing' && new Date(sub.trial_end) > new Date())
+      if (!isActive) {
+        return res.status(403).json({ error: 'Your subscription has expired. Please renew to continue sending chase emails.' })
+      }
     }
 
     if (!invoice.client_email) {

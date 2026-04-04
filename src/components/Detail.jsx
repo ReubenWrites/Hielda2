@@ -646,12 +646,34 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       if (outcome === "paid") {
         updates.paid_date = new Date().toISOString().split("T")[0]
         updates.chase_stage = null
+      } else if (outcome === "adjusted") {
+        updates.chase_stage = "reminder_1"
+      } else if (outcome === "written_off") {
+        updates.chase_stage = null
       }
       const { error: err } = await supabase
         .from("invoices")
         .update(updates)
         .eq("id", inv.id)
       if (err) throw err
+
+      // Send resolution email to client
+      try {
+        const session = await supabase.auth.getSession()
+        await fetch("/api/send-dispute-ack", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoice_id: inv.id,
+            user_token: session.data.session?.access_token,
+            action: "resolve",
+            outcome,
+          }),
+        })
+      } catch (_) {
+        // Non-critical: don't block resolution if email fails
+      }
+
       setShowResolveModal(false)
       onUpdate()
     } catch (e) {

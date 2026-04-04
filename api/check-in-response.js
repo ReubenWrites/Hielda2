@@ -126,7 +126,7 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
   const bodies = {
     reminder_1: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due on <strong>${formatDate(invoice.due_date)}</strong>.</p>
+      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
       <p>Please ensure payment is made by the due date to avoid any late payment charges.</p>
       ${payBlock}
       <p>If you've already made payment, please disregard this message.</p>
@@ -139,7 +139,7 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
       <p>Kind regards,<br/>${fromName}</p>`,
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due on <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
       <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, we are entitled to charge interest at <strong>${RATE}% per annum</strong> and a fixed penalty. Interest is now accruing on this debt.</p>
       <p>Please arrange payment immediately.</p>
       ${payBlock}
@@ -326,6 +326,7 @@ export default async function handler(req, res) {
           status: 'paid',
           paid_date: new Date().toISOString().split('T')[0],
           chase_stage: null,
+          auto_chase: false,
         })
         .eq('id', invoice_id)
 
@@ -414,6 +415,28 @@ export default async function handler(req, res) {
         )
       }
 
+      // Subscription check: ensure user has active subscription before sending chase
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('status, trial_end')
+        .eq('user_id', invoice.user_id)
+        .single()
+
+      if (sub) {
+        const isActive = sub.status === 'active' ||
+          (sub.status === 'trialing' && new Date(sub.trial_end) > new Date())
+        if (!isActive) {
+          return res.status(403).setHeader('Content-Type', 'text/html').send(
+            respondHtml('Subscription Expired', `
+              <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
+              <h2 style="margin:0 0 8px;font-size:18px;color:#d97706;">Subscription Expired</h2>
+              <p style="color:#64748b;margin:0 0 20px;">Your Hielda subscription has expired. Please renew to continue sending chase emails.</p>
+              <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+            `, '#d97706')
+          )
+        }
+      }
+
       // Guard: if invoice was already paid or chase paused, don't send
       if (invoice.status === 'paid') {
         return res.status(200).setHeader('Content-Type', 'text/html').send(
@@ -429,9 +452,9 @@ export default async function handler(req, res) {
       // Build and send the chase email to the client (respect no_fines flag)
       const dl = daysLate(invoice.due_date)
       const finesEnabled = !invoice.no_fines
-      const interest = finesEnabled ? Number(invoice.amount) * DAILY_RATE * dl : 0
+      const interest = finesEnabled ? Math.round(Number(invoice.amount) * DAILY_RATE * dl * 100) / 100 : 0
       const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-      const total = Number(invoice.amount) + interest + pen
+      const total = Math.round((Number(invoice.amount) + interest + pen) * 100) / 100
 
       const tone = profile.chase_tone || 'firm'
       const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total, tone)
