@@ -28,7 +28,7 @@ async function loadLiveRate() {
   }
 }
 
-const STAGE_ORDER = ['reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase', 'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11', 'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice']
+const STAGE_ORDER = ['reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase', 'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11', 'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice', 'recovery_1', 'recovery_2', 'recovery_3', 'recovery_4', 'recovery_5', 'recovery_6', 'recovery_7', 'recovery_8', 'recovery_9', 'recovery_10', 'recovery_11', 'recovery_final']
 
 const STAGE_COLORS = {
   reminder_1: '#1e5fa0', reminder_2: '#2d72b8', final_warning: '#b45309',
@@ -37,6 +37,9 @@ const STAGE_COLORS = {
   chase_8: '#9f1239', chase_9: '#9f1239', chase_10: '#9f1239', chase_11: '#9f1239',
   escalation_1: '#7f1d1d', escalation_2: '#7f1d1d', escalation_3: '#7f1d1d', escalation_4: '#7f1d1d',
   final_notice: '#7f1d1d',
+  recovery_1: '#450a0a', recovery_2: '#450a0a', recovery_3: '#450a0a', recovery_4: '#450a0a',
+  recovery_5: '#27272a', recovery_6: '#27272a', recovery_7: '#27272a', recovery_8: '#27272a',
+  recovery_9: '#27272a', recovery_10: '#27272a', recovery_11: '#27272a', recovery_final: '#18181b',
 }
 
 function penalty(amount) {
@@ -125,6 +128,7 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
   const subjects = {
     reminder_1: `Payment reminder: Invoice ${invoice.ref} — ${fmt(invoice.amount)}`,
     reminder_2: `Upcoming: Invoice ${invoice.ref} due tomorrow — ${fmt(invoice.amount)}`,
+    final_warning: `URGENT: Invoice ${invoice.ref} — last chance to settle at ${fmt(invoice.amount)}`,
     first_chase: `OVERDUE: Invoice ${invoice.ref} — payment required`,
     second_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed (interest applied)`,
     final_notice: `FINAL NOTICE: Invoice ${invoice.ref} — ${fmt(total)} overdue. Legal action pending.`,
@@ -144,6 +148,14 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
       <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, interest and penalties will be applied if payment is not received by the due date.</p>
       ${payBlock}
       <p>Kind regards,<br/>${fromName}</p>`,
+    final_warning: `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
+      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
+      <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>. This means the amount owed will increase from tomorrow.</p>
+      <p>Please arrange payment immediately to avoid additional charges.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>`,
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
@@ -235,8 +247,8 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
 }
 
 export default async function handler(req, res) {
-  // GET endpoint — email links are GET
-  if (req.method !== 'GET') {
+  // Accept GET (email links) and POST (confirmation button on chase action)
+  if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).send('Method not allowed')
   }
 
@@ -389,9 +401,50 @@ export default async function handler(req, res) {
 
     // ── ACTION: CHASE ──
     if (action === 'chase') {
-      // Use the invoice's current chase_stage from DB (most up-to-date),
-      // falling back to the stage encoded in the check-in link
-      const chaseStage = invoice.chase_stage || stage || tokenData.chase_stage || 'first_chase'
+      // Use the stage from the signed token (matches the check-in that was sent).
+      // DO NOT use invoice.chase_stage — after the first click advances the stage,
+      // subsequent clicks would read the advanced stage, bypass dedup, and send
+      // duplicate chase emails for different stages.
+      const chaseStage = tokenData.chase_stage || stage || invoice.chase_stage || 'first_chase'
+
+      // Deduplication: check if this chase stage was already sent
+      const { data: existingSend } = await supabase
+        .from('chase_log')
+        .select('id')
+        .eq('invoice_id', invoice_id)
+        .eq('chase_stage', chaseStage)
+        .eq('status', 'sent')
+        .limit(1)
+
+      if (existingSend && existingSend.length > 0) {
+        return res.status(200).setHeader('Content-Type', 'text/html').send(
+          respondHtml('Already Sent', `
+            <div style="font-size:48px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase Already Sent</h2>
+            <p style="color:#64748b;margin:0 0 4px;">The chase email for invoice <strong>${invoice.ref}</strong> has already been sent to <strong>${invoice.client_name}</strong>.</p>
+            <p style="color:#94a3b8;font-size:12px;margin:0 0 20px;">No duplicate email was sent.</p>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+          `, '#1e5fa0')
+        )
+      }
+
+      // GET = show confirmation page (prevents email client link prefetching from
+      // silently triggering chase sends). Only POST actually sends the chase.
+      if (req.method === 'GET') {
+        const stageColor = STAGE_COLORS[chaseStage] || '#1e5fa0'
+        return res.status(200).setHeader('Content-Type', 'text/html').send(
+          respondHtml('Confirm Chase', `
+            <div style="font-size:48px;margin-bottom:16px;color:${stageColor};">&#9993;</div>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Send Chase to ${esc(invoice.client_name)}?</h2>
+            <p style="color:#0f172a;margin:0 0 4px;">Invoice <strong>${esc(invoice.ref)}</strong> for <strong>${fmt(invoice.amount)}</strong></p>
+            <p style="color:#64748b;margin:0 0 20px;">Click below to send the chase email to your client.</p>
+            <form method="POST" action="/api/check-in-response?action=chase&invoice_id=${encodeURIComponent(invoice_id)}&stage=${encodeURIComponent(chaseStage)}&token=${encodeURIComponent(token)}">
+              <button type="submit" style="display:inline-block;padding:14px 32px;background:${stageColor};color:#fff;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">Yes, send the chase</button>
+            </form>
+            <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;">Changed your mind? Just close this tab.</p>
+          `, stageColor)
+        )
+      }
 
       // Fetch profile for the chase email
       const { data: profile, error: profErr } = await supabase
@@ -495,14 +548,27 @@ export default async function handler(req, res) {
         )
       }
 
-      // Log the chase send
-      await supabase.from('chase_log').insert({
+      // Log the chase send (unique index on (invoice_id, chase_stage) WHERE status='sent'
+      // catches race conditions where two requests slip through the app-level dedup)
+      const { error: logErr } = await supabase.from('chase_log').insert({
         invoice_id,
         user_id: invoice.user_id,
         chase_stage: chaseStage,
         email_to: invoice.client_email,
         status: 'sent',
       })
+
+      if (logErr?.code === '23505') {
+        // Unique constraint violation — another request already logged this send
+        return res.status(200).setHeader('Content-Type', 'text/html').send(
+          respondHtml('Already Sent', `
+            <div style="font-size:48px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase Already Sent</h2>
+            <p style="color:#64748b;margin:0 0 20px;">This chase was already sent. No duplicate was created.</p>
+            <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+          `, '#1e5fa0')
+        )
+      }
 
       // Advance invoice chase_stage to the next stage
       const nextStage = getNextStage(chaseStage)

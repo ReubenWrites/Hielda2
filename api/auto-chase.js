@@ -41,6 +41,18 @@ const CHASE_STAGES = [
   { id: 'escalation_3', dfd: 28 },
   { id: 'escalation_4', dfd: 29 },
   { id: 'final_notice', dfd: 30 },
+  { id: 'recovery_1',  dfd: 31 },
+  { id: 'recovery_2',  dfd: 33 },
+  { id: 'recovery_3',  dfd: 35 },
+  { id: 'recovery_4',  dfd: 37 },
+  { id: 'recovery_5',  dfd: 38 },
+  { id: 'recovery_6',  dfd: 39 },
+  { id: 'recovery_7',  dfd: 40 },
+  { id: 'recovery_8',  dfd: 41 },
+  { id: 'recovery_9',  dfd: 42 },
+  { id: 'recovery_10', dfd: 43 },
+  { id: 'recovery_11', dfd: 44 },
+  { id: 'recovery_final', dfd: 45 },
 ]
 
 const STAGE_ORDER = CHASE_STAGES.map(s => s.id)
@@ -55,6 +67,12 @@ const STAGE_LABELS = {
   escalation_1: 'Escalation Notice 1', escalation_2: 'Escalation Notice 2',
   escalation_3: 'Escalation Notice 3', escalation_4: 'Escalation Notice 4',
   final_notice: 'Final Notice',
+  recovery_1: 'Recovery Notice 1', recovery_2: 'Recovery Notice 2',
+  recovery_3: 'Recovery Notice 3', recovery_4: 'Recovery Notice 4',
+  recovery_5: 'Imminent Escalation 1', recovery_6: 'Imminent Escalation 2',
+  recovery_7: 'Imminent Escalation 3', recovery_8: 'Imminent Escalation 4',
+  recovery_9: 'Imminent Escalation 5', recovery_10: 'Imminent Escalation 6',
+  recovery_11: 'Imminent Escalation 7', recovery_final: 'Final Recovery Notice',
 }
 
 const STAGE_COLORS = {
@@ -64,6 +82,9 @@ const STAGE_COLORS = {
   chase_8: '#9f1239', chase_9: '#9f1239', chase_10: '#9f1239', chase_11: '#9f1239',
   escalation_1: '#7f1d1d', escalation_2: '#7f1d1d', escalation_3: '#7f1d1d',
   escalation_4: '#7f1d1d', final_notice: '#7f1d1d',
+  recovery_1: '#450a0a', recovery_2: '#450a0a', recovery_3: '#450a0a', recovery_4: '#450a0a',
+  recovery_5: '#27272a', recovery_6: '#27272a', recovery_7: '#27272a', recovery_8: '#27272a',
+  recovery_9: '#27272a', recovery_10: '#27272a', recovery_11: '#27272a', recovery_final: '#18181b',
 }
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -268,12 +289,32 @@ export default async function handler(req, res) {
       if (!profile?.email) { results.skipped++; continue }
 
       // Determine the next stage to send
-      const nextStageId = invoice.chase_stage || 'reminder_1'
-      const nextStage = CHASE_STAGES.find(s => s.id === nextStageId)
-      if (!nextStage) { results.skipped++; continue }
+      let nextStageId = invoice.chase_stage || 'reminder_1'
+      const dfd = daysSinceDue(invoice.due_date)
+
+      // Skip forward to the correct stage if we've fallen behind.
+      // Without this, an invoice stuck at 'reminder_1' would still get a
+      // "friendly reminder" even if it's already overdue — one stale stage
+      // per day until it catches up, causing excessive emails.
+      const currentIdx = CHASE_STAGES.findIndex(s => s.id === nextStageId)
+      if (currentIdx < 0) { results.skipped++; continue }
+
+      let correctIdx = currentIdx
+      for (let i = currentIdx + 1; i < CHASE_STAGES.length; i++) {
+        if (CHASE_STAGES[i].dfd <= dfd) {
+          correctIdx = i
+        } else {
+          break
+        }
+      }
+      if (correctIdx !== currentIdx) {
+        nextStageId = CHASE_STAGES[correctIdx].id
+        await supabase.from('invoices').update({ chase_stage: nextStageId }).eq('id', invoice.id)
+      }
+
+      const nextStage = CHASE_STAGES[correctIdx]
 
       // Is this stage due to fire today?
-      const dfd = daysSinceDue(invoice.due_date)
       if (nextStage.dfd > dfd) { results.skipped++; continue }
 
       // Check the log for this stage on this invoice
