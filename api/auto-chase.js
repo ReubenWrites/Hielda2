@@ -273,7 +273,7 @@ export default async function handler(req, res) {
     .from('chase_log')
     .select('*')
     .in('invoice_id', invoiceIds)
-    .order('created_at', { ascending: false })
+    .order('sent_at', { ascending: false })
 
   // Index logs by invoice_id → array of log entries
   const logsByInvoice = {}

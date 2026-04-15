@@ -47,6 +47,18 @@ export function friendlySubject(stage, { invoice, total, dl, poRef }) {
     escalation_3:  `Urgent: Invoice ${ref}${poRef} — 2 days to resolve this`,
     escalation_4:  `Final day: Invoice ${ref}${poRef} — please settle tomorrow`,
     final_notice:  `Final notice: Invoice ${ref}${poRef} — ${t} overdue, next steps pending`,
+    recovery_1:    `Important: Invoice ${ref}${poRef} — ${t} overdue, 14 days to resolve`,
+    recovery_2:    `Following up: Invoice ${ref}${poRef} — ${t} overdue, 12 days remaining`,
+    recovery_3:    `Please respond: Invoice ${ref}${poRef} — ${t} overdue, 10 days remaining`,
+    recovery_4:    `Action needed: Invoice ${ref}${poRef} — ${t} overdue, 8 days remaining`,
+    recovery_5:    `Urgent: Invoice ${ref}${poRef} — 7 days until next steps`,
+    recovery_6:    `Urgent: Invoice ${ref}${poRef} — 6 days remaining to resolve`,
+    recovery_7:    `Urgent: Invoice ${ref}${poRef} — 5 days remaining`,
+    recovery_8:    `Urgent: Invoice ${ref}${poRef} — 4 days remaining to settle`,
+    recovery_9:    `Please act now: Invoice ${ref}${poRef} — 3 days remaining`,
+    recovery_10:   `Urgent: Invoice ${ref}${poRef} — 2 days remaining`,
+    recovery_11:   `Final day: Invoice ${ref}${poRef} — next steps begin tomorrow`,
+    recovery_final: `Update: Invoice ${ref}${poRef} — ${t} overdue, recovery period ended`,
   }
   return subjects[stage]
 }
@@ -226,6 +238,102 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
       ${payBlock}
       <p>Kind regards,<br/>${fromName}</p>
     `,
+    recovery_1: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>We're reaching out again about invoice <strong>${ref}</strong>, now <strong>${dl} days overdue</strong>. We've entered a final 15-day recovery period, after which we may need to take further steps.</p>
+      ${totalBlock}
+      <p>We'd really prefer to resolve this between us. Could you please arrange payment of <strong>${t}</strong> or let us know what's going on? We have 14 days before we may need to involve third parties.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_2: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong> and there are <strong>12 days</strong> left in the recovery period.</p>
+      ${totalBlock}
+      <p>The amount continues to grow and we'd love to get this sorted. Please arrange payment of <strong>${t}</strong> when you can.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_3: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>We're following up on invoice <strong>${ref}</strong>, <strong>${dl} days overdue</strong>. There are <strong>10 days</strong> remaining before we may need to consider formal recovery.</p>
+      ${totalBlock}
+      <p>Please arrange payment or get in touch — we'd much rather work this out directly.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_4: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong> with <strong>8 days</strong> left before further action may be needed.</p>
+      ${totalBlock}
+      <p>We understand things can be difficult, but we do need this resolved. Please settle <strong>${t}</strong> or contact us to discuss.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_5: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong>. From today you'll receive daily updates as we have <strong>7 days</strong> remaining in the recovery period.</p>
+      ${totalBlock}
+      <p>Please arrange payment of <strong>${t}</strong> as soon as possible. We genuinely want to avoid involving third parties.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_6: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>Just checking in — invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong> with <strong>6 days</strong> remaining.</p>
+      ${totalBlock}
+      <p>The amount owed is <strong>${t}</strong> and still growing. Please arrange payment or get in touch.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_7: `
+      <p>Hi ${invoice.client_name},</p>
+      <p><strong>5 days remaining.</strong> Invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong>.</p>
+      ${totalBlock}
+      <p>We're running out of time to resolve this between us. Please settle <strong>${t}</strong> or contact us today.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_8: `
+      <p>Hi ${invoice.client_name},</p>
+      <p><strong>4 days remaining.</strong> Invoice <strong>${ref}</strong> — <strong>${dl} days overdue</strong>, <strong>${t}</strong> owed.</p>
+      ${totalBlock}
+      <p>Please arrange payment. We'd hate for this to go further than it needs to.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_9: `
+      <p>Hi ${invoice.client_name},</p>
+      <p><strong>3 days remaining.</strong> Invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong>.</p>
+      ${totalBlock}
+      <p>Please settle <strong>${t}</strong> in the next 3 days to avoid the creditor needing to take further action.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_10: `
+      <p>Hi ${invoice.client_name},</p>
+      <p><strong>2 days remaining.</strong> Invoice <strong>${ref}</strong> — <strong>${dl} days overdue</strong>.</p>
+      ${totalBlock}
+      <p>This is one of the last opportunities to settle <strong>${t}</strong> before the creditor may pursue formal recovery. Please get in touch.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_11: `
+      <p>Hi ${invoice.client_name},</p>
+      <p><strong>Tomorrow the recovery period ends.</strong> Invoice <strong>${ref}</strong> is <strong>${dl} days overdue</strong> with <strong>${t}</strong> outstanding.</p>
+      ${totalBlock}
+      <p>This is your last chance to settle before the creditor may refer this for formal recovery. We sincerely hope to hear from you today.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
+    recovery_final: `
+      <p>Hi ${invoice.client_name},</p>
+      <p>The recovery period for invoice <strong>${ref}</strong> has now ended. It has been <strong>${dl} days</strong> since this invoice was due, and despite many attempts to resolve this, payment of <strong>${t}</strong> has not been received.</p>
+      ${totalBlock}
+      <p>The creditor may now consider referring this matter for formal recovery. If you'd like to settle to avoid this, please pay <strong>${t}</strong> using the details below.</p>
+      ${payBlock}
+      <p>Kind regards,<br/>${fromName}</p>
+    `,
   }
   return bodies[stage]
 }
@@ -256,6 +364,18 @@ export function legalSubject(stage, { invoice, total, dl, poRef }) {
     escalation_3:  `PRE-ACTION NOTICE: Invoice ${ref}${poRef} — 2 days to comply`,
     escalation_4:  `PRE-ACTION NOTICE: Invoice ${ref}${poRef} — final day to comply`,
     final_notice:  `LETTER BEFORE ACTION: Invoice ${ref}${poRef} — ${t} overdue. Proceedings imminent.`,
+    recovery_1:    `FORMAL RECOVERY NOTICE: Invoice ${ref}${poRef} — ${t} in arrears, 14 days to comply`,
+    recovery_2:    `FORMAL RECOVERY NOTICE: Invoice ${ref}${poRef} — ${t} in arrears, 12 days to comply`,
+    recovery_3:    `FORMAL RECOVERY NOTICE: Invoice ${ref}${poRef} — ${t} in arrears, 10 days to comply`,
+    recovery_4:    `FORMAL RECOVERY NOTICE: Invoice ${ref}${poRef} — ${t} in arrears, 8 days to comply`,
+    recovery_5:    `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — 7 days to comply`,
+    recovery_6:    `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — 6 days to comply`,
+    recovery_7:    `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — 5 days to comply`,
+    recovery_8:    `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — 4 days to comply`,
+    recovery_9:    `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — 3 days to comply`,
+    recovery_10:   `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — 2 days to comply`,
+    recovery_11:   `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — final day to comply`,
+    recovery_final: `NOTICE OF REFERRAL: Invoice ${ref}${poRef} — ${t} referred for formal recovery`,
   }
   return subjects[stage]
 }
@@ -443,6 +563,121 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
       ${totalBlock}
       <p>If payment of <strong>${t}</strong> is not received within <strong>7 days</strong> of the date of this notice, the creditor intends to issue proceedings in the County Court without further reference to the debtor. A County Court Judgement (CCJ) will be entered and recorded on the debtor's credit file. The creditor will also seek recovery of all court fees and costs.</p>
       <p>The debtor is advised to seek independent legal advice.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_1: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FORMAL RECOVERY NOTICE — 14 DAYS TO COMPLY</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. The creditor hereby commences a final 15-day recovery period, pursuant to the Pre-Action Protocol for Debt Claims.</p>
+      ${totalBlock}
+      <p>If the sum of <strong>${t}</strong> is not received within 14 days, the creditor may issue proceedings in the County Court without further notice. The debtor will be liable for all court fees and costs in addition to the debt.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_2: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FORMAL RECOVERY NOTICE — 12 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. The debtor has <strong>12 days</strong> to settle the outstanding sum before the creditor may commence formal proceedings.</p>
+      ${totalBlock}
+      <p>The debtor is required to remit <strong>${t}</strong> immediately.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_3: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FORMAL RECOVERY NOTICE — 10 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. <strong>10 days</strong> remain before the creditor may file a claim in the County Court.</p>
+      ${totalBlock}
+      <p>A County Court Judgement (CCJ) will be recorded on the debtor's credit file for six years. The debtor is urged to settle <strong>${t}</strong> without delay.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_4: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FORMAL RECOVERY NOTICE — 8 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. The debtor has <strong>8 days</strong> to comply before proceedings may be issued.</p>
+      ${totalBlock}
+      <p>Settlement of <strong>${t}</strong> is required immediately to avoid formal proceedings and associated costs.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_5: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF IMMINENT PROCEEDINGS — 7 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. From this date, daily notices will be served. The debtor has <strong>7 days</strong> before proceedings may be issued.</p>
+      ${totalBlock}
+      <p>The debtor is required to remit <strong>${t}</strong> forthwith.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_6: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF IMMINENT PROCEEDINGS — 6 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> — <strong>${dl} days in arrears</strong>. The debt stands at <strong>${t}</strong> and accrues interest daily.</p>
+      ${totalBlock}
+      <p><strong>6 days</strong> remain before formal proceedings may commence.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_7: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF IMMINENT PROCEEDINGS — 5 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. <strong>${t}</strong> remains outstanding.</p>
+      ${totalBlock}
+      <p>The debtor has <strong>5 days</strong> to comply before the creditor may issue proceedings.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_8: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF IMMINENT PROCEEDINGS — 4 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> — <strong>${dl} days in arrears</strong>. Outstanding sum: <strong>${t}</strong>.</p>
+      ${totalBlock}
+      <p><strong>4 days</strong> remain. Immediate payment is demanded.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_9: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF IMMINENT PROCEEDINGS — 3 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. <strong>${t}</strong> is owed.</p>
+      ${totalBlock}
+      <p>The debtor has <strong>3 days</strong> to comply. Failure to pay may result in the creditor issuing County Court proceedings and seeking all associated costs.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_10: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF IMMINENT PROCEEDINGS — 2 DAYS REMAINING</strong></p>
+      <p>Invoice <strong>${ref}</strong> — <strong>${dl} days in arrears</strong>. <strong>${t}</strong> remains unpaid.</p>
+      ${totalBlock}
+      <p><strong>2 days</strong> remain before the creditor may file proceedings. This is one of the debtor's final opportunities to avoid a County Court Judgement.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_11: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FINAL NOTICE — PROCEEDINGS MAY BE ISSUED TOMORROW</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. <strong>${t}</strong> is owed.</p>
+      ${totalBlock}
+      <p><strong>Tomorrow, the creditor may refer this matter for formal recovery.</strong> This is the debtor's final opportunity to settle without the issuance of County Court proceedings, which will result in a CCJ and liability for all court fees and costs.</p>
+      ${payBlock}
+      <p>Yours faithfully,<br/>${fromName}</p>
+    `,
+    recovery_final: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>NOTICE OF REFERRAL FOR FORMAL RECOVERY</strong></p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. Despite 45 days of written demands and multiple opportunities to settle, the sum of <strong>${t}</strong> has not been received.</p>
+      ${totalBlock}
+      <p>The recovery period has now concluded. The creditor may now pursue this debt through formal channels, which may include:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#0f172a;">
+        <li>Issuance of proceedings in the County Court</li>
+        <li>Entry of a County Court Judgement (CCJ) on the debtor's credit record</li>
+        <li>Referral to certificated enforcement agents (bailiffs)</li>
+        <li>Continued accrual of statutory interest until the debt is discharged in full</li>
+      </ul>
+      <p>If the debtor wishes to avoid formal proceedings, payment of <strong>${t}</strong> must be made immediately.</p>
       ${payBlock}
       <p>Yours faithfully,<br/>${fromName}</p>
     `,

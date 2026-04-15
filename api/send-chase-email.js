@@ -578,7 +578,7 @@ export default async function handler(req, res) {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('status', 'sent')
-      .gte('created_at', oneHourAgo)
+      .gte('sent_at', oneHourAgo)
 
     if (recentSends >= 5) {
       return res.status(429).json({ error: 'Too many emails sent recently. Please wait before sending more.' })

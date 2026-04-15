@@ -10,7 +10,7 @@ import DisputeModal from "./DisputeModal"
 import ResolveDisputeModal from "./ResolveDisputeModal"
 import s from "./Detail.module.css"
 
-const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"]
+const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice", "recovery_1", "recovery_2", "recovery_3", "recovery_4", "recovery_5", "recovery_6", "recovery_7", "recovery_8", "recovery_9", "recovery_10", "recovery_11", "recovery_final"]
 
 function getNextStage(currentStage) {
   if (!currentStage) return "reminder_1"
@@ -60,6 +60,18 @@ const TIMELINE_GROUPS = [
     desc: "Countdown to formal recovery — one email per day",
     col: "#7f1d1d",
     stages: ["escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"],
+  },
+  {
+    label: "Final Recovery",
+    desc: "Last chance — updated amount every 2 days",
+    col: "#450a0a",
+    stages: ["recovery_1", "recovery_2", "recovery_3", "recovery_4"],
+  },
+  {
+    label: "Imminent Referral",
+    desc: "Daily countdown to formal recovery referral",
+    col: "#27272a",
+    stages: ["recovery_5", "recovery_6", "recovery_7", "recovery_8", "recovery_9", "recovery_10", "recovery_11", "recovery_final"],
   },
 ]
 
@@ -158,6 +170,7 @@ const LIFECYCLE_MILESTONES = [
   { key: "due", label: "Due Date", short: "Due", col: "#b45309" },
   { key: "overdue", label: "Overdue", short: "Overdue", col: "#d97706" },
   { key: "escalation", label: "Escalation", short: "Escalate", col: "#9f1239" },
+  { key: "recovery", label: "Recovery", short: "Recovery", col: "#27272a" },
   { key: "resolved", label: "Resolved", short: "Resolved", col: "#16a34a" },
 ]
 
@@ -166,8 +179,8 @@ function stageToMilestone(stage) {
   if (["reminder_1", "reminder_2"].includes(stage)) return 1
   if (stage === "final_warning") return 2
   if (["first_chase", "second_chase", "third_chase"].includes(stage)) return 3
-  if (["chase_4","chase_5","chase_6","chase_7","chase_8","chase_9","chase_10","chase_11","escalation_1","escalation_2","escalation_3","escalation_4"].includes(stage)) return 4
-  if (stage === "final_notice") return 5
+  if (["chase_4","chase_5","chase_6","chase_7","chase_8","chase_9","chase_10","chase_11","escalation_1","escalation_2","escalation_3","escalation_4","final_notice"].includes(stage)) return 4
+  if (stage.startsWith("recovery_")) return 5
   return 0
 }
 
@@ -182,7 +195,7 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
   // Date-based minimum: if past due, at least at "due"
   if (!isPaid && today > dueDate && current < 2) current = 2
   if (!isPaid && today > dueDate && daysLate(inv.due_date) > 0 && current < 3) current = 3
-  if (isPaid) current = 5
+  if (isPaid) current = 6
 
   // Milestone dates
   const dates = [
@@ -191,7 +204,8 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
     formatDate(inv.due_date),
     daysLate(inv.due_date) > 0 ? formatDate(addDays(inv.due_date, 1)) : "",
     formatDate(addDays(inv.due_date, 11)),
-    isPaid && inv.paid_date ? formatDate(inv.paid_date) : formatDate(addDays(inv.due_date, 30)),
+    formatDate(addDays(inv.due_date, 31)),
+    isPaid && inv.paid_date ? formatDate(inv.paid_date) : formatDate(addDays(inv.due_date, 45)),
   ]
 
   return (
@@ -200,7 +214,7 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
         {LIFECYCLE_MILESTONES.map((m, i) => {
           const done = i <= current
           const isNext = i === current + 1 && !isPaid
-          const isPaidDot = isPaid && i === 5
+          const isPaidDot = isPaid && i === 6
           const dotCol = isPaidDot ? "#16a34a" : done ? (i <= 2 ? "#1e5fa0" : LIFECYCLE_MILESTONES[i].col) : isNext ? LIFECYCLE_MILESTONES[i].col : c.bd
 
           return (
@@ -210,7 +224,7 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
                 <div
                   className={s.lifecycleLine}
                   style={{
-                    background: i <= current ? (isPaid && i === 5 ? "#16a34a" : LIFECYCLE_MILESTONES[Math.min(i, current)].col) : c.bd,
+                    background: i <= current ? (isPaid && i === 6 ? "#16a34a" : LIFECYCLE_MILESTONES[Math.min(i, current)].col) : c.bd,
                   }}
                 />
               )}
@@ -1056,7 +1070,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       <ChaseTimeline inv={inv} si={si} />
 
       {/* Post-final-notice guidance */}
-      {inv.chase_stage === "final_notice" && inv.status !== "paid" && si >= CHASE_STAGES.length - 1 && (
+      {inv.chase_stage === "recovery_final" && inv.status !== "paid" && si >= CHASE_STAGES.length - 1 && (
         <Card className={s.finalNoticeCard} style={{ marginTop: 16, background: "#fef2f2", borderColor: "#fca5a540" }}>
           <h3 className={s.finalNoticeTitle}>All chase stages complete</h3>
           <p className={s.finalNoticeBody}>

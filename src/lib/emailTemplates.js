@@ -5,7 +5,7 @@ import { friendlySubject, friendlyBody, legalSubject, legalBody } from "./toneMo
 /**
  * Generate chase email HTML for a given stage.
  * Used both client-side (preview) and server-side (sending).
- * All 19 stages are supported.
+ * All 31 stages are supported (19 original + 12 recovery).
  * @param {string} tone - 'friendly', 'firm' (default), or 'legal'
  */
 export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
@@ -59,6 +59,18 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     escalation_3: `WARNING: Invoice ${invoice.ref}${poRef} — escalation in 2 days`,
     escalation_4: `WARNING: Invoice ${invoice.ref}${poRef} — escalation tomorrow`,
     final_notice: `FINAL NOTICE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue. Legal action pending.`,
+    recovery_1: `RECOVERY: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue, 14 days to settle`,
+    recovery_2: `RECOVERY: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue, 12 days to settle`,
+    recovery_3: `RECOVERY: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue, 10 days to settle`,
+    recovery_4: `RECOVERY: Invoice ${invoice.ref}${poRef} — ${fmt(total)} overdue, 8 days to settle`,
+    recovery_5: `URGENT: Invoice ${invoice.ref}${poRef} — 7 days until formal recovery referral`,
+    recovery_6: `URGENT: Invoice ${invoice.ref}${poRef} — 6 days until formal recovery referral`,
+    recovery_7: `URGENT: Invoice ${invoice.ref}${poRef} — 5 days until formal recovery referral`,
+    recovery_8: `URGENT: Invoice ${invoice.ref}${poRef} — 4 days until formal recovery referral`,
+    recovery_9: `URGENT: Invoice ${invoice.ref}${poRef} — 3 days until formal recovery referral`,
+    recovery_10: `URGENT: Invoice ${invoice.ref}${poRef} — 2 days until formal recovery referral`,
+    recovery_11: `URGENT: Invoice ${invoice.ref}${poRef} — TOMORROW: formal recovery referral`,
+    recovery_final: `REFERRED: Invoice ${invoice.ref}${poRef} — ${fmt(total)} now subject to formal recovery`,
   }
 
   const bodies = {
@@ -225,6 +237,120 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
       <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite numerous attempts to resolve this, payment has not been received.</p>
       ${totalBlock}
       <p>If payment is not received within <strong>7 days</strong>, the creditor may have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or County Court proceedings.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_1: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FINAL RECOVERY PERIOD — You have 14 days to settle this debt.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. This is the start of a final 15-day recovery period. If this debt is not settled by the end of this period, the creditor may refer this matter for formal recovery.</p>
+      ${totalBlock}
+      <p>The amount above reflects statutory interest accruing daily. The longer this remains unpaid, the more you will owe. Please settle <strong>${fmt(total)}</strong> immediately.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_2: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>RECOVERY NOTICE — 12 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>12 days</strong> to settle before the creditor may refer this matter for formal recovery.</p>
+      ${totalBlock}
+      <p>The total owed is <strong>${fmt(total)}</strong> and continues to increase daily. Please arrange payment without further delay.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_3: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>RECOVERY NOTICE — 10 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>10 days</strong> to settle before the creditor may refer this matter for formal recovery.</p>
+      ${totalBlock}
+      <p>Please pay <strong>${fmt(total)}</strong> immediately. Formal recovery may include County Court proceedings, which could adversely affect your credit rating.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_4: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>RECOVERY NOTICE — 8 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. You have <strong>8 days</strong> before this matter may be referred for formal recovery.</p>
+      ${totalBlock}
+      <p>This is your opportunity to resolve this without court involvement. Please settle <strong>${fmt(total)}</strong> today.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_5: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>IMMINENT ESCALATION — 7 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. From today, you will receive daily notices. You have <strong>7 days</strong> before this matter may be referred for formal recovery.</p>
+      ${totalBlock}
+      <p>Please settle <strong>${fmt(total)}</strong> immediately to avoid escalation.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_6: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>IMMINENT ESCALATION — 6 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. The amount owed is now <strong>${fmt(total)}</strong> and rising daily.</p>
+      ${totalBlock}
+      <p>You have <strong>6 days</strong> to pay before the creditor may commence formal recovery proceedings.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_7: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>IMMINENT ESCALATION — 5 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. <strong>${fmt(total)}</strong> remains outstanding.</p>
+      ${totalBlock}
+      <p><strong>5 days</strong> remain before the creditor may refer this debt for formal recovery, which may include court proceedings.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_8: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>IMMINENT ESCALATION — 4 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. The total owed is now <strong>${fmt(total)}</strong>.</p>
+      ${totalBlock}
+      <p>You have <strong>4 days</strong> to settle. We strongly urge you to pay immediately.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_9: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>IMMINENT ESCALATION — 3 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> — <strong>${dl} days overdue</strong>. <strong>${fmt(total)}</strong> is owed.</p>
+      ${totalBlock}
+      <p><strong>3 days</strong> remain. The creditor may pursue formal debt recovery including County Court proceedings if this is not settled.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_10: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>IMMINENT ESCALATION — 2 days remaining.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. <strong>${fmt(total)}</strong> remains unpaid.</p>
+      ${totalBlock}
+      <p>You have <strong>2 days</strong> before formal recovery may begin. This is one of your final opportunities to settle without court involvement.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_11: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FINAL WARNING — formal recovery referral TOMORROW.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. <strong>${fmt(total)}</strong> is owed.</p>
+      ${totalBlock}
+      <p><strong>Tomorrow, this matter may be referred for formal recovery.</strong> This is your last chance to settle without the creditor pursuing court proceedings or debt recovery agencies, which could affect your credit rating.</p>
+      ${payBlock}
+      <p>Regards,<br/>${fromName}</p>
+    `,
+    recovery_final: `
+      <p>Dear ${invoice.client_name},</p>
+      <p><strong>FORMAL RECOVERY REFERRAL — Recovery period ended.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. Despite 45 days of correspondence and multiple opportunities to settle, payment has not been received.</p>
+      ${totalBlock}
+      <p>The final recovery period has now ended. The creditor may now pursue this debt through formal channels, which may include:</p>
+      <ul style="margin:12px 0;padding-left:20px;color:#0f172a;">
+        <li>Referral to a debt recovery agency</li>
+        <li>County Court proceedings (which may result in a CCJ on your credit record)</li>
+        <li>Statutory interest continuing to accrue until the debt is settled in full</li>
+      </ul>
+      <p>If you wish to settle this debt to avoid formal proceedings, please pay <strong>${fmt(total)}</strong> immediately using the details below.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
     `,

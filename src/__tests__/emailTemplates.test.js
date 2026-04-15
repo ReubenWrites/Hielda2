@@ -117,8 +117,14 @@ describe('getChaseStageForDays', () => {
     expect(getChaseStageForDays(29)).toBe('escalation_4')
   })
 
-  it('returns final_notice for 30+ days overdue', () => {
+  it('returns final_notice for 30 days overdue', () => {
     expect(getChaseStageForDays(30)).toBe('final_notice')
-    expect(getChaseStageForDays(60)).toBe('final_notice')
+  })
+
+  it('returns recovery stages for 31-45 days overdue', () => {
+    expect(getChaseStageForDays(31)).toBe('recovery_1')
+    expect(getChaseStageForDays(38)).toBe('recovery_5')
+    expect(getChaseStageForDays(45)).toBe('recovery_final')
+    expect(getChaseStageForDays(60)).toBe('recovery_final')
   })
 })

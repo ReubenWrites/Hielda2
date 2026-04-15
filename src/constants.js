@@ -80,6 +80,21 @@ export const CHASE_STAGES = [
   { id: "escalation_3", label: "Escalation Warning 3", dfd: 28, col: "#7f1d1d" },
   { id: "escalation_4", label: "Escalation Warning 4", dfd: 29, col: "#7f1d1d" },
   { id: "final_notice", label: "Final Notice", dfd: 30, col: "#7f1d1d" },
+  // Final recovery period — every 2 days
+  { id: "recovery_1", label: "Recovery Notice 1", dfd: 31, col: "#450a0a" },
+  { id: "recovery_2", label: "Recovery Notice 2", dfd: 33, col: "#450a0a" },
+  { id: "recovery_3", label: "Recovery Notice 3", dfd: 35, col: "#450a0a" },
+  { id: "recovery_4", label: "Recovery Notice 4", dfd: 37, col: "#450a0a" },
+  // Imminent escalation — daily
+  { id: "recovery_5", label: "Imminent Escalation 1", dfd: 38, col: "#27272a" },
+  { id: "recovery_6", label: "Imminent Escalation 2", dfd: 39, col: "#27272a" },
+  { id: "recovery_7", label: "Imminent Escalation 3", dfd: 40, col: "#27272a" },
+  { id: "recovery_8", label: "Imminent Escalation 4", dfd: 41, col: "#27272a" },
+  { id: "recovery_9", label: "Imminent Escalation 5", dfd: 42, col: "#27272a" },
+  { id: "recovery_10", label: "Imminent Escalation 6", dfd: 43, col: "#27272a" },
+  { id: "recovery_11", label: "Imminent Escalation 7", dfd: 44, col: "#27272a" },
+  // Final recovery notice
+  { id: "recovery_final", label: "Final Recovery Notice", dfd: 45, col: "#18181b" },
 ]
 
 export const FONT = `'DM Sans',system-ui,-apple-system,sans-serif`

@@ -13,6 +13,7 @@ export default function AuthScreen({ onAuth, onBack }) {
   const [info, setInfo] = useState("")
   const [loading, setLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [confirmEmail, setConfirmEmail] = useState(false)
 
   const linkReferral = async (newUserId) => {
     try {
@@ -98,8 +99,7 @@ export default function AuthScreen({ onAuth, onBack }) {
         } else {
           const utms = (() => { try { return JSON.parse(localStorage.getItem("hielda_utm") || "{}") } catch { return {} } })()
           trackEvent("sign_up_completed", utms)
-          setInfo("Check your email to confirm your account, then log in.")
-          switchMode("login")
+          setConfirmEmail(true)
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass })
@@ -130,7 +130,24 @@ export default function AuthScreen({ onAuth, onBack }) {
             <div className={s.subtitle}>Protecting your pay.</div>
           </div>
 
-          {mode === "reset" ? (
+          {confirmEmail ? (
+            <div className={s.confirmScreen}>
+              <div className={s.confirmIcon}>&#9993;</div>
+              <h2 className={s.confirmTitle}>Check your inbox</h2>
+              <p className={s.confirmText}>
+                We've sent a confirmation link to <strong>{email}</strong>. Click the link in the email to activate your account.
+              </p>
+              <p className={s.confirmHint}>
+                Can't find it? Check your spam or junk folder.
+              </p>
+              <button
+                onClick={() => { setConfirmEmail(false); switchMode("login") }}
+                className={s.confirmBtn}
+              >
+                Go to log in
+              </button>
+            </div>
+          ) : mode === "reset" ? (
             <form onSubmit={handleReset}>
               <p className={s.resetText}>
                 Enter your email and we'll send you a link to reset your password.
@@ -178,7 +195,7 @@ export default function AuthScreen({ onAuth, onBack }) {
             </form>
           )}
 
-          {mode !== "reset" && (
+          {mode !== "reset" && !confirmEmail && (
             <div className={s.modeToggle}>
               {mode === "login" ? (
                 <span>
