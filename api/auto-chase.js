@@ -288,17 +288,42 @@ export default async function handler(req, res) {
       const profile = profileMap[invoice.user_id]
       if (!profile?.email) { results.skipped++; continue }
 
+      // Load logs early — used for both stage reconciliation and
+      // check-in re-send cadence.
+      const invoiceLogs = logsByInvoice[invoice.id] || []
+
       // Determine the next stage to send
       let nextStageId = invoice.chase_stage || 'reminder_1'
       const dfd = daysSinceDue(invoice.due_date)
 
-      // Skip forward to the correct stage if we've fallen behind.
+      let currentIdx = CHASE_STAGES.findIndex(s => s.id === nextStageId)
+      if (currentIdx < 0) { results.skipped++; continue }
+
+      // Reconcile chase_stage with chase_log. The log is the source of truth
+      // for what's actually been sent. If something sent a chase without
+      // updating invoice.chase_stage (e.g. a manual dashboard send path that
+      // skipped the advance, or a prior buggy run), we'd otherwise re-send
+      // stages that have already gone out. Find the latest sent stage; if it
+      // is at or past our current stage, advance to the stage after it.
+      let maxSentIdx = -1
+      for (const l of invoiceLogs) {
+        if (l.status !== 'sent') continue
+        const idx = CHASE_STAGES.findIndex(s => s.id === l.chase_stage)
+        if (idx > maxSentIdx) maxSentIdx = idx
+      }
+      if (maxSentIdx >= currentIdx) {
+        const reconciledIdx = Math.min(maxSentIdx + 1, CHASE_STAGES.length - 1)
+        if (reconciledIdx > currentIdx) {
+          currentIdx = reconciledIdx
+          nextStageId = CHASE_STAGES[currentIdx].id
+          await supabase.from('invoices').update({ chase_stage: nextStageId }).eq('id', invoice.id)
+        }
+      }
+
+      // Skip forward to the correct stage if we've fallen behind on dfd.
       // Without this, an invoice stuck at 'reminder_1' would still get a
       // "friendly reminder" even if it's already overdue — one stale stage
       // per day until it catches up, causing excessive emails.
-      const currentIdx = CHASE_STAGES.findIndex(s => s.id === nextStageId)
-      if (currentIdx < 0) { results.skipped++; continue }
-
       let correctIdx = currentIdx
       for (let i = currentIdx + 1; i < CHASE_STAGES.length; i++) {
         if (CHASE_STAGES[i].dfd <= dfd) {
@@ -317,13 +342,19 @@ export default async function handler(req, res) {
       // Is this stage due to fire today?
       if (nextStage.dfd > dfd) { results.skipped++; continue }
 
-      // Check the log for this stage on this invoice
-      const invoiceLogs = logsByInvoice[invoice.id] || []
+      // If a chase has already been sent for this stage, we're done.
       const sentLog = invoiceLogs.find(l => l.chase_stage === nextStageId && l.status === 'sent')
-      const checkInLog = invoiceLogs.find(l => l.chase_stage === nextStageId && l.status === 'check_in_sent')
+      if (sentLog) { results.skipped++; continue }
 
-      // Chase already sent for this stage, or check-in already sent — nothing to do today
-      if (sentLog || checkInLog) { results.skipped++; continue }
+      // If a check-in was sent for this stage and it's been less than 3 days,
+      // wait — don't spam the freelancer. After 3+ days of silence we re-send
+      // the check-in to nudge them. Logs are already sorted sent_at DESC, so
+      // .find returns the most recent check-in.
+      const checkInLog = invoiceLogs.find(l => l.chase_stage === nextStageId && l.status === 'check_in_sent')
+      if (checkInLog) {
+        const daysSinceCheckIn = Math.floor((Date.now() - new Date(checkInLog.sent_at).getTime()) / 86400000)
+        if (daysSinceCheckIn < 3) { results.skipped++; continue }
+      }
 
       // No check-in sent yet — send one to the freelancer asking for approval
       const checkInEmail = buildCheckInEmail(invoice, profile, nextStageId)
