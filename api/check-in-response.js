@@ -3,7 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
-import { friendlySubject, friendlyBody, legalSubject, legalBody } from './_toneModifiers.js'
+import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -125,71 +125,6 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
       </div>
     </div>`
 
-  const subjects = {
-    reminder_1: `Payment reminder: Invoice ${invoice.ref} — ${fmt(invoice.amount)}`,
-    reminder_2: `Upcoming: Invoice ${invoice.ref} due tomorrow — ${fmt(invoice.amount)}`,
-    final_warning: `URGENT: Invoice ${invoice.ref} — last chance to settle at ${fmt(invoice.amount)}`,
-    first_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed`,
-    second_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed (interest applied)`,
-    final_notice: `FINAL NOTICE: Invoice ${invoice.ref} — ${fmt(total)} overdue. Legal action pending.`,
-  }
-
-  const bodies = {
-    reminder_1: `
-      <p>Dear ${invoice.client_name},</p>
-      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
-      <p>Please ensure payment is made by the due date to avoid any late payment charges.</p>
-      ${payBlock}
-      <p>If you've already made payment, please disregard this message.</p>
-      <p>Kind regards,<br/>${fromName}</p>`,
-    reminder_2: `
-      <p>Dear ${invoice.client_name},</p>
-      <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
-      <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, interest and penalties will be applied if payment is not received by the due date.</p>
-      ${payBlock}
-      <p>Kind regards,<br/>${fromName}</p>`,
-    final_warning: `
-      <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
-      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
-      <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>. This means the amount owed will increase from tomorrow.</p>
-      <p>Please arrange payment immediately to avoid additional charges.</p>
-      ${payBlock}
-      <p>Regards,<br/>${fromName}</p>`,
-    first_chase: `
-      <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
-      <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, statutory interest at <strong>${RATE}% per annum</strong> and a fixed penalty have now been applied. The current balance is:</p>
-      ${interestTable}
-      <p>Please arrange payment of <strong>${fmt(total)}</strong> without further delay. Interest continues to accrue daily.</p>
-      ${payBlock}
-      <p>Regards,<br/>${fromName}</p>`,
-    second_chase: `
-      <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Under the Late Payment of Commercial Debts (Interest) Act 1998, the following charges have been applied:</p>
-      <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
-        <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
-      </table>
-      <p>Please settle this amount immediately to prevent further charges.</p>
-      ${payBlock}
-      <p>Regards,<br/>${fromName}</p>`,
-    final_notice: `
-      <p>Dear ${invoice.client_name},</p>
-      <p><strong>This is a final notice before we consider further action.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is now <strong>${dl} days overdue</strong>. Despite previous communications, payment has not been received.</p>
-      <p>The total amount now owed, including statutory interest and penalties under the Late Payment of Commercial Debts (Interest) Act 1998, is:</p>
-      <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
-        <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
-        <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Penalty: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
-      </div>
-      <p>If payment is not received within <strong>7 days</strong>, we will have no choice but to pursue this debt through formal channels, which may include referral to a debt recovery agency or legal proceedings.</p>
-      ${payBlock}
-      <p>Regards,<br/>${fromName}</p>`,
-  }
 
   // Build shared blocks for tone modifiers
   const lineBlock = ''
@@ -220,8 +155,8 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
     subject = legalSubject(stage, toneCtx)
     body = legalBody(stage, toneCtx)
   } else {
-    subject = subjects[stage] || subjects.first_chase
-    body = bodies[stage] || bodies.first_chase
+    subject = firmSubject(stage, toneCtx)
+    body = firmBody(stage, toneCtx)
   }
 
   const html = `<!DOCTYPE html>
