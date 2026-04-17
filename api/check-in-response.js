@@ -129,7 +129,7 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
     reminder_1: `Payment reminder: Invoice ${invoice.ref} — ${fmt(invoice.amount)}`,
     reminder_2: `Upcoming: Invoice ${invoice.ref} due tomorrow — ${fmt(invoice.amount)}`,
     final_warning: `URGENT: Invoice ${invoice.ref} — last chance to settle at ${fmt(invoice.amount)}`,
-    first_chase: `OVERDUE: Invoice ${invoice.ref} — payment required`,
+    first_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed`,
     second_chase: `OVERDUE: Invoice ${invoice.ref} — ${fmt(total)} now owed (interest applied)`,
     final_notice: `FINAL NOTICE: Invoice ${invoice.ref} — ${fmt(total)} overdue. Legal action pending.`,
   }
@@ -159,8 +159,9 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
-      <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, we are entitled to charge interest at <strong>${RATE}% per annum</strong> and a fixed penalty. Interest is now accruing on this debt.</p>
-      <p>Please arrange payment immediately.</p>
+      <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, statutory interest at <strong>${RATE}% per annum</strong> and a fixed penalty have now been applied. The current balance is:</p>
+      ${interestTable}
+      <p>Please arrange payment of <strong>${fmt(total)}</strong> without further delay. Interest continues to accrue daily.</p>
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>`,
     second_chase: `
