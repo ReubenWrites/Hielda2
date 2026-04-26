@@ -200,12 +200,17 @@ function buildCheckInEmail(invoice, profile, stage) {
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  // Verify the request is from Vercel Cron (or a manual test with the secret)
+  // Accept the secret via Authorization header OR ?secret= query param.
+  // Query-param fallback is needed because external cron services (cron-job.org)
+  // hitting the apex domain follow the 308 redirect to www and drop the
+  // Authorization header on the way through.
   if (!CRON_SECRET) {
     return res.status(500).json({ error: 'CRON_SECRET not configured' })
   }
-  const authHeader = req.headers.authorization
-  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+  const headerOk = req.headers.authorization === `Bearer ${CRON_SECRET}`
+  const querySecret = typeof req.query?.secret === 'string' ? req.query.secret : null
+  const queryOk = querySecret !== null && querySecret === CRON_SECRET
+  if (!headerOk && !queryOk) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
@@ -230,12 +235,21 @@ export default async function handler(req, res) {
   results.status_updates = updated || 0
 
   // ── Step 2: Find users with active subscriptions ──────────────────────────
+  // 'trialing' rows whose trial_end has passed must be excluded — if a user
+  // never converts to paid, no Stripe webhook fires and the row sits at
+  // 'trialing' forever, which would otherwise keep them being chased after
+  // their trial expired.
   const { data: activeSubs } = await supabase
     .from('subscriptions')
-    .select('user_id')
+    .select('user_id, status, trial_end')
     .in('status', ['active', 'trialing'])
 
-  const activeUserIds = [...new Set((activeSubs || []).map(s => s.user_id))]
+  const now = Date.now()
+  const activeUserIds = [...new Set(
+    (activeSubs || [])
+      .filter(s => s.status === 'active' || (s.status === 'trialing' && s.trial_end && new Date(s.trial_end).getTime() > now))
+      .map(s => s.user_id)
+  )]
 
   if (activeUserIds.length === 0) {
     return res.status(200).json({ ...results, message: 'No active subscribers — nothing to chase' })

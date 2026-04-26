@@ -19,7 +19,7 @@ function isActive(sub) {
   return false
 }
 
-export default function SubscriptionGate({ subscription, onUpgrade, children }) {
+export default function SubscriptionGate({ subscription, onUpgrade, allowAccess = false, children }) {
   const sub = subscription
   const active = isActive(sub)
   const daysLeft = getTrialDaysRemaining(sub)
@@ -43,8 +43,8 @@ export default function SubscriptionGate({ subscription, onUpgrade, children }) 
     </div>
   ) : null
 
-  // Paywall for expired trials
-  if (!active) {
+  // Paywall for expired trials — bypassed on the billing page so users can pay
+  if (!active && !allowAccess) {
     return (
       <div className={s.paywall}>
         <div className={s.paywallIcon}>🛡️</div>
