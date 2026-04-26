@@ -235,12 +235,21 @@ export default async function handler(req, res) {
   results.status_updates = updated || 0
 
   // ── Step 2: Find users with active subscriptions ──────────────────────────
+  // 'trialing' rows whose trial_end has passed must be excluded — if a user
+  // never converts to paid, no Stripe webhook fires and the row sits at
+  // 'trialing' forever, which would otherwise keep them being chased after
+  // their trial expired.
   const { data: activeSubs } = await supabase
     .from('subscriptions')
-    .select('user_id')
+    .select('user_id, status, trial_end')
     .in('status', ['active', 'trialing'])
 
-  const activeUserIds = [...new Set((activeSubs || []).map(s => s.user_id))]
+  const now = Date.now()
+  const activeUserIds = [...new Set(
+    (activeSubs || [])
+      .filter(s => s.status === 'active' || (s.status === 'trialing' && s.trial_end && new Date(s.trial_end).getTime() > now))
+      .map(s => s.user_id)
+  )]
 
   if (activeUserIds.length === 0) {
     return res.status(200).json({ ...results, message: 'No active subscribers — nothing to chase' })

@@ -438,7 +438,7 @@ export default function App() {
         <main className={s.content}>
           <div className={s.dotPattern} />
           <div className={s.contentInner}>
-            <SubscriptionGate subscription={subscription} onUpgrade={() => navigate("/billing")}>
+            <SubscriptionGate subscription={subscription} onUpgrade={() => navigate("/billing")} allowAccess={location.pathname === "/billing"}>
               {dataError && (
                 <div role="alert" className={s.errorBanner}>
                   <span>{dataError}</span>
