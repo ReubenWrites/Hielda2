@@ -23,7 +23,8 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [customDays, setCustomDays] = useState(isCustomDefault ? defaultTerms : "")
   const [date, setDate] = useState(todayStr())
   const [step, setStep] = useState(1)
-  const [meth, setMeth] = useState(null)
+  // Default to send-via-Hielda; users opt out via checkbox in step 2.
+  const [meth, setMeth] = useState("portal")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [ref, setRef] = useState(() => {
@@ -238,7 +239,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     setCa("")
     setLineItems([{ description: "", amount: "", vatRate: defaultVatRate }])
     setStep(1)
-    setMeth(null)
+    setMeth("portal")
     setError("")
     setClientRef("")
     setCc("")
@@ -828,23 +829,34 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             </div>
           </Card>
 
-          <div className={s.methodGrid}>
-            <Card onClick={() => setMeth("portal")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "portal" ? c.ac : c.bd, background: meth === "portal" ? c.acd : c.sf }}>
-              <div className={s.methodIcon} aria-hidden="true">📧</div>
-              <div className={s.methodTitle}>Send via Hielda</div>
-              <div className={s.methodSubtext}>We email and track automatically.</div>
-            </Card>
-            <Card onClick={() => setMeth("download")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "download" ? c.ac : c.bd, background: meth === "download" ? c.acd : c.sf }}>
-              <div className={s.methodIcon} aria-hidden="true">📥</div>
-              <div className={s.methodTitle}>Download & Send</div>
-              <div className={s.methodSubtext}>We still track and chase for you.</div>
-            </Card>
-          </div>
+          <Card style={{ marginBottom: 16 }}>
+            <div className={s.introCheckRow}>
+              <input
+                type="checkbox"
+                id="sendDownload"
+                checked={meth === "download"}
+                onChange={(e) => setMeth(e.target.checked ? "download" : "portal")}
+                className={s.introCheckbox}
+              />
+              <div className={s.introCheckContent}>
+                <label htmlFor="sendDownload" className={s.introLabel}>
+                  I'll send the PDF to {cn || "the client"} myself
+                </label>
+                <span className={s.introSubtext}>
+                  By default Hielda emails the invoice for you and chases automatically. Tick this if you'd rather download the PDF and send it yourself — Hielda will still chase if it goes unpaid.
+                </span>
+              </div>
+            </div>
+          </Card>
 
           <div className={s.step2Footer}>
             <Btn v="ghost" onClick={() => setStep(1)}>← Back</Btn>
-            <Btn dis={!meth || saving} onClick={go}>
-              {saving ? "Creating..." : meth === "portal" ? "Send Invoice" : "Create & Download"} →
+            <Btn dis={saving} onClick={go}>
+              {saving
+                ? "Creating..."
+                : meth === "download"
+                  ? "📥 Create & Download"
+                  : `📧 Send to ${cn || "client"}`}
             </Btn>
           </div>
         </div>
