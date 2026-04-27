@@ -360,15 +360,31 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     if (!newInvId) return
     setDownloading(true)
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("generate-invoice-pdf", { body: { invoice_id: newInvId } })
-      if (fnErr) throw fnErr
-      const blob = new Blob([data], { type: "application/pdf" })
-      const url = URL.createObjectURL(blob)
+      const { data: { session } } = await supabase.auth.getSession()
+      const apikey = import.meta.env.VITE_SUPABASE_KEY
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-invoice-pdf`
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey,
+          Authorization: `Bearer ${session?.access_token || apikey}`,
+        },
+        body: JSON.stringify({ invoice_id: newInvId }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg || `PDF generation failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
-      a.href = url
+      a.href = objectUrl
       a.download = `${ref}.pdf`
       a.click()
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(objectUrl)
       trackEvent("pdf_downloaded", { ref })
     } catch (e) {
       setError("PDF generation failed: " + e.message)

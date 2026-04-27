@@ -354,17 +354,34 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setDownloading(true)
     setError("")
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("generate-invoice-pdf", {
-        body: { invoice_id: inv.id },
+      // Direct fetch (rather than supabase.functions.invoke) so we can read
+      // the JSON error body when the function returns 5xx — invoke() only
+      // surfaces a generic "non-2xx" message which hides the real cause.
+      const { data: { session } } = await supabase.auth.getSession()
+      const apikey = import.meta.env.VITE_SUPABASE_KEY
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-invoice-pdf`
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey,
+          Authorization: `Bearer ${session?.access_token || apikey}`,
+        },
+        body: JSON.stringify({ invoice_id: inv.id }),
       })
-      if (fnErr) throw fnErr
-      const blob = new Blob([data], { type: "application/pdf" })
-      const url = URL.createObjectURL(blob)
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg || `PDF generation failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
-      a.href = url
+      a.href = objectUrl
       a.download = `${inv.ref}.pdf`
       a.click()
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(objectUrl)
       trackEvent("pdf_downloaded", { ref: inv.ref })
     } catch (e) {
       setError("PDF generation failed: " + e.message)
@@ -420,16 +437,18 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setMarking(false)
   }
 
-  const sendChaseEmail = async () => {
+  const sendChaseEmail = async ({ skipConfirm = false } = {}) => {
     if (sending) return // Guard against double-clicks
     const stage = currentSendStage
     const stageLabel = getStageLabel(stage)
 
-    const ccList = ccEmails.trim() ? `, CC: ${ccEmails.trim()}` : ""
-    const confirmed = window.confirm(
-      `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be CC'd automatically.`
-    )
-    if (!confirmed) return
+    if (!skipConfirm) {
+      const ccList = ccEmails.trim() ? `, CC: ${ccEmails.trim()}` : ""
+      const confirmed = window.confirm(
+        `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be CC'd automatically.`
+      )
+      if (!confirmed) return
+    }
 
     setSending(true)
     setError("")
@@ -1279,7 +1298,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.modalFooter}>
               <Btn v="ghost" onClick={() => setPreviewHtml(null)} sz="sm">Close</Btn>
               <Btn
-                onClick={() => { setPreviewHtml(null); sendChaseEmail() }}
+                onClick={() => { setPreviewHtml(null); sendChaseEmail({ skipConfirm: true }) }}
                 dis={sending}
                 sz="sm"
               >
