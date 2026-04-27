@@ -52,6 +52,23 @@ function safeSplit(v: unknown): string[] {
   return typeof v === "string" ? v.split("\n") : []
 }
 
+// Browsers preflight any POST with Content-Type: application/json. Without
+// an OPTIONS handler + Allow headers the preflight fails and the browser
+// blocks the real request, surfacing as "Failed to send a request to the
+// Edge Function" client-side.
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
+
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  })
+}
+
 async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
   try {
     const res = await fetch(url)
@@ -74,6 +91,10 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; format: 
 }
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS })
+  }
+
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -81,7 +102,7 @@ serve(async (req) => {
     const RATE = (typeof requestedRate === "number" && requestedRate > 0) ? requestedRate : DEFAULT_RATE
     const DAILY_RATE = RATE / 365 / 100
     if (!invoice_id) {
-      return new Response(JSON.stringify({ error: "invoice_id required" }), { status: 400 })
+      return jsonError("invoice_id required", 400)
     }
 
     // Fetch invoice
@@ -92,7 +113,7 @@ serve(async (req) => {
       .single()
 
     if (invErr || !invoice) {
-      return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404 })
+      return jsonError("Invoice not found", 404)
     }
 
     // Fetch profile
@@ -103,7 +124,7 @@ serve(async (req) => {
       .single()
 
     if (profErr || !profile) {
-      return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404 })
+      return jsonError("Profile not found", 404)
     }
 
     // Calculate overdue amounts
@@ -435,14 +456,12 @@ serve(async (req) => {
 
     return new Response(pdfOutput, {
       headers: {
+        ...CORS_HEADERS,
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${invoice.ref}.pdf"`,
+        "Content-Disposition": `attachment; filename="${safe(invoice.ref, "invoice")}.pdf"`,
       },
     })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    })
+    return jsonError(e.message, 500)
   }
 })
