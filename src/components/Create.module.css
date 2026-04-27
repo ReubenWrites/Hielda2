@@ -66,6 +66,25 @@
   border-radius: 8px;
 }
 
+.introSendErrorBanner {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  max-width: 480px;
+  text-align: left;
+}
+
+.introSendErrorHint {
+  font-size: 12px;
+  color: #7f1d1d;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
 .introSelfWrap {
   width: 100%;
   max-width: 480px;

@@ -23,7 +23,8 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [customDays, setCustomDays] = useState(isCustomDefault ? defaultTerms : "")
   const [date, setDate] = useState(todayStr())
   const [step, setStep] = useState(1)
-  const [meth, setMeth] = useState(null)
+  // Default to send-via-Hielda; users opt out via checkbox in step 2.
+  const [meth, setMeth] = useState("portal")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [ref, setRef] = useState(() => {
@@ -41,7 +42,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
   const [sendIntro, setSendIntro] = useState(true)
-  const [introMethod, setIntroMethod] = useState(null)
+  // Default to having Hielda send the intro+invoice email — without this
+  // default, picking "Send via Hielda" in step 2 silently delivered nothing
+  // to the client because go() only fires the email when both flags are set.
+  const [introMethod, setIntroMethod] = useState("hielda")
+  const [introSendError, setIntroSendError] = useState("")
   const [introText, setIntroText] = useState("")
   const [introCopied, setIntroCopied] = useState(false)
   const [showIntroInfo, setShowIntroInfo] = useState(false)
@@ -238,7 +243,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     setCa("")
     setLineItems([{ description: "", amount: "", vatRate: defaultVatRate }])
     setStep(1)
-    setMeth(null)
+    setMeth("portal")
     setError("")
     setClientRef("")
     setCc("")
@@ -247,7 +252,8 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     const rNum = (profile?.next_invoice_number || 1) + 1
     setRef(`${rPrefix}-${String(rNum).padStart(4, "0")}`)
     setSendIntro(false)
-    setIntroMethod(null)
+    setIntroMethod("hielda")
+    setIntroSendError("")
     setIntroText("")
     setIntroCopied(false)
   }
@@ -294,20 +300,34 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       await supabase.rpc("increment_invoice_number", { p_user_id: userId })
       onCreated()
 
-      // Send client intro email if requested
+      // Send client intro email if requested. The invoice is already saved
+      // at this point — if the email fails we still advance to step 3 and
+      // surface the failure there so the user can retry/download instead of
+      // silently believing the client received it.
+      setIntroSendError("")
       if (sendIntro && introMethod === "hielda") {
-        const { data: { session } } = await supabase.auth.getSession()
-        await fetch("/api/send-intro-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            client_name: cn,
-            client_email: ce,
-            intro_text: introText,
-            invoice_id: newInv.id,
-            user_token: session?.access_token,
-          }),
-        })
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          const introRes = await fetch("/api/send-intro-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              client_name: cn,
+              client_email: ce,
+              intro_text: introText,
+              invoice_id: newInv.id,
+              user_token: session?.access_token,
+            }),
+          })
+          if (!introRes.ok) {
+            const text = await introRes.text()
+            let msg = text
+            try { msg = JSON.parse(text).error || text } catch {}
+            setIntroSendError(msg || `Email send failed (${introRes.status})`)
+          }
+        } catch (e) {
+          setIntroSendError(e.message || "Email send failed")
+        }
       }
 
       setStep(3)
@@ -360,15 +380,31 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     if (!newInvId) return
     setDownloading(true)
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("generate-invoice-pdf", { body: { invoice_id: newInvId } })
-      if (fnErr) throw fnErr
-      const blob = new Blob([data], { type: "application/pdf" })
-      const url = URL.createObjectURL(blob)
+      const { data: { session } } = await supabase.auth.getSession()
+      const apikey = import.meta.env.VITE_SUPABASE_KEY
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-invoice-pdf`
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey,
+          Authorization: `Bearer ${session?.access_token || apikey}`,
+        },
+        body: JSON.stringify({ invoice_id: newInvId }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg || `PDF generation failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
-      a.href = url
+      a.href = objectUrl
       a.download = `${ref}.pdf`
       a.click()
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(objectUrl)
       trackEvent("pdf_downloaded", { ref })
     } catch (e) {
       setError("PDF generation failed: " + e.message)
@@ -399,8 +435,16 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         <p className={s.successRef}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
         <p className={s.subtextSmall}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
 
-        {sendIntro && introMethod === "hielda" && (
+        {sendIntro && introMethod === "hielda" && !introSendError && (
           <div className={s.introSentBadge}>✓ Introduction email sent to {cn}</div>
+        )}
+        {sendIntro && introMethod === "hielda" && introSendError && (
+          <div role="alert" className={s.introSendErrorBanner}>
+            <strong>⚠ Email to {cn} failed:</strong> {introSendError}
+            <div className={s.introSendErrorHint}>
+              The invoice is saved. Open it from the dashboard to retry sending, or download the PDF below.
+            </div>
+          </div>
         )}
 
         {sendIntro && introMethod === "self" && (
@@ -416,7 +460,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           </div>
         )}
 
-        {meth === "download" && (
+        {(meth === "download" || introSendError) && (
           <div className={s.downloadWrap}>
             <Btn onClick={downloadPdf} dis={downloading}>
               {downloading ? "Generating PDF..." : "⬇ Download Invoice PDF"}
@@ -812,23 +856,34 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             </div>
           </Card>
 
-          <div className={s.methodGrid}>
-            <Card onClick={() => setMeth("portal")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "portal" ? c.ac : c.bd, background: meth === "portal" ? c.acd : c.sf }}>
-              <div className={s.methodIcon} aria-hidden="true">📧</div>
-              <div className={s.methodTitle}>Send via Hielda</div>
-              <div className={s.methodSubtext}>We email and track automatically.</div>
-            </Card>
-            <Card onClick={() => setMeth("download")} style={{ cursor: "pointer", textAlign: "center", borderColor: meth === "download" ? c.ac : c.bd, background: meth === "download" ? c.acd : c.sf }}>
-              <div className={s.methodIcon} aria-hidden="true">📥</div>
-              <div className={s.methodTitle}>Download & Send</div>
-              <div className={s.methodSubtext}>We still track and chase for you.</div>
-            </Card>
-          </div>
+          <Card style={{ marginBottom: 16 }}>
+            <div className={s.introCheckRow}>
+              <input
+                type="checkbox"
+                id="sendDownload"
+                checked={meth === "download"}
+                onChange={(e) => setMeth(e.target.checked ? "download" : "portal")}
+                className={s.introCheckbox}
+              />
+              <div className={s.introCheckContent}>
+                <label htmlFor="sendDownload" className={s.introLabel}>
+                  I'll send the PDF to {cn || "the client"} myself
+                </label>
+                <span className={s.introSubtext}>
+                  By default Hielda emails the invoice for you and chases automatically. Tick this if you'd rather download the PDF and send it yourself — Hielda will still chase if it goes unpaid.
+                </span>
+              </div>
+            </div>
+          </Card>
 
           <div className={s.step2Footer}>
             <Btn v="ghost" onClick={() => setStep(1)}>← Back</Btn>
-            <Btn dis={!meth || saving} onClick={go}>
-              {saving ? "Creating..." : meth === "portal" ? "Send Invoice" : "Create & Download"} →
+            <Btn dis={saving} onClick={go}>
+              {saving
+                ? "Creating..."
+                : meth === "download"
+                  ? "📥 Create & Download"
+                  : `📧 Send to ${cn || "client"}`}
             </Btn>
           </div>
         </div>
