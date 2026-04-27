@@ -42,7 +42,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
   const [sendIntro, setSendIntro] = useState(true)
-  const [introMethod, setIntroMethod] = useState(null)
+  // Default to having Hielda send the intro+invoice email — without this
+  // default, picking "Send via Hielda" in step 2 silently delivered nothing
+  // to the client because go() only fires the email when both flags are set.
+  const [introMethod, setIntroMethod] = useState("hielda")
+  const [introSendError, setIntroSendError] = useState("")
   const [introText, setIntroText] = useState("")
   const [introCopied, setIntroCopied] = useState(false)
   const [showIntroInfo, setShowIntroInfo] = useState(false)
@@ -248,7 +252,8 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     const rNum = (profile?.next_invoice_number || 1) + 1
     setRef(`${rPrefix}-${String(rNum).padStart(4, "0")}`)
     setSendIntro(false)
-    setIntroMethod(null)
+    setIntroMethod("hielda")
+    setIntroSendError("")
     setIntroText("")
     setIntroCopied(false)
   }
@@ -295,20 +300,34 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       await supabase.rpc("increment_invoice_number", { p_user_id: userId })
       onCreated()
 
-      // Send client intro email if requested
+      // Send client intro email if requested. The invoice is already saved
+      // at this point — if the email fails we still advance to step 3 and
+      // surface the failure there so the user can retry/download instead of
+      // silently believing the client received it.
+      setIntroSendError("")
       if (sendIntro && introMethod === "hielda") {
-        const { data: { session } } = await supabase.auth.getSession()
-        await fetch("/api/send-intro-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            client_name: cn,
-            client_email: ce,
-            intro_text: introText,
-            invoice_id: newInv.id,
-            user_token: session?.access_token,
-          }),
-        })
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          const introRes = await fetch("/api/send-intro-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              client_name: cn,
+              client_email: ce,
+              intro_text: introText,
+              invoice_id: newInv.id,
+              user_token: session?.access_token,
+            }),
+          })
+          if (!introRes.ok) {
+            const text = await introRes.text()
+            let msg = text
+            try { msg = JSON.parse(text).error || text } catch {}
+            setIntroSendError(msg || `Email send failed (${introRes.status})`)
+          }
+        } catch (e) {
+          setIntroSendError(e.message || "Email send failed")
+        }
       }
 
       setStep(3)
@@ -416,8 +435,16 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         <p className={s.successRef}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
         <p className={s.subtextSmall}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
 
-        {sendIntro && introMethod === "hielda" && (
+        {sendIntro && introMethod === "hielda" && !introSendError && (
           <div className={s.introSentBadge}>✓ Introduction email sent to {cn}</div>
+        )}
+        {sendIntro && introMethod === "hielda" && introSendError && (
+          <div role="alert" className={s.introSendErrorBanner}>
+            <strong>⚠ Email to {cn} failed:</strong> {introSendError}
+            <div className={s.introSendErrorHint}>
+              The invoice is saved. Open it from the dashboard to retry sending, or download the PDF below.
+            </div>
+          </div>
         )}
 
         {sendIntro && introMethod === "self" && (
@@ -433,7 +460,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           </div>
         )}
 
-        {meth === "download" && (
+        {(meth === "download" || introSendError) && (
           <div className={s.downloadWrap}>
             <Btn onClick={downloadPdf} dis={downloading}>
               {downloading ? "Generating PDF..." : "⬇ Download Invoice PDF"}
