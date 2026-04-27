@@ -24,6 +24,34 @@ function formatDate(d: string): string {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
 
+// jsPDF.text throws on null/undefined/non-string input. Coerce at every
+// potentially-nullable call site so a missing field doesn't 500 the
+// whole PDF generation — render a placeholder instead.
+function safe(v: unknown, fallback = "—"): string {
+  if (v === null || v === undefined) return fallback
+  return String(v)
+}
+
+// Schema says line_items is jsonb (an array), but defend against rows
+// where the value somehow ended up as a JSON string — for-of on a string
+// silently iterates characters and produces a garbage PDF.
+function coerceLineItems(v: unknown): Array<{ description?: string; amount?: number | string; vatRate?: string }> | null {
+  if (Array.isArray(v)) return v
+  if (typeof v === "string") {
+    try {
+      const parsed = JSON.parse(v)
+      return Array.isArray(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function safeSplit(v: unknown): string[] {
+  return typeof v === "string" ? v.split("\n") : []
+}
+
 async function fetchImageAsBase64(url: string): Promise<{ data: string; format: string } | null> {
   try {
     const res = await fetch(url)
@@ -93,11 +121,13 @@ serve(async (req) => {
     const pen = isOverdue && !isConsumer && finesEnabled ? penalty(netAmount) : 0
     const total = invoiceTotal + interest + pen
 
+    const lineItems = coerceLineItems(invoice.line_items)
+
     // Build VAT breakdown from line items
     const vatBreakdown: Record<string, number> = {}
-    if (hasVat && invoice.line_items) {
-      for (const li of invoice.line_items) {
-        const amt = parseFloat(li.amount) || 0
+    if (hasVat && lineItems) {
+      for (const li of lineItems) {
+        const amt = parseFloat(String(li.amount ?? "")) || 0
         const rate = li.vatRate || "0"
         if (rate === "exempt" || rate === "0") continue
         const rateNum = parseFloat(rate) || 0
@@ -149,19 +179,17 @@ serve(async (req) => {
     doc.text("INVOICE", 20, y)
 
     doc.setFontSize(22)
-    doc.text(invoice.ref, 20, y + 10)
+    doc.text(safe(invoice.ref), 20, y + 10)
 
     // Business info (right side, below logo/name)
     const infoTop = logoImg ? y + 16 : y + 5
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(gray)
-    if (profile.address) {
-      const addrLines = profile.address.split("\n")
-      addrLines.forEach((line: string, i: number) => {
-        doc.text(line.trim(), 190, infoTop + i * 4, { align: "right" })
-      })
-    }
+    const addrLines = safeSplit(profile.address)
+    addrLines.forEach((line: string, i: number) => {
+      doc.text(line.trim(), 190, infoTop + i * 4, { align: "right" })
+    })
     if (profile.email) {
       doc.text(profile.email, 190, infoTop + 20, { align: "right" })
     }
@@ -191,12 +219,10 @@ serve(async (req) => {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(gray)
-    if (invoice.client_address) {
-      const clientLines = invoice.client_address.split("\n")
-      clientLines.forEach((line: string, i: number) => {
-        doc.text(line.trim(), 20, y + 5 + i * 4)
-      })
-    }
+    const clientLines = safeSplit(invoice.client_address)
+    clientLines.forEach((line: string, i: number) => {
+      doc.text(line.trim(), 20, y + 5 + i * 4)
+    })
     if (invoice.client_email) {
       doc.text(invoice.client_email, 20, y + 18)
     }
@@ -234,13 +260,13 @@ serve(async (req) => {
     doc.line(20, y, 190, y)
 
     // Render individual line items if available
-    if (invoice.line_items?.length) {
-      for (const li of invoice.line_items) {
+    if (lineItems?.length) {
+      for (const li of lineItems) {
         y += 7
         doc.setFontSize(10)
         doc.setTextColor(dark)
         doc.setFont("helvetica", "normal")
-        doc.text(li.description || "—", 20, y)
+        doc.text(safe(li.description, "—"), 20, y)
         if (hasVat) {
           doc.setFontSize(9)
           doc.setTextColor(gray)
@@ -249,7 +275,7 @@ serve(async (req) => {
         }
         doc.setFontSize(10)
         doc.setTextColor(dark)
-        doc.text(fmt(parseFloat(li.amount) || 0), 190, y, { align: "right" })
+        doc.text(fmt(parseFloat(String(li.amount ?? "")) || 0), 190, y, { align: "right" })
       }
     } else {
       y += 7
