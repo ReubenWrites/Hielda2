@@ -57,9 +57,20 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
       })
 
       if (fnErr) {
-        const status = fnErr.context?.status || fnErr.status || "?"
-        const body = await fnErr.context?.text?.() || fnErr.context?.body || ""
-        throw new Error(`HTTP ${status}: ${body || fnErr.message}`)
+        const status = fnErr.context?.status || fnErr.status
+        let body = ""
+        try { body = await fnErr.context?.text?.() || fnErr.context?.body || "" } catch {}
+        let parsed = null
+        try { parsed = body ? JSON.parse(body) : null } catch {}
+        // 409 = the server detected an existing live subscription on this
+        // Stripe customer and refused to create a parallel one. Send the
+        // user to the portal so they can manage what they already have
+        // instead of accidentally re-subscribing.
+        if (status === 409 || parsed?.code === "already_subscribed") {
+          await handlePortal()
+          return
+        }
+        throw new Error(parsed?.error || body || fnErr.message || `Checkout failed (${status || "?"})`)
       }
       if (data?.url) {
         window.location.href = data.url
