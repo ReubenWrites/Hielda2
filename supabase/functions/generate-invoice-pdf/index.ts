@@ -350,7 +350,7 @@ serve(async (req) => {
       if (pen > 0) {
         y += 6
         doc.setTextColor("#a16207")
-        doc.text("Fixed penalty", 120, y)
+        doc.text("Fixed debt recovery cost", 120, y)
         doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
       }
 

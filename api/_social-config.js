@@ -54,13 +54,13 @@ export const EXAMPLES = {
   ],
   law_fact: [
     'If a business pays you late, you can legally charge 8% + Bank of England base rate in interest. That\'s currently 11.75% per year. It\'s not a threat — it\'s the law.',
-    'The Late Payment Act 1998 also gives you a fixed penalty on top of interest: £40, £70 or £100 depending on invoice size. Most freelancers don\'t claim it.',
+    'The Late Payment Act 1998 also gives you a fixed debt recovery cost on top of interest: £40, £70 or £100 depending on invoice size. Most freelancers don\'t claim it.',
     'You don\'t need a contract clause to charge late payment interest in the UK. The Act gives you the right automatically on B2B transactions.',
     'A £5,000 invoice that\'s 30 days late? You\'re owed an extra £118 in interest and penalties. Legally. Most people don\'t bother claiming it.',
     'The Late Payment Act applies to all B2B transactions in England, Wales and Scotland. If a business owes you money, you have rights.',
     'Fun fact: your client\'s contract can\'t override the Late Payment Act. Even if they say "no interest on late payments" — that clause is void.',
     'Statutory interest starts accruing the day after the due date. Not when you notice. Not when you chase. The day after.',
-    'If your invoice is under £1,000, the fixed penalty is £40. Between £1k-£10k it\'s £70. Over £10k it\'s £100. On top of interest.',
+    'If your invoice is under £1,000, the fixed debt recovery cost is £40. Between £1k-£10k it\'s £70. Over £10k it\'s £100. On top of interest.',
     'The Late Payment Act was designed to protect freelancers and SMEs. It\'s been law for over 25 years. Most people still don\'t use it.',
     'A County Court Judgement (CCJ) stays on a company\'s credit file for 6 years. That\'s usually all the motivation they need to pay up.',
     'You can claim late payment interest even if you didn\'t mention it on the original invoice. The law applies automatically.',
@@ -164,7 +164,7 @@ export const REPLY_TEMPLATES = {
   ],
   advice: [
     'Quick tip: chase on day 1, not day 30. The longer you wait, the harder it gets to collect.',
-    'If it helps — under the Late Payment Act 1998 you can charge a fixed penalty (£40-£100) plus interest. You don\'t even need it in your contract.',
+    'If it helps — under the Late Payment Act 1998 you can charge a fixed debt recovery cost (£40-£100) plus interest. You don\'t even need it in your contract.',
     'One thing that helped us: put "Late Payment Act 1998 applies" on every invoice. It changes the dynamic.',
   ],
   calculator: [

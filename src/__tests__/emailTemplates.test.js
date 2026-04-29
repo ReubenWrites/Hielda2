@@ -51,7 +51,9 @@ describe('buildChaseEmail', () => {
     const email = buildChaseEmail(mockInvoice, mockProfile, 'second_chase')
     expect(email).not.toBeNull()
     expect(email.subject).toContain('OVERDUE')
-    expect(email.html).toContain('penalty')
+    // Statutory wording uses "debt recovery cost" — the Act calls the
+    // £40/£70/£100 a "fixed sum (debt recovery cost)", not a "penalty".
+    expect(email.html.toLowerCase()).toContain('debt recovery cost')
   })
 
   it('returns null for unknown stage', () => {

@@ -52,7 +52,7 @@ export default function HowItWorks() {
               <strong className={s.legalStrong}>Late Payment of Commercial Debts (Interest) Act 1998</strong>.
             </p>
             <div className={s.infoBox}>
-              <div className={s.infoRow}><strong className={s.legalStrong}>Penalty:</strong> £40 / £70 / £100</div>
+              <div className={s.infoRow}><strong className={s.legalStrong}>Fixed debt recovery cost:</strong> £40 / £70 / £100</div>
               <div className={s.infoRow}>
                 <strong className={s.legalStrong}>Interest:</strong> 8% + BoE ({getBoe()}%) ={" "}
                 <span className={s.rateValue}>{getRate()}%</span> p.a.
@@ -115,9 +115,9 @@ export default function HowItWorks() {
         </Card>
 
         <Card>
-          <h3 className={s.penaltyTitle}>Penalty Breakdown</h3>
+          <h3 className={s.penaltyTitle}>Fixed debt recovery cost</h3>
           <p className={s.penaltyIntro}>
-            The fixed penalty depends on the invoice value:
+            The fixed debt recovery cost depends on the invoice value:
           </p>
           <div className={s.penaltyTable}>
             {[

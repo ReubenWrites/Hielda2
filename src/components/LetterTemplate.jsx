@@ -93,7 +93,7 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
             background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8,
             padding: "12px 16px", margin: "16px 0", fontSize: 13,
           }}>
-            <div><strong>Fixed penalty:</strong> £40 (invoices up to £999.99) / £70 (£1,000–£9,999.99) / £100 (£10,000+)</div>
+            <div><strong>Fixed debt recovery cost:</strong> £40 (invoices up to £999.99) / £70 (£1,000–£9,999.99) / £100 (£10,000+)</div>
             <div style={{ marginTop: 4 }}><strong>Interest rate:</strong> {getRate()}% p.a. — accruing daily</div>
           </div>
 

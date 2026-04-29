@@ -114,7 +114,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
       ${lineBlock}
       <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
         <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
+        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
         <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
         <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
       </table>`
@@ -124,7 +124,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
       <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
         <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
         <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Penalty: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Debt recovery cost: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
       </div>`
 
 

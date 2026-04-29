@@ -15,7 +15,7 @@ const CALC_FAQS = [
     a: "Interest accrues daily at the statutory rate (currently the Bank of England base rate plus 8% per annum). The formula is: invoice amount × annual rate ÷ 365 × number of days overdue. Interest continues to accrue until the invoice is paid in full.",
   },
   {
-    q: "What fixed penalty can I claim on a late invoice?",
+    q: "What fixed debt recovery cost can I claim on a late invoice?",
     a: "The Act entitles you to a fixed debt recovery cost per invoice: £40 for invoices under £1,000, £70 for invoices between £1,000 and £9,999, and £100 for invoices of £10,000 or more. This is charged in addition to any interest and applies per invoice.",
   },
   {
@@ -159,7 +159,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
             <div className={s.results}>
               {[
                 { label: "Original invoice", value: fmt(parsedAmt), color: "var(--tx)" },
-                { label: `Fixed penalty (invoice ${penTier} tier)`, value: `+ ${fmt(pen)}`, color: "#d97706" },
+                { label: `Fixed debt recovery cost (invoice ${penTier} tier)`, value: `+ ${fmt(pen)}`, color: "#d97706" },
                 { label: `Interest (${parsedDays} days at ${getRate()}% p.a.)`, value: `+ ${fmt(interest)}`, color: "#d97706" },
               ].map((row) => (
                 <div key={row.label} className={s.resultRow}>
@@ -221,14 +221,14 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
           )}
         </Card>
 
-        {/* Penalty tiers info */}
+        {/* Debt recovery cost tiers info */}
         <Card style={{ marginTop: 16, padding: isMobile ? "20px" : "24px 28px" }}>
           <h3 className={s.infoTitle}>
             How it's calculated
           </h3>
           <div className={s.infoBody}>
             <p className={s.infoText}>
-              The <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong> gives businesses the right to charge interest and a fixed penalty on overdue B2B invoices.
+              The <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong> gives businesses the right to charge interest and a fixed debt recovery cost on overdue B2B invoices.
             </p>
             <div className={s.infoGrid}>
               <div className={s.infoBox}>

@@ -24,7 +24,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     ${lineBlock}
     <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
-      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Fixed penalty</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
+      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Interest (${dl} days at ${getRate()}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
       <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
     </table>`
@@ -34,7 +34,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
       <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
       <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Penalty: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Debt recovery cost: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
     </div>`
 
   const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ""
@@ -99,7 +99,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
       <p>Dear ${invoice.client_name},</p>
       <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
       <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
-      <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>.</p>
+      <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed debt recovery cost under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>.</p>
       ${lineBlock}
       ${payBlock}
       <p>Regards,<br/>${fromName}</p>
