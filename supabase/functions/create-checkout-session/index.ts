@@ -40,11 +40,41 @@ serve(async (req) => {
     // Check if user already has a Stripe customer
     const { data: sub } = await supabase
       .from("subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, stripe_subscription_id")
       .eq("user_id", user_id)
       .single()
 
     let customerId = sub?.stripe_customer_id
+
+    // Defence in depth against duplicate checkout: if the customer already
+    // has a live Stripe subscription, refuse to start a second one. Without
+    // this guard a stale tab / back button / accidental double-click can
+    // create a parallel subscription on the same customer and bill twice —
+    // our DB would only ever see the latest stripe_subscription_id so the
+    // duplicate would be invisible from inside the app.
+    if (customerId) {
+      try {
+        const existing = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "all",
+          limit: 10,
+        })
+        const liveStatuses = new Set(["active", "trialing", "past_due", "unpaid"])
+        if (existing.data.some(s => liveStatuses.has(s.status))) {
+          return new Response(JSON.stringify({
+            error: "You already have an active subscription. Use the billing portal to manage it.",
+            code: "already_subscribed",
+          }), {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          })
+        }
+      } catch {
+        // If the lookup itself fails (network blip etc), fall through and
+        // allow checkout — better to occasionally let a real signup proceed
+        // than to permanently block legitimate retries on Stripe outages.
+      }
+    }
 
     // Create Stripe customer if needed
     if (!customerId) {
