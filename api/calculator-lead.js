@@ -76,7 +76,7 @@ export default async function handler(req, res) {
           </table>
         </div>
 
-        <p>Under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, you're legally entitled to claim this amount from your client — including the fixed penalty and daily interest. You don't need a solicitor, and you don't need to have mentioned it on your original invoice.</p>
+        <p>Under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, you're legally entitled to claim this amount from your client — including the fixed debt recovery cost and daily interest. You don't need a solicitor, and you don't need to have mentioned it on your original invoice.</p>
 
         <p>Hielda automates the entire process: it sends formal chase emails, applies the statutory charges, and escalates through 19 stages — so you never have to ask awkwardly for your own money.</p>
 

@@ -660,7 +660,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               </div>
               {clientType === "consumer" && (
                 <p className={s.consumerNote}>
-                  Payment terms will be added to the invoice (contractual interest at {getRate()}% p.a. if overdue). No statutory fixed penalty applies to consumer invoices.
+                  Payment terms will be added to the invoice (contractual interest at {getRate()}% p.a. if overdue). No statutory fixed debt recovery cost applies to consumer invoices.
                 </p>
               )}
             </div>

@@ -84,7 +84,7 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
     final_warning: `
       <p>Hi ${invoice.client_name},</p>
       <p>We hope you're well. Just a reminder that invoice <strong>${ref}</strong> for <strong>${amt}</strong> is due <strong>today</strong> (${dueDate}).</p>
-      <p>We value our working relationship and wanted to let you know that this is the last day to settle at the original amount. From tomorrow, statutory interest and a fixed penalty will be added automatically.</p>
+      <p>We value our working relationship and wanted to let you know that this is the last day to settle at the original amount. From tomorrow, statutory interest and a fixed debt recovery cost will be added automatically.</p>
       ${lineBlock}
       ${payBlock}
       <p>If there's any issue with payment, please don't hesitate to get in touch — we're happy to discuss.</p>
@@ -382,7 +382,7 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
       <p>Dear ${invoice.client_name},</p>
       <p>This letter serves as formal notice that invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> is due for payment by <strong>${dueDate}</strong>.</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
-        Under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, the creditor is entitled to claim statutory interest at ${getRate()}% per annum and a fixed penalty of <strong>${fmt(penalty(Number(invoice.amount)))}</strong> on any sum not paid by the contractual due date. Payment by <strong>${dueDate}</strong> will avoid these charges.
+        Under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, the creditor is entitled to claim statutory interest at ${getRate()}% per annum and a fixed debt recovery cost of <strong>${fmt(penalty(Number(invoice.amount)))}</strong> on any sum not paid by the contractual due date. Payment by <strong>${dueDate}</strong> will avoid these charges.
       </div>
       ${lineBlock}
       ${payBlock}
@@ -393,7 +393,7 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
       <p>Dear ${invoice.client_name},</p>
       <p>This is formal notice that invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> falls due for payment <strong>tomorrow</strong> (${dueDate}).</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
-        Failure to pay by <strong>${dueDate}</strong> will entitle the creditor to statutory interest and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>.
+        Failure to pay by <strong>${dueDate}</strong> will entitle the creditor to statutory interest and a fixed debt recovery cost under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>.
       </div>
       ${lineBlock}
       ${payBlock}
@@ -403,7 +403,7 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
       <p>Dear ${invoice.client_name},</p>
       <p><strong>NOTICE:</strong> Invoice <strong>${ref}</strong> in the sum of <strong>${amt}</strong> is due for payment <strong>today</strong> (${dueDate}).</p>
       <p>This is the final date on which this debt may be settled at the original sum of <strong>${amt}</strong>.</p>
-      <p>From tomorrow, ${creditor} will exercise the statutory right to charge interest at ${getRate()}% per annum and a fixed penalty under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>. The total sum owed will increase accordingly.</p>
+      <p>From tomorrow, ${creditor} will exercise the statutory right to charge interest at ${getRate()}% per annum and a fixed debt recovery cost under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>. The total sum owed will increase accordingly.</p>
       ${lineBlock}
       ${payBlock}
       <p>Govern yourself accordingly.</p>

@@ -1061,7 +1061,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.oweLaw}>Late Payment of Commercial Debts (Interest) Act 1998</div>
             {[
               [hasVat ? "Invoice (inc. VAT)" : "Original invoice", fmt(invoiceTotal), c.tx],
-              ["Fixed penalty", `+${fmt(pen)}`, c.go],
+              ["Fixed debt recovery cost", `+${fmt(pen)}`, c.go],
               [`Interest (${dl}d)`, `+${fmt(interest)}`, c.go],
             ].map(([k, v, cl]) => (
               <div key={k} className={s.oweRow}>
@@ -1152,12 +1152,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             </div>
             <div className={s.toggleSub} style={{ color: finesActive ? c.gn : undefined }}>
               {finesActive
-                ? "Statutory interest and a fixed penalty will be applied when overdue"
+                ? "Statutory interest and a fixed debt recovery cost will be applied when overdue"
                 : "Chase emails won't include fines or interest — chasing only"}
             </div>
             {showFinesInfo && (
               <div className={s.finesInfoPanel}>
-                <strong>On:</strong> Overdue chase emails include statutory interest and a fixed penalty under the Late Payment Act 1998.<br />
+                <strong>On:</strong> Overdue chase emails include statutory interest and a fixed debt recovery cost under the Late Payment Act 1998.<br />
                 <strong>Off:</strong> Hielda still chases this invoice but emails won't mention additional charges. Useful for keeping things informal with a particular client.
               </div>
             )}
