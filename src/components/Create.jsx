@@ -49,6 +49,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [introMethod, setIntroMethod] = useState("hielda")
   const [introSendError, setIntroSendError] = useState("")
   const [introText, setIntroText] = useState("")
+  // Tracks whether the user has typed in the intro textarea. While false,
+  // the textarea auto-fills from buildIntroText() so users see Hielda's
+  // ready-made introduction rather than an empty box. Once they touch it,
+  // we stop overwriting their changes.
+  const [introTextEdited, setIntroTextEdited] = useState(false)
   const [introCopied, setIntroCopied] = useState(false)
   const [showIntroInfo, setShowIntroInfo] = useState(false)
   const [showNoFinesInfo, setShowNoFinesInfo] = useState(false)
@@ -233,6 +238,14 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
   const buildIntroText = () => buildIntroTextLib(profile, cn)
 
+  // Pre-fill the intro textarea so users see what'll be sent to the client
+  // by default, instead of an empty box. Re-fills as cn / profile change,
+  // but stops once the user manually edits the textarea.
+  useEffect(() => {
+    if (!sendIntro || introTextEdited) return
+    setIntroText(buildIntroTextLib(profile, cn))
+  }, [sendIntro, cn, profile, introTextEdited])
+
   const resetForm = () => {
     clearDraft()
     setCn("")
@@ -305,10 +318,10 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       if (sendIntro && introMethod === "hielda") {
         try {
           const { data: { session } } = await supabase.auth.getSession()
-          // introText is populated lazily when the user toggles the intro
-          // checkbox on, but sendIntro defaults to true so most users never
-          // toggle it — fall back to the generated text so we don't fire an
-          // empty body that the server rejects as "Missing required fields".
+          // Belt-and-braces fallback in case introText somehow isn't
+          // populated by the time go() fires (e.g. profile loads later
+          // than the form submit). The textarea is also pre-filled by
+          // a useEffect, so this almost always passes through unchanged.
           const finalIntroText = introText.trim() || buildIntroText()
           const introRes = await fetch("/api/send-intro-email", {
             method: "POST",
@@ -721,10 +734,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                   type="checkbox"
                   id="sendIntro"
                   checked={sendIntro}
-                  onChange={(e) => {
-                    setSendIntro(e.target.checked)
-                    if (e.target.checked && !introText) setIntroText(buildIntroText())
-                  }}
+                  onChange={(e) => setSendIntro(e.target.checked)}
                   className={s.introCheckbox}
                 />
                 <div className={s.introCheckContent}>
@@ -752,10 +762,10 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
               {sendIntro && (
                 <div className={s.introEditWrap}>
-                  <div className={s.sectionLabel}>Email text — edit freely</div>
+                  <div className={s.sectionLabel}>Hielda will send the message below — edit if you want to</div>
                   <textarea
                     value={introText}
-                    onChange={(e) => setIntroText(e.target.value)}
+                    onChange={(e) => { setIntroText(e.target.value); setIntroTextEdited(true) }}
                     className={s.introEditTextarea}
                   />
                   <div className={s.introMethodRow}>
