@@ -439,6 +439,27 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setMarking(false)
   }
 
+  // Recovery for accidental "Mark as paid" clicks. Reverts to pending —
+  // App.jsx then re-derives 'overdue' from due_date if it's in the past.
+  // Doesn't touch amount_paid, so any partial-payment history is preserved.
+  const unmarkPaid = async () => {
+    if (!window.confirm("Mark this invoice as unpaid?\n\nThis will reopen it for chasing. Any partial-payment history is kept.")) return
+    setMarking(true)
+    setError("")
+    try {
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({ status: "pending", paid_date: null })
+        .eq("id", inv.id)
+      if (err) throw err
+      trackEvent("invoice_unmarked_paid", { ref: inv.ref })
+      onUpdate()
+    } catch (e) {
+      setError("Failed to unmark as paid: " + e.message)
+    }
+    setMarking(false)
+  }
+
   // Recovery path for when the create-time intro email failed (e.g. network
   // glitch, server error). Sends the same introduction + invoice email that
   // would normally fire from the Create flow, so users don't have to fall
@@ -1133,6 +1154,9 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.paidIcon} aria-hidden="true">✓</div>
             <div className={s.paidLabel}>Paid</div>
             <div className={s.paidDate}>{formatDate(inv.paid_date)}</div>
+            <Btn v="ghost" sz="sm" onClick={unmarkPaid} dis={marking} style={{ marginTop: 12 }}>
+              {marking ? "..." : "Mark as unpaid"}
+            </Btn>
           </Card>
         )}
       </div>
