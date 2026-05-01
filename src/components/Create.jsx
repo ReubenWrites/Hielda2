@@ -55,6 +55,9 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   // we stop overwriting their changes.
   const [introTextEdited, setIntroTextEdited] = useState(false)
   const [introCopied, setIntroCopied] = useState(false)
+  // Per-line-item flag for whether the description input is expanded into
+  // a multi-line textarea. Indexed by line item position.
+  const [expandedDescs, setExpandedDescs] = useState({})
   const [showIntroInfo, setShowIntroInfo] = useState(false)
   const [showNoFinesInfo, setShowNoFinesInfo] = useState(false)
   const [draftBanner, setDraftBanner] = useState(false)
@@ -582,13 +585,32 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 <div key={i} className={isMobile ? s.lineRowMobile : (isVatRegistered ? s.lineRowVat : s.lineRowNoVat)}>
                   <div>
                     {isMobile && <span className={s.colLabel}>Description</span>}
-                    <input
-                      type="text"
-                      value={li.description}
-                      onChange={(e) => updateLineItem(i, "description", e.target.value)}
-                      placeholder="e.g. Video production"
-                      className={s.lineInput}
-                    />
+                    <div className={s.lineDescWrap}>
+                      {expandedDescs[i] ? (
+                        <textarea
+                          value={li.description}
+                          onChange={(e) => updateLineItem(i, "description", e.target.value)}
+                          placeholder="e.g. Video production"
+                          className={s.lineInputExpanded}
+                          rows={4}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={li.description}
+                          onChange={(e) => updateLineItem(i, "description", e.target.value)}
+                          placeholder="e.g. Video production"
+                          className={s.lineInput}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedDescs(prev => ({ ...prev, [i]: !prev[i] }))}
+                        className={s.lineDescExpandBtn}
+                        aria-label={expandedDescs[i] ? "Collapse description" : "Expand description for more detail"}
+                        title={expandedDescs[i] ? "Collapse" : "More space"}
+                      >{expandedDescs[i] ? "−" : "↕"}</button>
+                    </div>
                   </div>
                   <div className={isMobile ? s.mobileAmountRow : undefined}>
                     <div className={isMobile ? s.mobileFlexItem : undefined}>

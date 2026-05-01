@@ -414,7 +414,7 @@
 
 .lineInput {
   width: 100%;
-  padding: 9px 12px;
+  padding: 9px 36px 9px 12px;
   background: var(--bg);
   border: 1px solid var(--bd);
   border-radius: 8px;
@@ -423,6 +423,50 @@
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
+}
+
+.lineInputExpanded {
+  width: 100%;
+  padding: 9px 36px 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  color: var(--tx);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.lineDescWrap {
+  position: relative;
+}
+
+.lineDescExpandBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  color: var(--td);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lineDescExpandBtn:hover {
+  border-color: var(--ac);
+  color: var(--ac);
 }
 
 .amountInput {
