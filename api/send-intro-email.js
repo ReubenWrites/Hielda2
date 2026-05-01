@@ -162,7 +162,9 @@ export default async function handler(req, res) {
         from: `${senderName} via Hielda <hello@hielda.com>`,
         reply_to: profile?.email || undefined,
         to: [client_email],
-        ...(profile?.email ? { cc: [profile.email] } : {}),
+        // BCC the freelancer so they get a private copy without the client
+        // seeing them on the recipient list.
+        ...(profile?.email ? { bcc: [profile.email] } : {}),
         subject: `A quick note from ${senderName}`,
         html,
       }),

@@ -490,7 +490,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     if (!skipConfirm) {
       const ccList = ccEmails.trim() ? `, CC: ${ccEmails.trim()}` : ""
       const confirmed = window.confirm(
-        `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be CC'd automatically.`
+        `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be BCC'd automatically (your client won't see you on the recipient list).`
       )
       if (!confirmed) return
     }
@@ -1229,7 +1229,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       {inv.status !== "paid" && (
         <Card style={{ marginTop: 0, marginBottom: 16 }}>
           <h3 className={s.recipientsHeading}>Email recipients</h3>
-          <p className={s.recipientsDesc}>You're always CC'd automatically. Add others below.</p>
+          <p className={s.recipientsDesc}>You're always BCC'd automatically (your client won't see you on the recipient list). Add others below.</p>
           <div className={s.recipientsGrid}>
             <div>
               <label className={s.recipientLabel}>CC (optional)</label>

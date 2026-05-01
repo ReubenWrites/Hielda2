@@ -550,7 +550,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
               error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
             <p className={s.ccHint}>
-              Separate multiple emails with a comma. You'll always be CC'd automatically.
+              Separate multiple emails with a comma. You'll always be BCC'd automatically (your client won't see you on the recipient list).
             </p>
           </Card>
           <Card>

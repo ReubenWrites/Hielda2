@@ -280,6 +280,16 @@ serve(async (req) => {
     y += 2
     doc.line(20, y, 190, y)
 
+    // Width budget for the description column. With VAT we have to leave
+    // room for the rate label at x=150 and the amount at x=190, so cap
+    // descriptions at 100mm. Without VAT the only thing on the right is
+    // the amount, so we get more room — 130mm. Anything longer wraps to
+    // the next line via splitTextToSize, which is what was missing
+    // before — long descriptions used to render straight across the row
+    // and overlap with the amount at x=190.
+    const descMaxWidth = hasVat ? 100 : 130
+    const LINE_HEIGHT = 5 // mm at fontSize 10
+
     // Render individual line items if available
     if (lineItems?.length) {
       for (const li of lineItems) {
@@ -287,7 +297,8 @@ serve(async (req) => {
         doc.setFontSize(10)
         doc.setTextColor(dark)
         doc.setFont("helvetica", "normal")
-        doc.text(safe(li.description, "—"), 20, y)
+        const descLines = doc.splitTextToSize(safe(li.description, "—"), descMaxWidth)
+        doc.text(descLines, 20, y)
         if (hasVat) {
           doc.setFontSize(9)
           doc.setTextColor(gray)
@@ -297,13 +308,18 @@ serve(async (req) => {
         doc.setFontSize(10)
         doc.setTextColor(dark)
         doc.text(fmt(parseFloat(String(li.amount ?? "")) || 0), 190, y, { align: "right" })
+        // Push y past any extra wrapped lines so the next line item or
+        // the totals block doesn't collide with the wrapped description.
+        if (descLines.length > 1) y += (descLines.length - 1) * LINE_HEIGHT
       }
     } else {
       y += 7
       doc.setFontSize(10)
       doc.setTextColor(dark)
-      doc.text(invoice.description || "Services rendered", 20, y)
+      const descLines = doc.splitTextToSize(invoice.description || "Services rendered", descMaxWidth)
+      doc.text(descLines, 20, y)
       doc.text(fmt(netAmount), 190, y, { align: "right" })
+      if (descLines.length > 1) y += (descLines.length - 1) * LINE_HEIGHT
     }
 
     // Totals
