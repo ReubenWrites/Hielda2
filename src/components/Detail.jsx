@@ -5,6 +5,7 @@ import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "..
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
 import { Card, Badge, Btn, ErrorBanner } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
+import { buildIntroText } from "../lib/introText"
 import { trackEvent } from "../posthog"
 import DisputeModal from "./DisputeModal"
 import ResolveDisputeModal from "./ResolveDisputeModal"
@@ -278,6 +279,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const [showFinesInfo, setShowFinesInfo] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendSuccess, setSendSuccess] = useState("")
+  const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false)
   const [editingClient, setEditingClient] = useState(false)
   const [clientEdit, setClientEdit] = useState({ name: "", email: "", address: "", ref: "" })
   const [savingClient, setSavingClient] = useState(false)
@@ -437,6 +439,49 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setMarking(false)
   }
 
+  // Recovery path for when the create-time intro email failed (e.g. network
+  // glitch, server error). Sends the same introduction + invoice email that
+  // would normally fire from the Create flow, so users don't have to fall
+  // back to the chase flow just because the first send didn't go through.
+  const sendInvoiceEmail = async () => {
+    if (sendingInvoiceEmail) return
+    if (!inv.client_email) {
+      setError("This invoice has no client email address.")
+      return
+    }
+    if (!window.confirm(`Send invoice email to ${inv.client_email}?`)) return
+
+    setSendingInvoiceEmail(true)
+    setError("")
+    setSendSuccess("")
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const introText = buildIntroText(profile, inv.client_name)
+      const res = await fetch("/api/send-intro-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_name: inv.client_name,
+          client_email: inv.client_email,
+          intro_text: introText,
+          invoice_id: inv.id,
+          user_token: session?.access_token,
+        }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg || `Send failed (${res.status})`)
+      }
+      setSendSuccess(`Invoice email sent to ${inv.client_email}`)
+      setTimeout(() => setSendSuccess(""), 5000)
+    } catch (e) {
+      setError("Failed to send invoice email: " + e.message)
+    }
+    setSendingInvoiceEmail(false)
+  }
+
   const sendChaseEmail = async ({ skipConfirm = false } = {}) => {
     if (sending) return // Guard against double-clicks
     const stage = currentSendStage
@@ -445,7 +490,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     if (!skipConfirm) {
       const ccList = ccEmails.trim() ? `, CC: ${ccEmails.trim()}` : ""
       const confirmed = window.confirm(
-        `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be CC'd automatically.`
+        `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be BCC'd automatically (your client won't see you on the recipient list).`
       )
       if (!confirmed) return
     }
@@ -782,6 +827,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
               {/* Backdrop to close on click outside */}
               <div onClick={() => setShowMore(false)} className={s.moreBackdrop} />
               <div className={s.moreMenu}>
+                {inv.status !== "paid" && inv.client_email && (
+                  <button onClick={() => { setShowMore(false); sendInvoiceEmail() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}>{sendingInvoiceEmail ? "Sending..." : "✉ Send invoice email"}</div>
+                    <div className={s.menuBtnSub}>Sends the introduction + invoice details to {inv.client_name}</div>
+                  </button>
+                )}
                 {inv.status !== "paid" && inv.client_email && (
                   <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} className={s.menuBtn}>
                     <div className={s.menuBtnLabel}>📤 Send Chase</div>
@@ -1178,7 +1229,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       {inv.status !== "paid" && (
         <Card style={{ marginTop: 0, marginBottom: 16 }}>
           <h3 className={s.recipientsHeading}>Email recipients</h3>
-          <p className={s.recipientsDesc}>You're always CC'd automatically. Add others below.</p>
+          <p className={s.recipientsDesc}>You're always BCC'd automatically (your client won't see you on the recipient list). Add others below.</p>
           <div className={s.recipientsGrid}>
             <div>
               <label className={s.recipientLabel}>CC (optional)</label>

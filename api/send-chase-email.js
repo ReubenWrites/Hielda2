@@ -291,16 +291,18 @@ export default async function handler(req, res) {
     const tone = profile.chase_tone || 'firm'
     const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total, tone)
 
-    // Build CC list: always include the freelancer, plus any custom CC on the invoice
-    const ccList = [profile.email].filter(Boolean)
+    // The freelancer always gets a private copy via BCC — the client should
+    // never see them on the recipient list. Custom CC/BCC entries on the
+    // invoice are honoured separately.
+    const ccList = []
     if (invoice.cc_emails) {
       invoice.cc_emails.split(',').map(e => e.trim()).filter(Boolean).forEach(e => ccList.push(e))
     }
 
-    // Build BCC list from invoice
-    const bccList = invoice.bcc_emails
-      ? invoice.bcc_emails.split(',').map(e => e.trim()).filter(Boolean)
-      : []
+    const bccList = [profile.email].filter(Boolean)
+    if (invoice.bcc_emails) {
+      invoice.bcc_emails.split(',').map(e => e.trim()).filter(Boolean).forEach(e => bccList.push(e))
+    }
 
     // Send via Resend
     const resendPayload = {

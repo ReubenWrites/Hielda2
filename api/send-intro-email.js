@@ -22,8 +22,13 @@ export default async function handler(req, res) {
   try {
     const { client_name, client_email, intro_text, invoice_id, user_token } = req.body
 
-    if (!client_name || !client_email || !intro_text || !user_token) {
-      return res.status(400).json({ error: 'Missing required fields' })
+    const missing = []
+    if (!client_name) missing.push('client_name')
+    if (!client_email) missing.push('client_email')
+    if (!intro_text) missing.push('intro_text')
+    if (!user_token) missing.push('user_token')
+    if (missing.length > 0) {
+      return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` })
     }
 
     if (!RESEND_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -157,7 +162,9 @@ export default async function handler(req, res) {
         from: `${senderName} via Hielda <hello@hielda.com>`,
         reply_to: profile?.email || undefined,
         to: [client_email],
-        ...(profile?.email ? { cc: [profile.email] } : {}),
+        // BCC the freelancer so they get a private copy without the client
+        // seeing them on the recipient list.
+        ...(profile?.email ? { bcc: [profile.email] } : {}),
         subject: `A quick note from ${senderName}`,
         html,
       }),
