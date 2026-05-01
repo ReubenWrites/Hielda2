@@ -308,13 +308,18 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       if (sendIntro && introMethod === "hielda") {
         try {
           const { data: { session } } = await supabase.auth.getSession()
+          // introText is populated lazily when the user toggles the intro
+          // checkbox on, but sendIntro defaults to true so most users never
+          // toggle it — fall back to the generated text so we don't fire an
+          // empty body that the server rejects as "Missing required fields".
+          const finalIntroText = introText.trim() || buildIntroText()
           const introRes = await fetch("/api/send-intro-email", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               client_name: cn,
               client_email: ce,
-              intro_text: introText,
+              intro_text: finalIntroText,
               invoice_id: newInv.id,
               user_token: session?.access_token,
             }),
