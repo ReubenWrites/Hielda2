@@ -1,5 +1,2 @@
 [functions.stripe-webhook]
 verify_jwt = false
-
-[functions.chase-scheduler]
-verify_jwt = false
