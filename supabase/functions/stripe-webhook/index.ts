@@ -249,7 +249,7 @@ serve(async (req) => {
       .update({ status: "failed", error_message: e.message })
       .eq("event_id", event.id)
 
-    console.error("Webhook handler error:", e)
+    console.error(`Webhook handler error for ${event.id} (${event.type}):`, e)
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
