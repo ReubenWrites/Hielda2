@@ -10,6 +10,17 @@ const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET")!
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
+// Newer Stripe API versions moved current_period_start/end from the Subscription
+// to its items. Read item-level as fallback so we work across versions.
+function getSubPeriod(sub: Stripe.Subscription) {
+  const start = (sub as any).current_period_start ?? sub.items?.data?.[0]?.current_period_start
+  const end = (sub as any).current_period_end ?? sub.items?.data?.[0]?.current_period_end
+  return {
+    start: typeof start === "number" ? new Date(start * 1000).toISOString() : null,
+    end: typeof end === "number" ? new Date(end * 1000).toISOString() : null,
+  }
+}
+
 serve(async (req) => {
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" })
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -57,6 +68,7 @@ serve(async (req) => {
 
         if (userId && session.subscription) {
           const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          const period = getSubPeriod(stripeSubscription)
 
           // Upsert for retry safety
           await supabase
@@ -67,8 +79,8 @@ serve(async (req) => {
               stripe_customer_id: session.customer as string,
               status: "active",
               plan: "pro",
-              current_period_start: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
+              current_period_start: period.start,
+              current_period_end: period.end,
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" })
         }
@@ -80,14 +92,15 @@ serve(async (req) => {
         const userId = subscription.metadata.supabase_user_id
 
         if (userId) {
+          const period = getSubPeriod(subscription)
           // Upsert for retry safety
           await supabase
             .from("subscriptions")
             .upsert({
               user_id: userId,
               status: subscription.status === "active" ? "active" : subscription.status === "past_due" ? "past_due" : subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              current_period_start: period.start,
+              current_period_end: period.end,
               cancel_at_period_end: subscription.cancel_at_period_end,
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" })
