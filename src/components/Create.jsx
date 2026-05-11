@@ -558,12 +558,17 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 </div>
               </div>
             )}
-            <Inp label="Company Name" value={cn} onChange={setCn} ph="e.g. Mega Corp Ltd" />
-            <Inp label="Email" value={ce} onChange={setCe} ph="accounts@client.com" type="email" error={emailError} />
-            <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta />
+            <Inp label="Company Name" value={cn} onChange={setCn} ph="e.g. Mega Corp Ltd"
+              autoComplete="organization" autoCapitalize="words" enterKeyHint="next" />
+            <Inp label="Email" value={ce} onChange={setCe} ph="accounts@client.com" type="email" error={emailError}
+              inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} enterKeyHint="next" />
+            <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta
+              autoComplete="street-address" autoCapitalize="sentences" rows={4} />
             <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com"
+              inputMode="email" autoCapitalize="none" spellCheck={false}
               error={cc.trim() && cc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more CC emails are invalid" : ""} />
             <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
+              inputMode="email" autoCapitalize="none" spellCheck={false}
               error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
             <p className={s.ccHint}>
               Separate multiple emails with a comma. You'll always be BCC'd automatically (your client won't see you on the recipient list).
@@ -592,15 +597,24 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                           onChange={(e) => updateLineItem(i, "description", e.target.value)}
                           placeholder="e.g. Video production"
                           className={s.lineInputExpanded}
-                          rows={4}
+                          rows={isMobile ? 6 : 4}
+                          autoCapitalize="sentences"
                         />
                       ) : (
                         <input
                           type="text"
                           value={li.description}
                           onChange={(e) => updateLineItem(i, "description", e.target.value)}
+                          // If someone pastes multi-line content (eg pulled from
+                          // an email with a date + address + ref on separate
+                          // lines), auto-expand so they can see all of it.
+                          onPaste={(e) => {
+                            const pasted = e.clipboardData?.getData("text") || ""
+                            if (pasted.includes("\n")) setExpandedDescs(prev => ({ ...prev, [i]: true }))
+                          }}
                           placeholder="e.g. Video production"
                           className={s.lineInput}
+                          autoCapitalize="sentences"
                         />
                       )}
                       <button
@@ -616,9 +630,12 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                     <div className={isMobile ? s.mobileFlexItem : undefined}>
                       {isMobile && <span className={s.colLabel}>Amount (£)</span>}
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={li.amount}
-                        onChange={(e) => updateLineItem(i, "amount", e.target.value)}
+                        // Strip currency symbols / commas / spaces on input so users can
+                        // paste "£1,200.50" straight from an email into the field.
+                        onChange={(e) => updateLineItem(i, "amount", e.target.value.replace(/[£$€,\s]/g, ""))}
                         placeholder="0.00"
                         className={lineItemErrors[i] ? s.amountInputError : s.amountInput}
                       />
@@ -675,10 +692,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 </div>
               )}
             </div>
-            <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821" />
+            <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821"
+              autoCapitalize="characters" spellCheck={false} autoComplete="off" />
             <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
             {terms === "-1" && (
-              <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="number" mono error={customDaysError} />
+              <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="text" inputMode="numeric" mono error={customDaysError} />
             )}
             <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
 

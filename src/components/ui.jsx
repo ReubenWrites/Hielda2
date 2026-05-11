@@ -48,7 +48,7 @@ export const Card = ({ children, style, onClick, as: Tag = "div" }) => (
 )
 
 // ── Input ──
-export const Inp = ({ label, value, onChange, onBlur, ph, type = "text", ta, mono, disabled, error }) => (
+export const Inp = ({ label, value, onChange, onBlur, ph, type = "text", ta, mono, disabled, error, inputMode, autoComplete, autoCapitalize, enterKeyHint, spellCheck, rows }) => (
   <div className={s.inpWrap}>
     {label && (
       <label className={s.inpLabel}>
@@ -57,7 +57,7 @@ export const Inp = ({ label, value, onChange, onBlur, ph, type = "text", ta, mon
     )}
     {ta ? (
       <textarea
-        rows={3}
+        rows={rows ?? 3}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
@@ -68,6 +68,10 @@ export const Inp = ({ label, value, onChange, onBlur, ph, type = "text", ta, mon
         data-mono={mono ? "true" : undefined}
         disabled={disabled}
         aria-label={label}
+        autoComplete={autoComplete}
+        autoCapitalize={autoCapitalize}
+        spellCheck={spellCheck}
+        enterKeyHint={enterKeyHint}
       />
     ) : (
       <input
@@ -82,6 +86,11 @@ export const Inp = ({ label, value, onChange, onBlur, ph, type = "text", ta, mon
         data-mono={mono ? "true" : undefined}
         disabled={disabled}
         aria-label={label}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        autoCapitalize={autoCapitalize}
+        spellCheck={spellCheck}
+        enterKeyHint={enterKeyHint}
       />
     )}
     {error && <div className={s.inpError}>{error}</div>}
