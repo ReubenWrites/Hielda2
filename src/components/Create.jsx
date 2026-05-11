@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../supabase"
 import { colors as c, TERMS, getRate } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
-import { Card, Inp, Sel, Btn, ErrorBanner } from "./ui"
+import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection } from "./ui"
 import { trackEvent } from "../posthog"
 import { buildIntroText as buildIntroTextLib } from "../lib/introText"
 import s from "./Create.module.css"
@@ -569,17 +569,6 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               autoComplete="organization" autoCapitalize="words" enterKeyHint="next" />
             <Inp label="Email" value={ce} onChange={setCe} ph="accounts@client.com" type="email" error={emailError}
               inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} enterKeyHint="next" />
-            <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta
-              autoComplete="street-address" autoCapitalize="sentences" rows={4} />
-            <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com"
-              inputMode="email" autoCapitalize="none" spellCheck={false}
-              error={cc.trim() && cc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more CC emails are invalid" : ""} />
-            <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
-              inputMode="email" autoCapitalize="none" spellCheck={false}
-              error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
-            <p className={s.ccHint}>
-              Separate multiple emails with a comma. You'll always be BCC'd automatically (your client won't see you on the recipient list).
-            </p>
           </Card>
           <Card>
             <h3 className={s.cardHeading}>Job</h3>
@@ -699,58 +688,6 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 </div>
               )}
             </div>
-            <Inp label="Invoice number" value={ref} onChange={setRef} ph="e.g. INV-0001"
-              autoCapitalize="characters" spellCheck={false} autoComplete="off"
-              error={!ref.trim() ? "Invoice number is required" : ""} />
-            <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821"
-              autoCapitalize="characters" spellCheck={false} autoComplete="off" />
-            <Inp label="Notes (optional)" value={notes} onChange={setNotes} ta rows={3}
-              ph="Anything else to include on the invoice — payment instructions, project name, references, etc."
-              autoCapitalize="sentences" />
-            <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
-            {terms === "-1" && (
-              <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="text" inputMode="numeric" mono error={customDaysError} />
-            )}
-            <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
-
-            {/* Client type toggle */}
-            <div className={s.clientTypeWrap}>
-              <label className={s.fieldLabel}>Client type</label>
-              <div className={s.toggleRow}>
-                {[{ v: "business", l: "Business (B2B)" }, { v: "consumer", l: "Consumer (individual)" }].map(opt => (
-                  <button
-                    key={opt.v}
-                    type="button"
-                    onClick={() => setClientType(opt.v)}
-                    className={clientType === opt.v ? s.toggleBtnActive : s.toggleBtn}
-                  >{opt.l}</button>
-                ))}
-              </div>
-              {clientType === "consumer" && (
-                <p className={s.consumerNote}>
-                  Payment terms will be added to the invoice (contractual interest at {getRate()}% p.a. if overdue). No statutory fixed debt recovery cost applies to consumer invoices.
-                </p>
-              )}
-            </div>
-
-            <div className={clientType === "consumer" ? s.noFinesRowHidden : s.noFinesRow}>
-              <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} className={s.checkbox} />
-              <label htmlFor="noFines" className={s.checkboxLabel}>Chase without fines or interest</label>
-              <button
-                type="button"
-                onClick={() => setShowNoFinesInfo(v => !v)}
-                className={showNoFinesInfo ? s.infoBtnActive : s.infoBtn}
-                aria-label="About this option"
-              >?</button>
-            </div>
-            {showNoFinesInfo && (
-              <div className={s.infoBox}>
-                Hielda will still chase this invoice on your behalf and send all the usual reminder and chase emails — but the emails won't reference any additional fines or interest on top of the original invoice amount. Useful if you'd prefer to keep things informal with a particular client.
-              </div>
-            )}
-            {noFines && !showNoFinesInfo && (
-              <div className={s.noFinesHint}>We'll still send chase emails, but won't add statutory penalties or interest.</div>
-            )}
             <div className={s.summaryBox}>
               <div className={s.summaryRow}>
                 <span className={s.summaryLabel}>Ref</span>
@@ -779,9 +716,102 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               )}
             </div>
           </Card>
-          {/* Existing client intro */}
+
+          {/* Primary CTA — for a standard invoice, users tap this without
+              ever opening the accordions below. */}
+          <div className={s.step1Footer}>
+            {isEditing
+              ? <Btn dis={!canProceed || saving} onClick={saveEdit}>{saving ? "Saving..." : "Save Changes"}</Btn>
+              : <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+            }
+          </div>
+
+          {/* Optional: address + recipient options (collapsed by default) */}
           <div className={s.introFullWidth}>
-            <Card>
+            <CollapsibleSection
+              title="Address & recipients"
+              description="Client address, CC, BCC, and client type"
+            >
+              <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta
+                autoComplete="street-address" autoCapitalize="sentences" rows={4} />
+              <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com"
+                inputMode="email" autoCapitalize="none" spellCheck={false}
+                error={cc.trim() && cc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more CC emails are invalid" : ""} />
+              <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
+                inputMode="email" autoCapitalize="none" spellCheck={false}
+                error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
+              <p className={s.ccHint}>
+                Separate multiple emails with a comma. You'll always be BCC'd automatically (your client won't see you on the recipient list).
+              </p>
+
+              <div className={s.clientTypeWrap}>
+                <label className={s.fieldLabel}>Client type</label>
+                <div className={s.toggleRow}>
+                  {[{ v: "business", l: "Business (B2B)" }, { v: "consumer", l: "Consumer (individual)" }].map(opt => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setClientType(opt.v)}
+                      className={clientType === opt.v ? s.toggleBtnActive : s.toggleBtn}
+                    >{opt.l}</button>
+                  ))}
+                </div>
+                {clientType === "consumer" && (
+                  <p className={s.consumerNote}>
+                    Payment terms will be added to the invoice (contractual interest at {getRate()}% p.a. if overdue). No statutory fixed debt recovery cost applies to consumer invoices.
+                  </p>
+                )}
+              </div>
+            </CollapsibleSection>
+          </div>
+
+          {/* Optional: invoice details (collapsed by default) */}
+          <div className={s.introFullWidth}>
+            <CollapsibleSection
+              title="Invoice details"
+              description="Invoice number, notes, dates, payment terms"
+            >
+              <Inp label="Invoice number" value={ref} onChange={setRef} ph="e.g. INV-0001"
+                autoCapitalize="characters" spellCheck={false} autoComplete="off"
+                error={!ref.trim() ? "Invoice number is required" : ""} />
+              <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821"
+                autoCapitalize="characters" spellCheck={false} autoComplete="off" />
+              <Inp label="Notes (optional)" value={notes} onChange={setNotes} ta rows={3}
+                ph="Anything else to include on the invoice — payment instructions, project name, references, etc."
+                autoCapitalize="sentences" />
+              <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
+              {terms === "-1" && (
+                <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="text" inputMode="numeric" mono error={customDaysError} />
+              )}
+              <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
+
+              <div className={clientType === "consumer" ? s.noFinesRowHidden : s.noFinesRow}>
+                <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} className={s.checkbox} />
+                <label htmlFor="noFines" className={s.checkboxLabel}>Chase without fines or interest</label>
+                <button
+                  type="button"
+                  onClick={() => setShowNoFinesInfo(v => !v)}
+                  className={showNoFinesInfo ? s.infoBtnActive : s.infoBtn}
+                  aria-label="About this option"
+                >?</button>
+              </div>
+              {showNoFinesInfo && (
+                <div className={s.infoBox}>
+                  Hielda will still chase this invoice on your behalf and send all the usual reminder and chase emails — but the emails won't reference any additional fines or interest on top of the original invoice amount. Useful if you'd prefer to keep things informal with a particular client.
+                </div>
+              )}
+              {noFines && !showNoFinesInfo && (
+                <div className={s.noFinesHint}>We'll still send chase emails, but won't add statutory penalties or interest.</div>
+              )}
+            </CollapsibleSection>
+          </div>
+
+          {/* Optional: email message to client (collapsed by default) */}
+          <div className={s.introFullWidth}>
+            <CollapsibleSection
+              title="Email message to client"
+              description={sendIntro ? "On — Hielda will email an introduction with this invoice" : "Off — no introduction email will be sent"}
+            >
               <div className={s.introCheckRow}>
                 <input
                   type="checkbox"
@@ -836,7 +866,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                   )}
                 </div>
               )}
-            </Card>
+            </CollapsibleSection>
           </div>
 
           <div className={s.step1Footer}>
