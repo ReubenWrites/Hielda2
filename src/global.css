@@ -51,3 +51,18 @@ button:focus:not(:focus-visible) { outline: none; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 3px; }
+
+/* ────────────────────────────────────────────────────────────────────────
+   Mobile auto-zoom fix.
+   iOS Safari zooms in when any input/textarea/select has font-size < 16px
+   and the user taps it. That zoom is jarring and breaks layouts — by far
+   the biggest mobile friction in this app. Bumping to 16px on small
+   screens prevents the zoom. Desktop sizing (13px) is preserved.
+   ──────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
