@@ -793,6 +793,29 @@
   word-break: break-word;
 }
 
+.notesBlock {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--sf);
+  border-radius: 8px;
+}
+
+.notesLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.notesBody {
+  font-size: 13px;
+  color: var(--tx);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* What they owe card */
 .oweHeading {
   font-size: 11px;

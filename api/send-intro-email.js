@@ -112,6 +112,11 @@ export default async function handler(req, res) {
               <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount. After this date, statutory fines and interest will apply. Early payment is always appreciated.
             </td>
           </tr>
+          ${invoice.notes ? `<tr style="border-bottom:1px solid #e8ecf0;">
+            <td colspan="2" style="padding:10px 0;font-size:13px;color:#0f172a;">
+              <strong style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">Notes</strong><br/>${escapeHtml(invoice.notes).replace(/\n/g, '<br/>')}
+            </td>
+          </tr>` : ''}
           <tr>
             <td style="padding:10px 0 4px;font-weight:700;color:#0f172a;">Total Due</td>
             <td style="padding:10px 0 4px;font-weight:700;font-size:18px;text-align:right;color:#1e5fa0;">${fmt(invoice.amount)}</td>

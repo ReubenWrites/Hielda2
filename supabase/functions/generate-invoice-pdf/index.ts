@@ -436,6 +436,26 @@ serve(async (req) => {
       doc.text(line, 28, y)
     }
 
+    // Per-invoice notes (renders above the signoff). Page-breaks if it'd
+    // collide with the footer.
+    if (invoice.notes) {
+      y += 10
+      doc.setFontSize(9)
+      doc.setTextColor(dark)
+      doc.setFont("helvetica", "bold")
+      doc.text("Notes", 20, y)
+      y += 5
+      doc.setFont("helvetica", "normal")
+      doc.setTextColor(gray)
+      const notesLines = doc.splitTextToSize(String(invoice.notes), 170)
+      if (y + notesLines.length * 5 > 265) {
+        doc.addPage()
+        y = 20
+      }
+      doc.text(notesLines, 20, y)
+      y += notesLines.length * 5
+    }
+
     // Custom signoff
     if (profile.invoice_signoff) {
       y += 12
