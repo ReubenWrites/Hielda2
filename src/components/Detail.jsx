@@ -503,6 +503,36 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setSendingInvoiceEmail(false)
   }
 
+  // Sends a fresh copy of the invoice (line items, totals, payment details,
+  // notes) to the freelancer's own address. Useful if they want to forward
+  // to an accountant or just keep a copy outside the client thread.
+  const sendCopyToSelf = async () => {
+    if (sendingInvoiceEmail) return
+    setSendingInvoiceEmail(true)
+    setError("")
+    setSendSuccess("")
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch("/api/send-self-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: inv.id, user_token: session?.access_token }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg || `Send failed (${res.status})`)
+      }
+      const data = await res.json()
+      setSendSuccess(`Copy sent to ${data.sent_to || "your email"}`)
+      setTimeout(() => setSendSuccess(""), 5000)
+    } catch (e) {
+      setError("Failed to send copy: " + e.message)
+    }
+    setSendingInvoiceEmail(false)
+  }
+
   const sendChaseEmail = async ({ skipConfirm = false } = {}) => {
     if (sending) return // Guard against double-clicks
     const stage = currentSendStage
@@ -854,6 +884,10 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                     <div className={s.menuBtnSub}>Sends the introduction + invoice details to {inv.client_name}</div>
                   </button>
                 )}
+                <button onClick={() => { setShowMore(false); sendCopyToSelf() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
+                  <div className={s.menuBtnLabel}>{sendingInvoiceEmail ? "Sending..." : "📨 Email me a copy"}</div>
+                  <div className={s.menuBtnSub}>Send this invoice's details to your own email (not your client)</div>
+                </button>
                 {inv.status !== "paid" && inv.client_email && (
                   <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} className={s.menuBtn}>
                     <div className={s.menuBtnLabel}>📤 Send Chase</div>
@@ -1125,6 +1159,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                 ))}
             </>
           )}
+          {inv.notes && (
+            <div className={s.notesBlock}>
+              <div className={s.notesLabel}>Notes</div>
+              <div className={s.notesBody}>{inv.notes}</div>
+            </div>
+          )}
         </Card>
 
         {ov && (
@@ -1350,7 +1390,9 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                     <div className={s.chaseLogRecipient}>{isCheckIn ? "Sent to you" : `Sent to ${log.email_to}`}</div>
                   </div>
                 </div>
-                <div className={isMobile ? s.chaseLogDateMobile : s.chaseLogDate}>{formatDate(log.sent_at)}</div>
+                <div className={isMobile ? s.chaseLogDateMobile : s.chaseLogDate} title={new Date(log.sent_at).toString()}>
+                  {formatDate(log.sent_at)} · {new Date(log.sent_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                </div>
               </div>
             )
           })}

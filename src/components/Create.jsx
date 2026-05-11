@@ -39,6 +39,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [downloading, setDownloading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState(null)
+  const [notes, setNotes] = useState("")
   const [clientRef, setClientRef] = useState("")
   const [cc, setCc] = useState("")
   const [bcc, setBcc] = useState("")
@@ -99,6 +100,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         setClientRef(inv.client_ref || "")
         setCc(inv.cc_emails || "")
         setBcc(inv.bcc_emails || "")
+        setNotes(inv.notes || "")
         setRef(inv.ref || "")
         setDate(inv.issue_date || todayStr())
         const termDays = inv.payment_term_days ? String(inv.payment_term_days) : "30"
@@ -153,9 +155,9 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   useEffect(() => {
     if (!userId || step === 3) return
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes }))
     } catch {}
-  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, userId, step])
+  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, userId, step])
 
   const restoreDraft = () => {
     try {
@@ -173,6 +175,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       if (d.clientRef !== undefined) setClientRef(d.clientRef)
       if (d.cc !== undefined) setCc(d.cc)
       if (d.bcc !== undefined) setBcc(d.bcc)
+      if (d.notes !== undefined) setNotes(d.notes)
       // New drafts have lineItems; legacy drafts had desc+amt — convert to single line item
       if (d.lineItems?.length) {
         setLineItems(d.lineItems)
@@ -261,6 +264,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     setClientRef("")
     setCc("")
     setBcc("")
+    setNotes("")
     const rPrefix = profile?.invoice_prefix || "INV"
     const rNum = (profile?.next_invoice_number || 1) + 1
     setRef(`${rPrefix}-${String(rNum).padStart(4, "0")}`)
@@ -302,6 +306,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         client_ref: clientRef.trim() || null,
         cc_emails: cc.trim() || null,
         bcc_emails: bcc.trim() || null,
+        notes: notes.trim() || null,
       }).select().single()
       if (dbError) throw dbError
       clearDraft()
@@ -364,6 +369,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       const isOverdue = dueStr < today
       const validItems = lineItems.filter(li => li.description.trim() && parseFloat(li.amount) > 0)
       const { error: dbError } = await supabase.from("invoices").update({
+        ref: ref.trim(),
         description: validItems.map(li => li.description).join(", "),
         amount: parsedTotal,
         subtotal: parsedTotal,
@@ -382,6 +388,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         client_ref: clientRef.trim() || null,
         cc_emails: cc.trim() || null,
         bcc_emails: bcc.trim() || null,
+        notes: notes.trim() || null,
       }).eq("id", editId)
       if (dbError) throw dbError
       clearDraft()
@@ -692,8 +699,14 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 </div>
               )}
             </div>
+            <Inp label="Invoice number" value={ref} onChange={setRef} ph="e.g. INV-0001"
+              autoCapitalize="characters" spellCheck={false} autoComplete="off"
+              error={!ref.trim() ? "Invoice number is required" : ""} />
             <Inp label="Client reference / PO number (optional)" value={clientRef} onChange={setClientRef} ph="e.g. PO-4821"
               autoCapitalize="characters" spellCheck={false} autoComplete="off" />
+            <Inp label="Notes (optional)" value={notes} onChange={setNotes} ta rows={3}
+              ph="Anything else to include on the invoice — payment instructions, project name, references, etc."
+              autoCapitalize="sentences" />
             <Sel label="Payment Terms" value={terms} onChange={(v) => { setTerms(v); if (v !== "-1") setCustomDays(""); }} opts={TERMS.map((t) => ({ l: t.l, v: String(t.d) }))} />
             {terms === "-1" && (
               <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="text" inputMode="numeric" mono error={customDaysError} />
