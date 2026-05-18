@@ -62,6 +62,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <span className={s.navLogoText}>Hielda</span>
         </div>
         <div className={s.navActions}>
+          <a href="/guides" className={s.navCalcBtn}>
+            Guides
+          </a>
           <button onClick={onCalculator} className={s.navCalcBtn}>
             Calculator
           </button>

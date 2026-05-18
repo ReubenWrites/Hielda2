@@ -280,6 +280,27 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
           </div>
         </div>
 
+        {/* Related guides — surface deeper content for SEO + user value */}
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 12 }}>
+            Related reading
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            <a href="/guides/late-payment-act-1998-explained" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>The Late Payment Act 1998 — explained</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Who it covers, what you're entitled to, common myths, and how to actually use it.</div>
+            </a>
+            <a href="/guides/how-to-chase-late-invoices" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>How to chase late invoices — playbook</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Day-by-day timeline used by professional accounts teams, adapted for freelancers.</div>
+            </a>
+            <a href="/late-payment-letter-template" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Free demand letter template</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Ready-to-send formal letter for invoices that aren't responding to chases.</div>
+            </a>
+          </div>
+        </div>
+
         {/* CTA */}
         <div className={s.ctaSection}>
           <h3 className={s.ctaTitle}>

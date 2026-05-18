@@ -26,6 +26,9 @@ const Referrals = lazy(() => import("./components/Referrals"))
 const NotificationDropdown = lazy(() => import("./components/NotificationDropdown"))
 const OnboardingTour = lazy(() => import("./components/OnboardingTour"))
 const LetterTemplate = lazy(() => import("./components/LetterTemplate"))
+const GuidesIndex = lazy(() => import("./components/guides/GuidesIndex"))
+const LatePaymentActExplained = lazy(() => import("./components/guides/LatePaymentActExplained"))
+const HowToChaseLateInvoices = lazy(() => import("./components/guides/HowToChaseLateInvoices"))
 
 const PageLoader = () => (
   <div className={s.pageLoader}>
@@ -295,6 +298,9 @@ export default function App() {
         <Routes>
           <Route path="/calculator" element={<Calculator onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} isMobile={isMobile} />} />
           <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides" element={<GuidesIndex onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/late-payment-act-1998-explained" element={<LatePaymentActExplained onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/how-to-chase-late-invoices" element={<HowToChaseLateInvoices onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
           <Route path="/ref/:code" element={<ReferralRedirect />} />

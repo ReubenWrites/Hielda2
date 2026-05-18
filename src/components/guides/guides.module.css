@@ -1,0 +1,317 @@
+/* Shared styles for /guides/* article pages.
+   Designed for long-form readable content: generous line-height, narrow
+   measure, calm typography. Matches the landing page palette. */
+
+.page {
+  background: #f1f3f6;
+  min-height: 100vh;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #dce1e8;
+}
+.navLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.navLogoText {
+  font-weight: 700;
+  font-size: 16px;
+  color: #0f172a;
+}
+.navTrialBtn {
+  padding: 8px 18px;
+  background: #1e5fa0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.breadcrumbs {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+.breadcrumbs a {
+  color: #1e5fa0;
+  text-decoration: none;
+}
+.breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 12px;
+  color: #0f172a;
+}
+
+.lede {
+  font-size: 17px;
+  line-height: 1.6;
+  color: #475569;
+  margin: 0 0 32px;
+}
+
+.body h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 36px 0 14px;
+  color: #0f172a;
+  scroll-margin-top: 80px;
+}
+
+.body h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 24px 0 10px;
+  color: #0f172a;
+}
+
+.body p {
+  font-size: 15px;
+  line-height: 1.75;
+  margin: 0 0 16px;
+  color: #1e293b;
+}
+
+.body ul, .body ol {
+  margin: 0 0 16px;
+  padding-left: 22px;
+}
+
+.body li {
+  font-size: 15px;
+  line-height: 1.75;
+  margin-bottom: 8px;
+  color: #1e293b;
+}
+
+.body strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.body a {
+  color: #1e5fa0;
+  text-decoration: underline;
+}
+
+.callout {
+  background: #f0f7ff;
+  border-left: 4px solid #1e5fa0;
+  border-radius: 0 8px 8px 0;
+  padding: 16px 20px;
+  margin: 20px 0;
+}
+.callout p {
+  margin: 0;
+  font-size: 14px;
+  color: #1e3a5f;
+}
+
+.calloutGrey {
+  background: #f8fafc;
+  border: 1px solid #dce1e8;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 20px 0;
+}
+
+.workedExample {
+  background: #fff;
+  border: 1px solid #dce1e8;
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin: 20px 0;
+}
+.workedExample h3 {
+  margin-top: 0;
+}
+.workedExample table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 12px 0;
+}
+.workedExample td {
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f6;
+}
+.workedExample td:last-child {
+  text-align: right;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+.workedExample tr:last-child td {
+  border-bottom: none;
+  border-top: 2px solid #1e5fa0;
+  padding-top: 12px;
+  font-size: 16px;
+  color: #1e5fa0;
+}
+
+.cta {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 28px;
+  margin: 40px 0 0;
+  text-align: center;
+  color: #fff;
+}
+.ctaTitle {
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+.ctaText {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+.ctaBtn {
+  padding: 12px 28px;
+  background: #1e5fa0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ctaSmall {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+.related {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid #dce1e8;
+}
+.relatedTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 14px;
+}
+.relatedList {
+  display: grid;
+  gap: 12px;
+}
+.relatedCard {
+  background: #fff;
+  border: 1px solid #dce1e8;
+  border-radius: 10px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: #0f172a;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.relatedCard:hover {
+  border-color: #1e5fa0;
+}
+.relatedCardTitle {
+  font-weight: 700;
+  font-size: 15px;
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+.relatedCardDesc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.faqList {
+  margin-top: 16px;
+}
+.faqItem {
+  background: #fff;
+  border: 1px solid #dce1e8;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.faqBtn {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.faqQuestion {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0;
+  color: #0f172a;
+  flex: 1;
+}
+.faqToggle {
+  font-size: 18px;
+  color: #94a3b8;
+  margin-left: 12px;
+}
+.faqAnswer {
+  padding: 0 18px 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #475569;
+}
+
+/* Guides index */
+.indexHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.indexTitle {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: #0f172a;
+}
+.indexSubtitle {
+  font-size: 16px;
+  color: #64748b;
+  max-width: 540px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .title { font-size: 26px; }
+  .lede { font-size: 16px; }
+  .body h2 { font-size: 19px; }
+  .indexTitle { font-size: 28px; }
+}
