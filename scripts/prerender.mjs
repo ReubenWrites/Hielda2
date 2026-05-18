@@ -82,6 +82,27 @@ const routes = [
     description:
       "Hielda privacy policy: how we collect, use, and protect data for UK freelancers and SMEs using the platform.",
   },
+  {
+    file: "guides.html",
+    canonical: `${SITE}/guides`,
+    title: "Guides for UK freelancers and SMEs — Hielda",
+    description:
+      "Plain-English explainers, free tools, and templates for getting paid on time and enforcing what you're owed under UK late payment law.",
+  },
+  {
+    file: "guides-late-payment-act-1998-explained.html",
+    canonical: `${SITE}/guides/late-payment-act-1998-explained`,
+    title: "Late Payment of Commercial Debts Act 1998 — explained for UK freelancers — Hielda",
+    description:
+      "Plain-English guide to the UK statute that gives every business the right to charge statutory interest and a fixed debt recovery cost on overdue B2B invoices.",
+  },
+  {
+    file: "guides-how-to-chase-late-invoices.html",
+    canonical: `${SITE}/guides/how-to-chase-late-invoices`,
+    title: "How to chase late invoices — a practical playbook for UK freelancers — Hielda",
+    description:
+      "Day-by-day timeline professional accounts teams use to chase late invoices, adapted for freelancers. Covers reminders, formal letters, and when to escalate.",
+  },
 ]
 
 function escapeAttr(s) {
