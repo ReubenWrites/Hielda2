@@ -202,20 +202,30 @@ serve(async (req) => {
     doc.setFontSize(22)
     doc.text(safe(invoice.ref), 20, y + 10)
 
-    // Business info (right side, below logo/name)
+    // Business info (right side, below logo/name).
+    // Width budget: business address can extend leftward from x=190, but
+    // must not collide with the INVOICE label/ref at x=20-90. Cap at 90mm
+    // and right-align each wrapped line.
+    const BIZ_ADDR_WIDTH = 90
     const infoTop = logoImg ? y + 16 : y + 5
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(gray)
-    const addrLines = safeSplit(profile.address)
-    addrLines.forEach((line: string, i: number) => {
-      doc.text(line.trim(), 190, infoTop + i * 4, { align: "right" })
+    let bizY = infoTop
+    safeSplit(profile.address).forEach((rawLine: string) => {
+      const wrapped = doc.splitTextToSize(rawLine.trim(), BIZ_ADDR_WIDTH)
+      wrapped.forEach((wl: string) => {
+        doc.text(wl, 190, bizY, { align: "right" })
+        bizY += 4
+      })
     })
     if (profile.email) {
-      doc.text(profile.email, 190, infoTop + 20, { align: "right" })
+      bizY = Math.max(bizY, infoTop + 20)
+      doc.text(profile.email, 190, bizY, { align: "right" })
+      bizY += 4
     }
     if (profile.website_url) {
-      doc.text(profile.website_url.replace(/^https?:\/\//, ""), 190, infoTop + 25, { align: "right" })
+      doc.text(profile.website_url.replace(/^https?:\/\//, ""), 190, Math.max(bizY, infoTop + 25), { align: "right" })
     }
 
     // Blue line
@@ -225,6 +235,12 @@ serve(async (req) => {
     doc.line(20, y, 190, y)
 
     // Bill to + dates
+    // Width budget: BILL TO column lives between x=20 and the DETAILS
+    // column at x=120, so cap at 95mm. Without this cap, a long client
+    // address typed on one line runs straight across the row and
+    // overlaps the date labels — exactly what the bug report screenshot
+    // showed.
+    const BILL_TO_WIDTH = 95
     y = 58
     doc.setFontSize(8)
     doc.setTextColor(gray)
@@ -235,17 +251,24 @@ serve(async (req) => {
     doc.setFontSize(10)
     doc.setTextColor(dark)
     doc.setFont("helvetica", "bold")
-    doc.text(invoice.client_name || "—", 20, y)
+    const clientNameLines = doc.splitTextToSize(safe(invoice.client_name, "—"), BILL_TO_WIDTH)
+    doc.text(clientNameLines, 20, y)
+    // Track where the bill-to column ends so client_email lands below it
+    // rather than at a fixed offset that might overlap wrapped address text.
+    let billToY = y + (clientNameLines.length - 1) * 5 + 5
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(gray)
-    const clientLines = safeSplit(invoice.client_address)
-    clientLines.forEach((line: string, i: number) => {
-      doc.text(line.trim(), 20, y + 5 + i * 4)
+    safeSplit(invoice.client_address).forEach((rawLine: string) => {
+      const wrapped = doc.splitTextToSize(rawLine.trim(), BILL_TO_WIDTH)
+      wrapped.forEach((wl: string) => {
+        doc.text(wl, 20, billToY)
+        billToY += 4
+      })
     })
     if (invoice.client_email) {
-      doc.text(invoice.client_email, 20, y + 18)
+      doc.text(invoice.client_email, 20, billToY + 2)
     }
 
     // Dates column
