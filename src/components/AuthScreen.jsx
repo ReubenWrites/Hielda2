@@ -216,6 +216,25 @@ export default function AuthScreen({ onAuth, onBack }) {
           )}
         </div>
       </Card>
+
+      {/* Trust signals: reassurance for first-time users about what
+          Hielda does and doesn't do with their data. Especially important
+          on the auth screen for users hesitant to hand over an email
+          before they've used the product. */}
+      <div className={s.trustRow} aria-label="Trust signals">
+        <div className={s.trustItem}>
+          <span className={s.trustIcon} aria-hidden="true">🔒</span>
+          <span>Encrypted in transit and at rest</span>
+        </div>
+        <div className={s.trustItem}>
+          <span className={s.trustIcon} aria-hidden="true">✉</span>
+          <span>We never email your clients without your approval</span>
+        </div>
+        <div className={s.trustItem}>
+          <span className={s.trustIcon} aria-hidden="true">🇬🇧</span>
+          <span>Built for UK freelancers — Late Payment Act 1998</span>
+        </div>
+      </div>
     </div>
   )
 }

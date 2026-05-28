@@ -131,6 +131,10 @@ export default function Settings({ profile, onUpdate, isMobile }) {
         </Card>
         <Card>
           <h3 className={s.sectionHeading}>Payment</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--tm)", background: "var(--acd)", border: "1px solid var(--bdl)", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
+            <span aria-hidden="true">🔒</span>
+            <span>Your bank details are encrypted at rest. Only you and your clients (on their invoices) ever see them.</span>
+          </div>
           <Inp label="Account Name" value={p.account_name || ""} onChange={(v) => update("account_name", v)} />
           <Inp label="Bank" value={p.bank_name || ""} onChange={(v) => update("bank_name", v)} />
           <Inp

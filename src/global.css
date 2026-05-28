@@ -66,3 +66,27 @@ button:focus:not(:focus-visible) { outline: none; }
     font-size: 16px;
   }
 }
+
+/* Motion + a11y polish: smooth transitions for interactive elements,
+   and honour prefers-reduced-motion for users who get vestibular
+   issues from animation. */
+button,
+a,
+input,
+textarea,
+select,
+[role="button"] {
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+              color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

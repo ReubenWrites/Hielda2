@@ -4,8 +4,18 @@ import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
 import { Card, Badge, Btn, StatCard } from "./ui"
 import { supabase } from "../supabase"
+import { trackEvent } from "../posthog"
 import EmailQueue from "./EmailQueue"
 import s from "./Dashboard.module.css"
+
+// CSV escaping per RFC 4180: any value containing comma, quote, or
+// newline needs to be quoted and embedded quotes doubled.
+function csvCell(v) {
+  if (v == null) return ""
+  const s = String(v)
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+  return s
+}
 
 export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const navigate = useNavigate()
@@ -255,6 +265,36 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               className={s.searchInput}
             />
           </div>
+          <Btn sz="sm" v="ghost" onClick={() => {
+            // Exports the currently-filtered view, so users can export
+            // "just overdue", "just this client", etc. by setting filters
+            // first. Useful for accountants and bookkeeping handoffs.
+            const headers = ["Ref","Client","Email","Issued","Due","Net","VAT","Total","Status","Days late","Paid date","Notes"]
+            const rows = filtered.map(i => [
+              i.ref,
+              i.client_name,
+              i.client_email || "",
+              i.issue_date || "",
+              i.due_date || "",
+              Number(i.amount).toFixed(2),
+              Number(i.vat_amount || 0).toFixed(2),
+              Number(i.total_with_vat || i.amount).toFixed(2),
+              i.status,
+              i.status === "overdue" ? daysLate(i.due_date) : "",
+              i.paid_date || "",
+              (i.notes || "").replace(/\n/g, " "),
+            ])
+            const csv = [headers, ...rows].map(r => r.map(csvCell).join(",")).join("\r\n")
+            // BOM so Excel opens UTF-8 correctly (currency symbols etc).
+            const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = `hielda-invoices-${new Date().toISOString().split("T")[0]}.csv`
+            a.click()
+            URL.revokeObjectURL(url)
+            trackEvent("invoices_exported_csv", { count: filtered.length })
+          }} dis={filtered.length === 0}>📥 Export CSV</Btn>
           <Btn sz="sm" onClick={() => navigate("/create")}>+ New</Btn>
         </div>
         <div className={s.filterBar}>
@@ -281,11 +321,16 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         </div>
 
         {invs.length === 0 ? (
-          <Card style={{ textAlign: "center", padding: isMobile ? "30px 20px" : "40px 24px" }}>
-            <div className={s.emptyIcon} aria-hidden="true">📋</div>
-            <div className={s.emptyTitle}>No invoices yet</div>
-            <div className={s.emptyText}>Create your first invoice and Hielda will handle the rest.</div>
-            <Btn onClick={() => navigate("/create")}>+ Create Invoice</Btn>
+          <Card style={{ textAlign: "center", padding: isMobile ? "40px 24px" : "56px 32px" }}>
+            <div className={s.emptyIcon} aria-hidden="true" style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+            <div className={s.emptyTitle} style={{ fontSize: 18 }}>Let's get your first invoice out</div>
+            <div className={s.emptyText} style={{ maxWidth: 380, margin: "8px auto 20px", lineHeight: 1.6 }}>
+              Add a client, list what you've done, and Hielda will handle the chasing, the interest, and the awkward bits — so you don't have to.
+            </div>
+            <Btn onClick={() => navigate("/create")} sz="lg">+ Create your first invoice</Btn>
+            <div style={{ marginTop: 14, fontSize: 12, color: "var(--td)" }}>
+              No client to invoice yet? Try the <a href="/calculator" style={{ color: "var(--ac)", textDecoration: "none", fontWeight: 600 }}>late payment calculator</a> to see what you're owed on past invoices.
+            </div>
           </Card>
         ) : (
           <>
