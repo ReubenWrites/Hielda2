@@ -443,7 +443,15 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   // App.jsx then re-derives 'overdue' from due_date if it's in the past.
   // Doesn't touch amount_paid, so any partial-payment history is preserved.
   const unmarkPaid = async () => {
-    if (!window.confirm("Mark this invoice as unpaid?\n\nThis will reopen it for chasing. Any partial-payment history is kept.")) return
+    // Reassurance copy: a common worry is "if I unmark this, will Hielda
+    // suddenly hammer my client?". The answer is no — chases only ever
+    // go out after the freelancer explicitly approves via the check-in
+    // email, even on auto-chase invoices. Spelling that out here.
+    if (!window.confirm(
+      "Mark this invoice as unpaid?\n\n" +
+      "Your client will NOT be chased automatically. Hielda always emails YOU first to ask before sending anything to them — even on overdue invoices.\n\n" +
+      "Any partial-payment history is kept."
+    )) return
     setMarking(true)
     setError("")
     try {
@@ -594,7 +602,10 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
   const toggleAutoChase = async () => {
     const newVal = !autoChase
-    if (!newVal && !window.confirm("Pause automatic chasing for this invoice? You can resume it at any time.")) return
+    if (!newVal && !window.confirm(
+      "Pause chasing for this invoice?\n\n" +
+      "Hielda will stop emailing you about it. Your client won't hear from Hielda either. You can resume any time."
+    )) return
     setAutoChase(newVal)
     try {
       const { error: err } = await supabase
@@ -1222,20 +1233,27 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         </Card>
       )}
 
-      {/* Auto-chase toggle */}
+      {/* Auto-chase toggle. The old subtitle said "Hielda will send chase
+          emails automatically" — technically misleading because chases
+          only fire after the freelancer approves via the check-in email.
+          Reworded to reflect what actually happens, which also doubles
+          as reassurance for users worried about their client being
+          hassled. */}
       {inv.status !== "paid" && (
         <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.autoChaseMargin}`}>
           <div className={s.toggleContent}>
             <div className={s.toggleTitle}>Automatic chasing</div>
             <div className={s.toggleSub}>
-              {autoChase ? "Hielda will send chase emails automatically" : "Chase emails paused for this invoice"}
+              {autoChase
+                ? "When a chase is due, Hielda emails you first to ask — nothing goes to your client without your approval."
+                : "Paused. Hielda won't email you or your client about this invoice."}
             </div>
           </div>
           <button
             onClick={toggleAutoChase}
             className={s.toggleTrack}
             style={{ background: autoChase ? c.ac : c.bd }}
-            aria-label={autoChase ? "Disable automatic chasing" : "Enable automatic chasing"}
+            aria-label={autoChase ? "Pause automatic chasing" : "Resume automatic chasing"}
           >
             <div className={s.toggleThumb} style={{ left: autoChase ? 23 : 3 }} />
           </button>
@@ -1351,6 +1369,9 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       {chaseLogs.length > 0 && (
         <Card style={{ marginTop: 0 }}>
           <h3 className={s.chaseLogHeading}>Chase log</h3>
+          <p style={{ fontSize: 12, color: "var(--tm)", margin: "0 0 14px", lineHeight: 1.6 }}>
+            Every email Hielda has sent for this invoice — check-ins to you, and any chases you approved going to your client.
+          </p>
           {chaseLogs.map((log) => {
             const stg = CHASE_STAGES.find((s) => s.id === log.chase_stage)
             const isCheckIn = log.status === "check_in_sent"
