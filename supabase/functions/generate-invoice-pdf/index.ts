@@ -52,6 +52,12 @@ function safeSplit(v: unknown): string[] {
   return typeof v === "string" ? v.split("\n") : []
 }
 
+// Page geometry. A4 portrait is 297mm tall; the footer sits at y=280
+// (and footer subtext at y=285). PAGE_BOTTOM_LIMIT is the floor for
+// content above the footer — anything that would render below it
+// triggers a page break.
+const PAGE_BOTTOM_LIMIT = 265
+
 // Browsers preflight any POST with Content-Type: application/json. Without
 // an OPTIONS handler + Allow headers the preflight fails and the browser
 // blocks the real request, surfacing as "Failed to send a request to the
@@ -166,7 +172,10 @@ serve(async (req) => {
     const dark = "#0f172a"
     let y = 20
 
-    // Logo or business name in top-right
+    // Logo or business name in top-right. Cap at 70mm wide so a long
+    // business name wraps cleanly instead of colliding with the INVOICE
+    // label at x=20.
+    const TOP_RIGHT_WIDTH = 70
     const bizName = profile.business_name || profile.full_name || ""
     if (logoImg) {
       try {
@@ -184,23 +193,38 @@ serve(async (req) => {
         doc.setFontSize(10)
         doc.setTextColor(dark)
         doc.setFont("helvetica", "bold")
-        doc.text(bizName, 190, y, { align: "right" })
+        const nameLines = doc.splitTextToSize(bizName, TOP_RIGHT_WIDTH)
+        doc.text(nameLines, 190, y, { align: "right" })
       }
     } else {
       doc.setFontSize(10)
       doc.setTextColor(dark)
       doc.setFont("helvetica", "bold")
-      doc.text(bizName, 190, y, { align: "right" })
+      const nameLines = doc.splitTextToSize(bizName, TOP_RIGHT_WIDTH)
+      doc.text(nameLines, 190, y, { align: "right" })
     }
 
-    // Invoice label + ref (top left)
+    // Invoice label + ref (top left). Invoice ref at fontSize 22 — at
+    // ~5mm/char this can run a 20-char ref well past the page midline
+    // and into the business name. Scale fontSize down if the ref would
+    // be wider than 90mm.
     doc.setFontSize(10)
     doc.setTextColor(blue)
     doc.setFont("helvetica", "bold")
     doc.text("INVOICE", 20, y)
 
-    doc.setFontSize(22)
-    doc.text(safe(invoice.ref), 20, y + 10)
+    const refText = safe(invoice.ref)
+    const REF_MAX_WIDTH = 90
+    let refFontSize = 22
+    // Iteratively shrink the ref font until it fits, floor at 10pt.
+    // 10pt is still comfortably readable; anything below that and the
+    // ref would just truncate visually (rare — would need ~40+ chars).
+    doc.setFontSize(refFontSize)
+    while (doc.getTextWidth(refText) > REF_MAX_WIDTH && refFontSize > 10) {
+      refFontSize -= 2
+      doc.setFontSize(refFontSize)
+    }
+    doc.text(refText, 20, y + 10)
 
     // Business info (right side, below logo/name).
     // Width budget: business address can extend leftward from x=190, but
@@ -221,11 +245,19 @@ serve(async (req) => {
     })
     if (profile.email) {
       bizY = Math.max(bizY, infoTop + 20)
-      doc.text(profile.email, 190, bizY, { align: "right" })
-      bizY += 4
+      const emailLines = doc.splitTextToSize(profile.email, BIZ_ADDR_WIDTH)
+      emailLines.forEach((el: string) => {
+        doc.text(el, 190, bizY, { align: "right" })
+        bizY += 4
+      })
     }
     if (profile.website_url) {
-      doc.text(profile.website_url.replace(/^https?:\/\//, ""), 190, Math.max(bizY, infoTop + 25), { align: "right" })
+      const urlLines = doc.splitTextToSize(profile.website_url.replace(/^https?:\/\//, ""), BIZ_ADDR_WIDTH)
+      let urlY = Math.max(bizY, infoTop + 25)
+      urlLines.forEach((ul: string) => {
+        doc.text(ul, 190, urlY, { align: "right" })
+        urlY += 4
+      })
     }
 
     // Blue line
@@ -271,7 +303,10 @@ serve(async (req) => {
       doc.text(invoice.client_email, 20, billToY + 2)
     }
 
-    // Dates column
+    // Dates column. Values render in a narrow column from x=160 to x=190,
+    // so long values (especially user-entered Client Ref strings) need
+    // wrapping — without the cap, a long ref would run off the page edge.
+    const DETAILS_VALUE_WIDTH = 30
     const details: string[][] = [
       ["Issue Date", formatDate(invoice.issue_date)],
       ["Due Date", formatDate(invoice.due_date)],
@@ -280,15 +315,24 @@ serve(async (req) => {
     if (invoice.client_ref) details.push(["Client Ref", invoice.client_ref])
     if (invoice.paid_date) details.push(["Paid", formatDate(invoice.paid_date)])
 
-    details.forEach(([k, v], i) => {
+    let detailsY = y
+    details.forEach(([k, v]) => {
       doc.setTextColor(gray)
-      doc.text(k, 120, y + i * 6)
+      doc.text(k, 120, detailsY)
       doc.setTextColor(dark)
-      doc.text(v, 160, y + i * 6)
+      const valueLines = doc.splitTextToSize(safe(v), DETAILS_VALUE_WIDTH)
+      doc.text(valueLines, 160, detailsY)
+      // 6mm per row, plus extra for any wrapped lines
+      detailsY += 6 + Math.max(0, valueLines.length - 1) * 4
     })
 
-    // Line items
-    y = 100
+    // Line items start below whichever column extends further down —
+    // BILL TO (with potentially-wrapped client name + address + email)
+    // or DETAILS (with potentially-wrapped client ref). Defaulting to a
+    // fixed y=100 used to cause the line item header to render on top
+    // of overflowing bill-to text.
+    const billToBottom = billToY + (invoice.client_email ? 6 : 0)
+    y = Math.max(100, billToBottom + 4, detailsY + 4)
     doc.setDrawColor("#dce1e8")
     doc.setLineWidth(0.3)
     doc.line(20, y, 190, y)
@@ -422,32 +466,52 @@ serve(async (req) => {
     // Payment details box
     y += 16
 
-    // Build payment lines
-    const payLines: string[] = []
+    // Build payment lines. Each one is wrapped to the box's inner width
+    // (170mm - 2*8mm padding = 154mm) — a long bank name or account
+    // name would otherwise run past the right edge of the box.
+    const PAY_LINE_WIDTH = 154
+    const rawPayLines: string[] = []
     const hasBankDetails = profile.bank_name || profile.sort_code || profile.account_number
     const hasIntlDetails = profile.swift_bic || profile.iban
 
     if (profile.account_name) {
-      payLines.push(`Account Name: ${profile.account_name}`)
+      rawPayLines.push(`Account Name: ${profile.account_name}`)
     }
     if (hasBankDetails) {
-      payLines.push(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Acct: ${profile.account_number || "—"}`)
+      rawPayLines.push(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Acct: ${profile.account_number || "—"}`)
     }
     if (hasIntlDetails) {
       const intlParts: string[] = []
       if (profile.swift_bic) intlParts.push(`SWIFT/BIC: ${profile.swift_bic}`)
       if (profile.iban) intlParts.push(`IBAN: ${profile.iban}`)
-      payLines.push(intlParts.join("    "))
+      rawPayLines.push(intlParts.join("    "))
     }
-    payLines.push(`Reference: ${invoice.ref}`)
-    if (profile.vat_number) payLines.push(`VAT Reg: ${profile.vat_number}`)
+    rawPayLines.push(`Reference: ${invoice.ref}`)
+    if (profile.vat_number) rawPayLines.push(`VAT Reg: ${profile.vat_number}`)
+
+    // Pre-compute wrapped lines so we know the box height before
+    // we draw the background fill.
+    doc.setFontSize(9)
+    const payLines: string[] = []
+    for (const raw of rawPayLines) {
+      const wrapped = doc.splitTextToSize(raw, PAY_LINE_WIDTH)
+      wrapped.forEach((l: string) => payLines.push(l))
+    }
 
     const boxH = 14 + payLines.length * 5.5
+
+    // If the box would extend past the bottom limit, break to a new
+    // page. Reserves footer space and prevents the rounded rect (and
+    // the text inside it) from clipping into / past the footer text.
+    if (y + boxH > PAGE_BOTTOM_LIMIT) {
+      doc.addPage()
+      y = 20
+    }
+
     doc.setFillColor("#f1f3f6")
     doc.roundedRect(20, y, 170, boxH, 3, 3, "F")
 
     y += 8
-    doc.setFontSize(9)
     doc.setTextColor(dark)
     doc.setFont("helvetica", "bold")
     doc.text("Payment Details", 28, y)
@@ -459,22 +523,27 @@ serve(async (req) => {
       doc.text(line, 28, y)
     }
 
-    // Per-invoice notes (renders above the signoff). Page-breaks if it'd
-    // collide with the footer.
+    // Per-invoice notes (renders above the signoff). Page-break is
+    // checked *before* the "Notes" header so the header doesn't get
+    // orphaned on the previous page when the body would have spilled
+    // off — that was the bug in the previous version.
     if (invoice.notes) {
       y += 10
       doc.setFontSize(9)
+      doc.setFont("helvetica", "normal")
+      const notesLines = doc.splitTextToSize(String(invoice.notes), 170)
+      // Need room for: header (5mm) + spacing (5mm) + each body line (5mm)
+      const notesBlockHeight = 10 + notesLines.length * 5
+      if (y + notesBlockHeight > PAGE_BOTTOM_LIMIT) {
+        doc.addPage()
+        y = 20
+      }
       doc.setTextColor(dark)
       doc.setFont("helvetica", "bold")
       doc.text("Notes", 20, y)
       y += 5
       doc.setFont("helvetica", "normal")
       doc.setTextColor(gray)
-      const notesLines = doc.splitTextToSize(String(invoice.notes), 170)
-      if (y + notesLines.length * 5 > 265) {
-        doc.addPage()
-        y = 20
-      }
       doc.text(notesLines, 20, y)
       y += notesLines.length * 5
     }
@@ -486,8 +555,7 @@ serve(async (req) => {
       doc.setTextColor(gray)
       doc.setFont("helvetica", "italic")
       const signoffLines = doc.splitTextToSize(profile.invoice_signoff, 160)
-      // Check if signoff would collide with footer — add page break if needed
-      if (y + signoffLines.length * 5 > 265) {
+      if (y + signoffLines.length * 5 > PAGE_BOTTOM_LIMIT) {
         doc.addPage()
         y = 20
       }
