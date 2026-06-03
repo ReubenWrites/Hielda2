@@ -295,3 +295,125 @@
 .collapsibleBody {
   padding: 0 18px 18px;
 }
+
+/* ── ConfirmDialog ──
+   Centered modal on desktop, bottom-anchored on mobile so the action
+   buttons fall in thumb's reach. Honours iPhone safe-area inset. */
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: confirmFade 0.15s ease-out;
+}
+
+@keyframes confirmFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirmBox {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  animation: confirmSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes confirmSlide {
+  from { transform: translateY(8px); opacity: 0.5; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.confirmTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.confirmMessage {
+  font-size: 13px;
+  color: #475569;
+  margin: 0 0 20px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirmCancelBtn,
+.confirmActionBtn,
+.confirmDangerBtn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  min-height: 44px; /* iOS touch target */
+  min-width: 80px;
+}
+
+.confirmCancelBtn {
+  background: transparent;
+  color: var(--tm);
+  border-color: var(--bd);
+}
+.confirmCancelBtn:hover { background: var(--bg); }
+
+.confirmActionBtn {
+  background: var(--ac);
+  color: #fff;
+  border-color: var(--ac);
+}
+.confirmActionBtn:hover { background: var(--acl); border-color: var(--acl); }
+
+.confirmDangerBtn {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+.confirmDangerBtn:hover { background: #b91c1c; border-color: #b91c1c; }
+
+/* Bottom-sheet style on phones for thumb reach */
+@media (max-width: 480px) {
+  .confirmOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .confirmBox {
+    border-radius: 16px 16px 0 0;
+    max-width: 100%;
+    padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+    animation: confirmSheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .confirmActions {
+    flex-direction: column-reverse;
+  }
+  .confirmCancelBtn,
+  .confirmActionBtn,
+  .confirmDangerBtn {
+    width: 100%;
+    padding: 14px 18px;
+  }
+}
+
+@keyframes confirmSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

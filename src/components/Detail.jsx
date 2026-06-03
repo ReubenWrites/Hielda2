@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
-import { Card, Badge, Btn, ErrorBanner } from "./ui"
+import { Card, Badge, Btn, ErrorBanner, useConfirm } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { buildIntroText } from "../lib/introText"
 import { trackEvent } from "../posthog"
@@ -265,6 +265,7 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
 
 export default function Detail({ inv, profile, onUpdate, isMobile, editChase, onEditChaseDone }) {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
@@ -407,7 +408,13 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   }
 
   const deleteInvoice = async () => {
-    if (!window.confirm(`Permanently delete invoice ${inv.ref}? This cannot be undone.`)) return
+    if (!(await confirm({
+      title: `Delete invoice ${inv.ref}?`,
+      message: "This cannot be undone. Any chase emails sent for this invoice will also be removed from your history.",
+      confirmLabel: "Delete invoice",
+      cancelLabel: "Keep it",
+      danger: true,
+    }))) return
     setDeleting(true)
     setError("")
     try {
@@ -447,11 +454,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     // suddenly hammer my client?". The answer is no — chases only ever
     // go out after the freelancer explicitly approves via the check-in
     // email, even on auto-chase invoices. Spelling that out here.
-    if (!window.confirm(
-      "Mark this invoice as unpaid?\n\n" +
-      "Your client will NOT be chased automatically. Hielda always emails YOU first to ask before sending anything to them — even on overdue invoices.\n\n" +
-      "Any partial-payment history is kept."
-    )) return
+    if (!(await confirm({
+      title: "Mark this invoice as unpaid?",
+      message: "Your client will NOT be chased automatically. Hielda always emails you first to ask before sending anything to them — even on overdue invoices.\n\nAny partial-payment history is kept.",
+      confirmLabel: "Mark as unpaid",
+      cancelLabel: "Cancel",
+    }))) return
     setMarking(true)
     setError("")
     try {
@@ -484,14 +492,14 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const adjustDueDate = async () => {
     if (!newDueDate || newDueDate === inv.due_date) { setShowAdjustDue(false); return }
     const future = new Date(newDueDate) > new Date()
-    if (!window.confirm(
-      `Change the due date to ${formatDate(newDueDate)}?\n\n` +
-      `This is when statutory interest will start accruing if unpaid. ` +
-      `${future
+    if (!(await confirm({
+      title: `Change the due date to ${formatDate(newDueDate)}?`,
+      message: `This is when statutory interest will start accruing if unpaid.\n\n${future
         ? "Since the new date is in the future, the invoice will go back to 'pending' and no interest will currently apply."
-        : "The new date is in the past — interest will accrue from that date forward."}\n\n` +
-      `Any chase emails already sent will remain in the chase log.`
-    )) return
+        : "The new date is in the past — interest will accrue from that date forward."}\n\nAny chase emails already sent will remain in the chase log.`,
+      confirmLabel: "Update due date",
+      cancelLabel: "Cancel",
+    }))) return
     setAdjusting(true)
     setError("")
     try {
@@ -519,7 +527,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       setError("This invoice has no client email address.")
       return
     }
-    if (!window.confirm(`Send invoice email to ${inv.client_email}?`)) return
+    if (!(await confirm({
+      title: `Send invoice email to ${inv.client_name}?`,
+      message: `The invoice details and PDF will be sent to ${inv.client_email}. You'll be BCC'd a copy.`,
+      confirmLabel: "Send invoice",
+      cancelLabel: "Cancel",
+    }))) return
 
     setSendingInvoiceEmail(true)
     setError("")
@@ -588,10 +601,13 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     const stageLabel = getStageLabel(stage)
 
     if (!skipConfirm) {
-      const ccList = ccEmails.trim() ? `, CC: ${ccEmails.trim()}` : ""
-      const confirmed = window.confirm(
-        `Send ${stageLabel} email to ${inv.client_email}${ccList}?\n\nYou'll also be BCC'd automatically (your client won't see you on the recipient list).`
-      )
+      const ccText = ccEmails.trim() ? `\n\nCC: ${ccEmails.trim()}` : ""
+      const confirmed = await confirm({
+        title: `Send "${stageLabel}" to ${inv.client_name}?`,
+        message: `The chase email and PDF will be sent to ${inv.client_email}.${ccText}\n\nYou'll be BCC'd automatically (your client won't see you on the recipient list).`,
+        confirmLabel: "Send chase",
+        cancelLabel: "Not yet",
+      })
       if (!confirmed) return
     }
 
@@ -643,10 +659,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
   const toggleAutoChase = async () => {
     const newVal = !autoChase
-    if (!newVal && !window.confirm(
-      "Pause chasing for this invoice?\n\n" +
-      "Hielda will stop emailing you about it. Your client won't hear from Hielda either. You can resume any time."
-    )) return
+    if (!newVal && !(await confirm({
+      title: "Pause chasing for this invoice?",
+      message: "Hielda will stop emailing you about it. Your client won't hear from Hielda either. You can resume any time.",
+      confirmLabel: "Pause chasing",
+      cancelLabel: "Keep chasing",
+    }))) return
     setAutoChase(newVal)
     try {
       const { error: err } = await supabase

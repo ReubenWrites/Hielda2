@@ -1,5 +1,108 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback, useContext, createContext } from "react"
 import s from "./ui.module.css"
+
+// ── ConfirmDialog ──
+// Drop-in replacement for window.confirm — but branded, mobile-friendly,
+// and async-safe. The promise-based API mirrors window.confirm so
+// existing call sites can be replaced with a one-line swap:
+//   if (!window.confirm("X?")) return  →  if (!(await confirm({ title: "X?" }))) return
+function ConfirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger, onConfirm, onCancel }) {
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onCancel()
+      // Enter only confirms if it's not in a textarea/input (user might be typing)
+      if (e.key === "Enter" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
+        e.preventDefault()
+        onConfirm()
+      }
+    }
+    window.addEventListener("keydown", handler)
+    // Lock body scroll while modal open
+    const original = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      window.removeEventListener("keydown", handler)
+      document.body.style.overflow = original
+    }
+  }, [onConfirm, onCancel])
+
+  return (
+    <div className={s.confirmOverlay} onClick={onCancel} role="presentation">
+      <div
+        className={s.confirmBox}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hielda-confirm-title"
+      >
+        <h3 className={s.confirmTitle} id="hielda-confirm-title">{title}</h3>
+        {message && <p className={s.confirmMessage}>{message}</p>}
+        <div className={s.confirmActions}>
+          <button onClick={onCancel} className={s.confirmCancelBtn} type="button">{cancelLabel}</button>
+          <button
+            onClick={onConfirm}
+            className={danger ? s.confirmDangerBtn : s.confirmActionBtn}
+            type="button"
+            autoFocus
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const ConfirmContext = createContext(null)
+
+export function ConfirmProvider({ children }) {
+  const [state, setState] = useState(null)
+
+  const confirm = useCallback((opts) => {
+    return new Promise((resolve) => {
+      // Accept a string for ergonomics — confirm("Are you sure?") works.
+      const normalised = typeof opts === "string" ? { title: opts } : (opts || {})
+      setState({ ...normalised, resolve })
+    })
+  }, [])
+
+  const handleConfirm = () => {
+    state?.resolve(true)
+    setState(null)
+  }
+  const handleCancel = () => {
+    state?.resolve(false)
+    setState(null)
+  }
+
+  return (
+    <ConfirmContext.Provider value={confirm}>
+      {children}
+      {state && (
+        <ConfirmDialog
+          title={state.title}
+          message={state.message}
+          confirmLabel={state.confirmLabel}
+          cancelLabel={state.cancelLabel}
+          danger={state.danger}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+        />
+      )}
+    </ConfirmContext.Provider>
+  )
+}
+
+export function useConfirm() {
+  const fn = useContext(ConfirmContext)
+  if (!fn) {
+    // Graceful fallback if used outside provider — fall back to native
+    // confirm rather than throwing. Easier to debug than a crash.
+    return (opts) => Promise.resolve(window.confirm(typeof opts === "string" ? opts : (opts?.title || "Confirm?") + (opts?.message ? "\n\n" + opts.message : "")))
+  }
+  return fn
+}
+
 
 // ── Badge ──
 export const Badge = ({ children, color = "var(--ac)" }) => (

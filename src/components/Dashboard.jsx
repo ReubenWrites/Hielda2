@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
-import { Card, Badge, Btn, StatCard } from "./ui"
+import { Card, Badge, Btn, StatCard, useConfirm } from "./ui"
 import { supabase } from "../supabase"
 import { trackEvent } from "../posthog"
 import EmailQueue from "./EmailQueue"
@@ -19,6 +19,7 @@ function csvCell(v) {
 
 export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("created_at")
@@ -112,7 +113,12 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   }
 
   const bulkMarkPaid = async () => {
-    if (!window.confirm(`Mark ${selected.size} invoice(s) as paid?`)) return
+    if (!(await confirm({
+      title: `Mark ${selected.size} ${selected.size === 1 ? "invoice" : "invoices"} as paid?`,
+      message: "Each one will be marked paid with today's date. Any active chasing stops immediately.",
+      confirmLabel: "Mark as paid",
+      cancelLabel: "Cancel",
+    }))) return
     setBulkLoading(true)
     try {
       const ids = Array.from(selected)
@@ -130,7 +136,13 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   }
 
   const bulkDelete = async () => {
-    if (!window.confirm(`Permanently delete ${selected.size} invoice(s)? This cannot be undone.`)) return
+    if (!(await confirm({
+      title: `Delete ${selected.size} ${selected.size === 1 ? "invoice" : "invoices"}?`,
+      message: "This cannot be undone. Any chase emails sent for these invoices will also be removed from your history.",
+      confirmLabel: `Delete ${selected.size}`,
+      cancelLabel: "Keep them",
+      danger: true,
+    }))) return
     setBulkLoading(true)
     try {
       const ids = Array.from(selected)
