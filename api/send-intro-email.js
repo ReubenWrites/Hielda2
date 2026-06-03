@@ -1,6 +1,7 @@
 // Vercel Serverless Function: Send a client introduction email via Resend
 
 import { createClient } from '@supabase/supabase-js'
+import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -109,7 +110,7 @@ export default async function handler(req, res) {
           </tr>
           <tr style="border-bottom:1px solid #e8ecf0;">
             <td colspan="2" style="padding:10px 0;font-size:12px;color:#1e3a5f;background:#f0f7ff;padding:10px 12px;border-radius:6px;margin:8px 0;display:block;">
-              <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+              Swift payment is always appreciated — we love it when our clients settle quickly. If the invoice is still outstanding on <strong>${formatDate(invoice.due_date)}</strong>, statutory interest and a fixed debt recovery cost will start to accrue under the Late Payment of Commercial Debts (Interest) Act 1998.
             </td>
           </tr>
           ${invoice.notes ? `<tr style="border-bottom:1px solid #e8ecf0;">
@@ -157,22 +158,30 @@ export default async function handler(req, res) {
 </body>
 </html>`
 
+    // Attach the invoice PDF so the client gets a downloadable copy they
+    // can save / forward to accounts. Best-effort: if PDF generation
+    // fails the email still goes out without the attachment.
+    const pdfAttachment = invoice_id ? await getInvoicePdfAttachment(invoice_id, invoice?.ref) : null
+
+    const resendPayload = {
+      from: `${senderName} via Hielda <hello@hielda.com>`,
+      reply_to: profile?.email || undefined,
+      to: [client_email],
+      // BCC the freelancer so they get a private copy without the client
+      // seeing them on the recipient list.
+      ...(profile?.email ? { bcc: [profile.email] } : {}),
+      subject: `A quick note from ${senderName}`,
+      html,
+    }
+    if (pdfAttachment) resendPayload.attachments = [pdfAttachment]
+
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: `${senderName} via Hielda <hello@hielda.com>`,
-        reply_to: profile?.email || undefined,
-        to: [client_email],
-        // BCC the freelancer so they get a private copy without the client
-        // seeing them on the recipient list.
-        ...(profile?.email ? { bcc: [profile.email] } : {}),
-        subject: `A quick note from ${senderName}`,
-        html,
-      }),
+      body: JSON.stringify(resendPayload),
     })
 
     const resendData = await resendRes.json()

@@ -1,6 +1,8 @@
 // Vercel Serverless Function: Send a chase email via Resend
 // Called from the frontend when user clicks "Send Chase Email"
 
+import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
+
 import { createClient } from '@supabase/supabase-js'
 import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
 
@@ -315,6 +317,11 @@ export default async function handler(req, res) {
     }
     if (ccList.length > 0) resendPayload.cc = ccList
     if (bccList.length > 0) resendPayload.bcc = bccList
+
+    // Attach the invoice PDF. Best-effort: if generation fails the email
+    // still goes out without the attachment rather than failing entirely.
+    const pdfAttachment = await getInvoicePdfAttachment(invoice.id, invoice.ref)
+    if (pdfAttachment) resendPayload.attachments = [pdfAttachment]
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',

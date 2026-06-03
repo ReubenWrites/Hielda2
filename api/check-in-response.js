@@ -3,6 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
@@ -455,20 +456,27 @@ export default async function handler(req, res) {
       const tone = profile.chase_tone || 'firm'
       const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total, tone)
 
+      // Attach the invoice PDF. Best-effort — chase still sends without
+      // the attachment if PDF generation fails.
+      const pdfAttachment = await getInvoicePdfAttachment(invoice.id, invoice.ref)
+
+      const checkInPayload = {
+        from: `${email.fromName} via Hielda <chase@hielda.com>`,
+        reply_to: profile.email,
+        to: [invoice.client_email],
+        subject: email.subject,
+        html: email.html,
+        headers: { 'List-Unsubscribe': `<mailto:unsubscribe@hielda.com?subject=Unsubscribe%20${invoice.ref}>` },
+      }
+      if (pdfAttachment) checkInPayload.attachments = [pdfAttachment]
+
       const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from: `${email.fromName} via Hielda <chase@hielda.com>`,
-          reply_to: profile.email,
-          to: [invoice.client_email],
-          subject: email.subject,
-          html: email.html,
-          headers: { 'List-Unsubscribe': `<mailto:unsubscribe@hielda.com?subject=Unsubscribe%20${invoice.ref}>` },
-        }),
+        body: JSON.stringify(checkInPayload),
       })
 
       const resendData = await resendRes.json()
