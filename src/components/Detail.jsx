@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
-import { Card, Badge, Btn, ErrorBanner, useConfirm } from "./ui"
+import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { buildIntroText } from "../lib/introText"
 import { trackEvent } from "../posthog"
@@ -266,6 +266,7 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
 export default function Detail({ inv, profile, onUpdate, isMobile, editChase, onEditChaseDone }) {
   const navigate = useNavigate()
   const confirm = useConfirm()
+  const toast = useToast()
   const [marking, setMarking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
@@ -279,7 +280,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const [savingRecipients, setSavingRecipients] = useState(false)
   const [showFinesInfo, setShowFinesInfo] = useState(false)
   const [sending, setSending] = useState(false)
-  const [sendSuccess, setSendSuccess] = useState("")
   const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false)
   const [editingClient, setEditingClient] = useState(false)
   const [clientEdit, setClientEdit] = useState({ name: "", email: "", address: "", ref: "" })
@@ -536,7 +536,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
     setSendingInvoiceEmail(true)
     setError("")
-    setSendSuccess("")
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const introText = buildIntroText(profile, inv.client_name)
@@ -557,8 +556,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         try { msg = JSON.parse(text).error || text } catch {}
         throw new Error(msg || `Send failed (${res.status})`)
       }
-      setSendSuccess(`Invoice email sent to ${inv.client_email}`)
-      setTimeout(() => setSendSuccess(""), 5000)
+      toast.success(`Invoice email sent to ${inv.client_email}`)
     } catch (e) {
       setError("Failed to send invoice email: " + e.message)
     }
@@ -572,7 +570,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     if (sendingInvoiceEmail) return
     setSendingInvoiceEmail(true)
     setError("")
-    setSendSuccess("")
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch("/api/send-self-copy", {
@@ -587,8 +584,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         throw new Error(msg || `Send failed (${res.status})`)
       }
       const data = await res.json()
-      setSendSuccess(`Copy sent to ${data.sent_to || "your email"}`)
-      setTimeout(() => setSendSuccess(""), 5000)
+      toast.success(`Copy sent to ${data.sent_to || "your email"}`)
     } catch (e) {
       setError("Failed to send copy: " + e.message)
     }
@@ -613,7 +609,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
     setSending(true)
     setError("")
-    setSendSuccess("")
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const userToken = session?.access_token
@@ -631,15 +626,14 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       if (!res.ok) {
         // Handle idempotency: if already sent, treat as success
         if (res.status === 409) {
-          setSendSuccess(`${stageLabel} was already sent — refreshing status.`)
+          toast.info(`${stageLabel} was already sent — refreshing status.`)
           onUpdate()
-          setTimeout(() => setSendSuccess(""), 5000)
           setSending(false)
           return
         }
         throw new Error(data.error || "Failed to send")
       }
-      setSendSuccess(`${stageLabel} email sent to ${data.email_to}`)
+      toast.success(`${stageLabel} email sent to ${data.email_to}`)
       trackEvent("chase_sent", { stage, ref: inv.ref })
 
       // Server handles chase_stage advancement — just refresh
@@ -650,7 +644,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         .order("sent_at", { ascending: false })
       if (logs) setChaseLogs(logs)
       onUpdate()
-      setTimeout(() => setSendSuccess(""), 5000)
     } catch (e) {
       setError("Failed to send chase email: " + e.message)
     }
@@ -755,15 +748,14 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       if (resetChase) {
         // Advance to reminder_2 after sending reminder_1
         await supabase.from("invoices").update({ chase_stage: "reminder_2" }).eq("id", inv.id)
-        setSendSuccess(`Chase restarted — sent ${getStageLabel(stage)} to ${data.email_to}`)
+        toast.success(`Chase restarted — sent ${getStageLabel(stage)} to ${data.email_to}`)
       } else {
-        setSendSuccess(`Resent ${getStageLabel(stage)} to ${data.email_to}`)
+        toast.success(`Resent ${getStageLabel(stage)} to ${data.email_to}`)
       }
 
       const { data: logs } = await supabase.from("chase_log").select("*").eq("invoice_id", inv.id).order("sent_at", { ascending: false })
       if (logs) setChaseLogs(logs)
       onUpdate()
-      setTimeout(() => setSendSuccess(""), 5000)
     } catch (e) {
       setError("Failed to resend: " + e.message)
     }
@@ -788,9 +780,8 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       if (err) throw err
       setShowPartialPayment(false)
       setPartialAmount("")
-      setSendSuccess(fullyPaid ? "Invoice fully paid!" : `Recorded ${fmt(amount)} partial payment`)
+      toast.success(fullyPaid ? "Invoice fully paid!" : `Recorded ${fmt(amount)} partial payment`)
       onUpdate()
-      setTimeout(() => setSendSuccess(""), 5000)
     } catch (e) {
       setError("Failed to record payment: " + e.message)
     }
@@ -906,15 +897,20 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       {/* Lifecycle progress bar */}
       <InvoiceLifecycleBar inv={inv} isMobile={isMobile} />
 
-      {/* Action buttons — primary row + More menu */}
+      {/* Action buttons.
+          On mobile, only the primary "Paid" action and the More menu
+          show up front — Edit / Part Paid / Dispute live inside the
+          More menu so the row doesn't wrap into a messy 2-line
+          tangle on a 375px screen. Desktop keeps all actions visible
+          for fast access. */}
       <div className={isMobile ? s.actionRowMobile : s.actionRow}>
-        {/* Primary actions */}
+        {/* Primary action: Mark Paid — always visible on both desktop and mobile */}
         {inv.status !== "paid" && (
           <Btn v="successAction" onClick={markPaid} dis={marking} sz={isMobile ? "sm" : undefined}>
             {marking ? "..." : "✓ Paid"}
           </Btn>
         )}
-        {inv.status !== "paid" && (
+        {!isMobile && inv.status !== "paid" && (
           <Btn v="ghost" onClick={() => {
             try { localStorage.setItem("hielda_edit", JSON.stringify(inv)) } catch {}
             navigate("/create")
@@ -922,17 +918,17 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             ✏ Edit
           </Btn>
         )}
-        {inv.status !== "paid" && (
+        {!isMobile && inv.status !== "paid" && (
           <Btn v="ghost" onClick={() => setShowPartialPayment(v => !v)} sz="sm">
             💰 Part Paid
           </Btn>
         )}
-        {inv.status !== "paid" && !isDisputed && (
+        {!isMobile && inv.status !== "paid" && !isDisputed && (
           <Btn v="ghost" onClick={() => setShowDisputeModal(true)} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
             ⚑ Dispute
           </Btn>
         )}
-        {isDisputed && (
+        {!isMobile && isDisputed && (
           <Btn v="ghost" onClick={() => setShowResolveModal(true)} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
             {disputing ? "..." : "↩ Resolve"}
           </Btn>
@@ -948,6 +944,38 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
               {/* Backdrop to close on click outside */}
               <div onClick={() => setShowMore(false)} className={s.moreBackdrop} />
               <div className={s.moreMenu}>
+                {/* Mobile-only entries: secondary actions that live in the
+                    action row on desktop but get tucked into More on phones
+                    so the action row stays a clean two-button line. */}
+                {isMobile && inv.status !== "paid" && (
+                  <button onClick={() => {
+                    setShowMore(false)
+                    try { localStorage.setItem("hielda_edit", JSON.stringify(inv)) } catch {}
+                    navigate("/create")
+                  }} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}>✏ Edit invoice</div>
+                    <div className={s.menuBtnSub}>Change client details, line items or anything else</div>
+                  </button>
+                )}
+                {isMobile && inv.status !== "paid" && (
+                  <button onClick={() => { setShowMore(false); setShowPartialPayment(true) }} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}>💰 Record partial payment</div>
+                    <div className={s.menuBtnSub}>If your client has paid some but not all of the invoice</div>
+                  </button>
+                )}
+                {isMobile && inv.status !== "paid" && !isDisputed && (
+                  <button onClick={() => { setShowMore(false); setShowDisputeModal(true) }} className={s.menuBtn} style={{ color: "#7c3aed" }}>
+                    <div className={s.menuBtnLabel}>⚑ Mark as disputed</div>
+                    <div className={s.menuBtnSub}>Pause chasing while you sort it out with your client</div>
+                  </button>
+                )}
+                {isMobile && isDisputed && (
+                  <button onClick={() => { setShowMore(false); setShowResolveModal(true) }} className={s.menuBtn} style={{ color: "#7c3aed" }}>
+                    <div className={s.menuBtnLabel}>↩ Resolve dispute</div>
+                    <div className={s.menuBtnSub}>Mark the dispute as settled</div>
+                  </button>
+                )}
+                {isMobile && <div className={s.menuDivider} />}
                 {inv.status !== "paid" && (
                   <button onClick={() => { setShowMore(false); setNewDueDate(inv.due_date); setShowAdjustDue(true) }} className={s.menuBtn}>
                     <div className={s.menuBtnLabel}>📅 Adjust due date</div>
@@ -1077,11 +1105,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         </div>
       )}
 
-      {sendSuccess && (
-        <div className={s.successBanner}>
-          <span>✓</span> {sendSuccess}
-        </div>
-      )}
 
       {emailChanged && (
         <div className={s.emailChangedBanner}>

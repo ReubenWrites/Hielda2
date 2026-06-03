@@ -103,6 +103,94 @@ export function useConfirm() {
   return fn
 }
 
+// ── Toast / Snackbar ──
+// Lightweight notification system. Replaces ad-hoc "setTimeout(() =>
+// setSendSuccess(''), 5000)" patterns sprinkled through components.
+// API mirrors common toast libraries:
+//   const toast = useToast()
+//   toast.success("Invoice email sent")
+//   toast.error("Failed to send: " + e.message)
+//   toast.info("Refreshing...")
+// Toasts stack, auto-dismiss after their duration, can be dismissed
+// manually via the × on each.
+function ToastItem({ id, message, variant, onDismiss }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`${s.toast} ${variant === "error" ? s.toastError : variant === "success" ? s.toastSuccess : s.toastInfo}`}
+    >
+      <span className={s.toastIcon} aria-hidden="true">
+        {variant === "error" ? "⚠" : variant === "success" ? "✓" : "•"}
+      </span>
+      <span className={s.toastMessage}>{message}</span>
+      <button onClick={() => onDismiss(id)} className={s.toastDismiss} aria-label="Dismiss notification">×</button>
+    </div>
+  )
+}
+
+const ToastContext = createContext(null)
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([])
+
+  const dismiss = useCallback((id) => {
+    setToasts((cur) => cur.filter((t) => t.id !== id))
+  }, [])
+
+  const show = useCallback((message, variant = "info", duration = 4500) => {
+    const id = Math.random().toString(36).slice(2)
+    setToasts((cur) => [...cur, { id, message, variant }])
+    if (duration > 0) setTimeout(() => dismiss(id), duration)
+    return id
+  }, [dismiss])
+
+  const api = {
+    show,
+    success: (msg, dur) => show(msg, "success", dur),
+    error: (msg, dur) => show(msg, "error", dur ?? 6000),
+    info: (msg, dur) => show(msg, "info", dur),
+    dismiss,
+  }
+
+  return (
+    <ToastContext.Provider value={api}>
+      {children}
+      {toasts.length > 0 && (
+        <div className={s.toastStack} aria-live="polite">
+          {toasts.map((t) => (
+            <ToastItem key={t.id} {...t} onDismiss={dismiss} />
+          ))}
+        </div>
+      )}
+    </ToastContext.Provider>
+  )
+}
+
+export function useToast() {
+  const api = useContext(ToastContext)
+  if (!api) {
+    // No-op fallback so call sites don't crash if used outside provider
+    return { show: () => {}, success: () => {}, error: () => {}, info: () => {}, dismiss: () => {} }
+  }
+  return api
+}
+
+// ── Skeleton ──
+// Subtle shimmering placeholder for content that's loading. Use for
+// async data that takes >300ms to arrive — instant or near-instant
+// loads don't benefit and feel laggy if you flash a skeleton.
+// Examples: chase log entries, notification rows, dashboard rows.
+export function Skeleton({ width, height = 14, radius = 6, style: userStyle, className }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`${s.skeleton} ${className || ""}`}
+      style={{ width: width ?? "100%", height, borderRadius: radius, ...userStyle }}
+    />
+  )
+}
+
 
 // ── Badge ──
 export const Badge = ({ children, color = "var(--ac)" }) => (

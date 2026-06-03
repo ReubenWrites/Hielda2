@@ -417,3 +417,121 @@
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
 }
+
+/* ── Toast / Snackbar ──
+   Bottom-anchored stack. Slides up from the bottom on phone (above home
+   indicator via safe-area), drops down from top-right on desktop where
+   that's a more familiar convention. */
+.toastStack {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 380px;
+  pointer-events: none; /* Stack itself doesn't intercept; only the toasts do */
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tx);
+  pointer-events: auto;
+  animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 240px;
+}
+
+@keyframes toastIn {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.toastIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 1px;
+}
+
+.toastSuccess { border-left: 3px solid var(--gn); }
+.toastSuccess .toastIcon { background: var(--gn); }
+
+.toastError { border-left: 3px solid #dc2626; }
+.toastError .toastIcon { background: #dc2626; }
+
+.toastInfo { border-left: 3px solid var(--ac); }
+.toastInfo .toastIcon { background: var(--ac); }
+
+.toastMessage {
+  flex: 1;
+  word-break: break-word;
+}
+
+.toastDismiss {
+  background: none;
+  border: none;
+  color: var(--td);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  margin: -2px -4px 0 0;
+  font-family: inherit;
+  flex-shrink: 0;
+  min-width: 24px;
+  min-height: 24px;
+}
+.toastDismiss:hover { color: var(--tx); }
+
+/* Phones: full-width bottom-anchored above safe-area. Slides up. */
+@media (max-width: 640px) {
+  .toastStack {
+    top: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    left: 16px;
+    right: 16px;
+    max-width: none;
+    align-items: stretch;
+  }
+  .toast {
+    animation: toastInMobile 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes toastInMobile {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+/* ── Skeleton ── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bdl) 0%, var(--bd) 50%, var(--bdl) 100%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s linear infinite;
+  display: block;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; opacity: 0.5; }
+}
