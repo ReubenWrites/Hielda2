@@ -9,10 +9,30 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; }
-html { scroll-behavior: smooth; }
-::selection { background: rgba(30,95,160,0.15); }
+html {
+  scroll-behavior: smooth;
+  /* Subpixel font-smoothing for nicer rendering on macOS / iOS */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+body {
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--font);
+}
+::selection { background: rgba(31, 93, 150, 0.16); }
 :focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 button:focus:not(:focus-visible) { outline: none; }
+
+/* Tabular numerals on currency values + monospace contexts: keeps
+   amounts aligned vertically in tables/lists. Big premium win because
+   misaligned figures are one of the most-common "amateur SaaS" tells. */
+[class*="mono"], [class*="amount"], [class*="totalVal"], [class*="grandTotal"],
+[class*="statValue"], [class*="planPrice"], [class*="invoiceTotalValue"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
 
 .pulse-ring {
   position: absolute;
