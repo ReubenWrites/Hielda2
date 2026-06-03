@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { Lock, Check } from "lucide-react"
 import { supabase } from "../supabase"
 import { TERMS, getBoe, getRate, onRateChange } from "../constants"
 import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection } from "./ui"
@@ -160,7 +161,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           <p className={s.subtitle}>Auto-fills every invoice.</p>
         </div>
         <Btn onClick={save} dis={saving || hasValidationErrors}>
-          {saving ? "Saving..." : saved ? "\u2713 Saved!" : hasValidationErrors ? "Fix errors" : "Save Changes"}
+          {saving ? "Saving..." : saved ? (<><Check size={14} strokeWidth={2.5} /> Saved!</>) : hasValidationErrors ? "Fix errors" : "Save Changes"}
         </Btn>
       </div>
 
@@ -178,7 +179,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
         <Card>
           <h3 className={s.sectionHeading}>Payment</h3>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--tm)", background: "var(--acd)", border: "1px solid var(--bdl)", borderRadius: 8, padding: "8px 12px", marginBottom: 16 }}>
-            <span aria-hidden="true">🔒</span>
+            <Lock size={13} aria-hidden="true" style={{ flexShrink: 0, color: "var(--ac)" }} />
             <span>Your bank details are encrypted at rest. Only you and your clients (on their invoices) ever see them.</span>
           </div>
           <Inp label="Account Name" value={p.account_name || ""} onChange={(v) => update("account_name", v)} />
@@ -394,7 +395,7 @@ export default function Settings({ profile, onUpdate, isMobile }) {
       {isMobile && (
         <div className={s.mobileSaveBar}>
           <Btn onClick={save} dis={saving || hasValidationErrors} sz="lg">
-            {saving ? "Saving..." : saved ? "✓ Saved!" : hasValidationErrors ? "Fix errors first" : "Save changes"}
+            {saving ? "Saving..." : saved ? (<><Check size={15} strokeWidth={2.5} /> Saved!</>) : hasValidationErrors ? "Fix errors first" : "Save changes"}
           </Btn>
         </div>
       )}

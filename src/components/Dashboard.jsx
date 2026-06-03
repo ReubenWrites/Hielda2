@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal } from "lucide-react"
 import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm } from "./ui"
@@ -27,6 +28,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const [selected, setSelected] = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
   const [dismissedBanner, setDismissedBanner] = useState(false)
+  const [showOverflow, setShowOverflow] = useState(false)
 
   const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
 
@@ -190,10 +192,15 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       )}
 
       <div className={s.statsGrid}>
-        <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color={c.go} borderColor="#d4a017" />
-        <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color={c.or} borderColor="#d97706" />
-        <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color={c.am} borderColor="#b45309" />
-        <StatCard label="Paid (90 days)" value={fmt(paid.reduce((s, i) => s + Number(i.amount), 0))} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}`} color={c.gn} borderColor="#1e5fa0" />
+        {/* StatCards intentionally monochromatic: all four use the same
+            soft accent border, all four use the same dark blue value
+            colour. Status differences are conveyed by the labels + the
+            "Being chased" pulse dot below, not by four different
+            colours fighting for attention. */}
+        <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard label="Paid (90 days)" value={fmt(paid.reduce((s, i) => s + Number(i.amount), 0))} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}`} color="var(--ac)" borderColor="var(--ac)" />
       </div>
 
       {overdue.length > 0 && (
@@ -277,44 +284,70 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               className={s.searchInput}
             />
           </div>
-          <Btn sz="sm" v="ghost" onClick={() => {
-            // Exports the currently-filtered view, so users can export
-            // "just overdue", "just this client", etc. by setting filters
-            // first. Useful for accountants and bookkeeping handoffs.
-            const headers = ["Ref","Client","Email","Issued","Due","Net","VAT","Total","Status","Days late","Paid date","Notes"]
-            const rows = filtered.map(i => [
-              i.ref,
-              i.client_name,
-              i.client_email || "",
-              i.issue_date || "",
-              i.due_date || "",
-              Number(i.amount).toFixed(2),
-              Number(i.vat_amount || 0).toFixed(2),
-              Number(i.total_with_vat || i.amount).toFixed(2),
-              i.status,
-              i.status === "overdue" ? daysLate(i.due_date) : "",
-              i.paid_date || "",
-              (i.notes || "").replace(/\n/g, " "),
-            ])
-            const csv = [headers, ...rows].map(r => r.map(csvCell).join(",")).join("\r\n")
-            // BOM so Excel opens UTF-8 correctly (currency symbols etc).
-            const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url
-            a.download = `hielda-invoices-${new Date().toISOString().split("T")[0]}.csv`
-            a.click()
-            URL.revokeObjectURL(url)
-            trackEvent("invoices_exported_csv", { count: filtered.length })
-          }} dis={filtered.length === 0}>📥 Export CSV</Btn>
-          <Btn sz="sm" onClick={() => navigate("/create")}>+ New</Btn>
+          <Btn sz="sm" onClick={() => navigate("/create")}><Plus size={14} strokeWidth={2.5} /> New</Btn>
+          {/* Overflow menu for low-frequency actions. CSV export sat in
+              prime position before but most users never touch it — moving
+              it here keeps the primary header clean while staying one
+              tap away. */}
+          <div className={s.overflowWrap}>
+            <Btn sz="sm" v="ghost" onClick={() => setShowOverflow(v => !v)}>
+              <MoreHorizontal size={14} />
+            </Btn>
+            {showOverflow && (
+              <>
+                <div onClick={() => setShowOverflow(false)} className={s.overflowBackdrop} />
+                <div className={s.overflowMenu}>
+                  <button
+                    className={s.overflowItem}
+                    disabled={filtered.length === 0}
+                    onClick={() => {
+                      setShowOverflow(false)
+                      const headers = ["Ref","Client","Email","Issued","Due","Net","VAT","Total","Status","Days late","Paid date","Notes"]
+                      const rows = filtered.map(i => [
+                        i.ref,
+                        i.client_name,
+                        i.client_email || "",
+                        i.issue_date || "",
+                        i.due_date || "",
+                        Number(i.amount).toFixed(2),
+                        Number(i.vat_amount || 0).toFixed(2),
+                        Number(i.total_with_vat || i.amount).toFixed(2),
+                        i.status,
+                        i.status === "overdue" ? daysLate(i.due_date) : "",
+                        i.paid_date || "",
+                        (i.notes || "").replace(/\n/g, " "),
+                      ])
+                      const csv = [headers, ...rows].map(r => r.map(csvCell).join(",")).join("\r\n")
+                      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement("a")
+                      a.href = url
+                      a.download = `hielda-invoices-${new Date().toISOString().split("T")[0]}.csv`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                      trackEvent("invoices_exported_csv", { count: filtered.length })
+                    }}
+                  >
+                    <Download size={14} />
+                    <div>
+                      <div className={s.overflowItemLabel}>Export CSV</div>
+                      <div className={s.overflowItemSub}>Download the current view as a spreadsheet</div>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <div className={s.filterBar}>
+          {/* Disputed deliberately omitted: a disputed invoice is always
+              visually distinct (purple border + badge on every row), and
+              the state is rare enough that a top-level pill made the row
+              feel cluttered. Disputed invoices remain visible under "All". */}
           {[
             { id: "all", label: "All", count: invs.length },
             { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
             { id: "pending", label: "Pending", count: pending.length, color: c.am },
-            { id: "disputed", label: "Disputed", count: disputed.length, color: "#7c3aed" },
             { id: "paid", label: "Paid", count: paid.length, color: c.gn },
           ].map(f => (
             <button
@@ -334,12 +367,14 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
         {invs.length === 0 ? (
           <Card style={{ textAlign: "center", padding: isMobile ? "40px 24px" : "56px 32px" }}>
-            <div className={s.emptyIcon} aria-hidden="true" style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+            <div className={s.emptyIcon} aria-hidden="true" style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: "var(--td)" }}>
+              <Inbox size={48} strokeWidth={1.5} />
+            </div>
             <div className={s.emptyTitle} style={{ fontSize: 18 }}>Let's get your first invoice out</div>
             <div className={s.emptyText} style={{ maxWidth: 380, margin: "8px auto 20px", lineHeight: 1.6 }}>
               Add a client, list what you've done, and Hielda will handle the chasing, the interest, and the awkward bits — so you don't have to.
             </div>
-            <Btn onClick={() => navigate("/create")} sz="lg">+ Create your first invoice</Btn>
+            <Btn onClick={() => navigate("/create")} sz="lg"><Plus size={16} strokeWidth={2.5} /> Create your first invoice</Btn>
             <div style={{ marginTop: 14, fontSize: 12, color: "var(--td)" }}>
               No client to invoice yet? Try the <a href="/calculator" style={{ color: "var(--ac)", textDecoration: "none", fontWeight: 600 }}>late payment calculator</a> to see what you're owed on past invoices.
             </div>
@@ -353,10 +388,10 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               </span>
               <div className={s.bulkActions}>
                 <Btn sz="sm" v="primary" onClick={bulkMarkPaid} dis={bulkLoading}>
-                  ✓ Paid
+                  <Check size={13} strokeWidth={2.5} /> Paid
                 </Btn>
                 <Btn sz="sm" v="danger" onClick={bulkDelete} dis={bulkLoading}>
-                  🗑 Delete
+                  <Trash2 size={13} /> Delete
                 </Btn>
                 <Btn sz="sm" v="ghost" onClick={() => setSelected(new Set())}>
                   ✕

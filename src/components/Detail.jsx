@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import {
+  Check, Pencil, Wallet, Flag, RotateCcw, MoreHorizontal,
+  Calendar, Mail, Forward, Send, Eye, Download, Copy, Trash2,
+} from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
@@ -907,7 +911,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         {/* Primary action: Mark Paid — always visible on both desktop and mobile */}
         {inv.status !== "paid" && (
           <Btn v="successAction" onClick={markPaid} dis={marking} sz={isMobile ? "sm" : undefined}>
-            {marking ? "..." : "✓ Paid"}
+            {marking ? "..." : <><Check size={14} strokeWidth={2.5} /> Paid</>}
           </Btn>
         )}
         {!isMobile && inv.status !== "paid" && (
@@ -915,29 +919,29 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             try { localStorage.setItem("hielda_edit", JSON.stringify(inv)) } catch {}
             navigate("/create")
           }} sz="sm">
-            ✏ Edit
+            <Pencil size={13} /> Edit
           </Btn>
         )}
         {!isMobile && inv.status !== "paid" && (
           <Btn v="ghost" onClick={() => setShowPartialPayment(v => !v)} sz="sm">
-            💰 Part Paid
+            <Wallet size={13} /> Part paid
           </Btn>
         )}
         {!isMobile && inv.status !== "paid" && !isDisputed && (
           <Btn v="ghost" onClick={() => setShowDisputeModal(true)} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
-            ⚑ Dispute
+            <Flag size={13} /> Dispute
           </Btn>
         )}
         {!isMobile && isDisputed && (
           <Btn v="ghost" onClick={() => setShowResolveModal(true)} dis={disputing} sz="sm" style={{ color: "#7c3aed", borderColor: "#7c3aed40" }}>
-            {disputing ? "..." : "↩ Resolve"}
+            {disputing ? "..." : <><RotateCcw size={13} /> Resolve</>}
           </Btn>
         )}
 
         {/* More menu */}
         <div className={s.moreWrap}>
           <Btn v="ghost" onClick={() => setShowMore(v => !v)} sz="sm">
-            ··· More
+            <MoreHorizontal size={14} /> More
           </Btn>
           {showMore && (
             <>
@@ -953,64 +957,64 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                     try { localStorage.setItem("hielda_edit", JSON.stringify(inv)) } catch {}
                     navigate("/create")
                   }} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}>✏ Edit invoice</div>
+                    <div className={s.menuBtnLabel}><Pencil size={14} /> Edit invoice</div>
                     <div className={s.menuBtnSub}>Change client details, line items or anything else</div>
                   </button>
                 )}
                 {isMobile && inv.status !== "paid" && (
                   <button onClick={() => { setShowMore(false); setShowPartialPayment(true) }} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}>💰 Record partial payment</div>
+                    <div className={s.menuBtnLabel}><Wallet size={14} /> Record partial payment</div>
                     <div className={s.menuBtnSub}>If your client has paid some but not all of the invoice</div>
                   </button>
                 )}
                 {isMobile && inv.status !== "paid" && !isDisputed && (
                   <button onClick={() => { setShowMore(false); setShowDisputeModal(true) }} className={s.menuBtn} style={{ color: "#7c3aed" }}>
-                    <div className={s.menuBtnLabel}>⚑ Mark as disputed</div>
+                    <div className={s.menuBtnLabel}><Flag size={14} /> Mark as disputed</div>
                     <div className={s.menuBtnSub}>Pause chasing while you sort it out with your client</div>
                   </button>
                 )}
                 {isMobile && isDisputed && (
                   <button onClick={() => { setShowMore(false); setShowResolveModal(true) }} className={s.menuBtn} style={{ color: "#7c3aed" }}>
-                    <div className={s.menuBtnLabel}>↩ Resolve dispute</div>
+                    <div className={s.menuBtnLabel}><RotateCcw size={14} /> Resolve dispute</div>
                     <div className={s.menuBtnSub}>Mark the dispute as settled</div>
                   </button>
                 )}
                 {isMobile && <div className={s.menuDivider} />}
                 {inv.status !== "paid" && (
                   <button onClick={() => { setShowMore(false); setNewDueDate(inv.due_date); setShowAdjustDue(true) }} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}>📅 Adjust due date</div>
+                    <div className={s.menuBtnLabel}><Calendar size={14} /> Adjust due date</div>
                     <div className={s.menuBtnSub}>Change when interest starts accruing (currently {formatDate(inv.due_date)})</div>
                   </button>
                 )}
                 {inv.status !== "paid" && inv.client_email && (
                   <button onClick={() => { setShowMore(false); sendInvoiceEmail() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}>{sendingInvoiceEmail ? "Sending..." : "✉ Send invoice email"}</div>
+                    <div className={s.menuBtnLabel}><Mail size={14} /> {sendingInvoiceEmail ? "Sending..." : "Send invoice email"}</div>
                     <div className={s.menuBtnSub}>Sends the introduction + invoice details to {inv.client_name}</div>
                   </button>
                 )}
                 <button onClick={() => { setShowMore(false); sendCopyToSelf() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
-                  <div className={s.menuBtnLabel}>{sendingInvoiceEmail ? "Sending..." : "📨 Email me a copy"}</div>
+                  <div className={s.menuBtnLabel}><Forward size={14} /> {sendingInvoiceEmail ? "Sending..." : "Email me a copy"}</div>
                   <div className={s.menuBtnSub}>Send this invoice's details to your own email (not your client)</div>
                 </button>
                 {inv.status !== "paid" && inv.client_email && (
                   <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}>📤 Send Chase</div>
+                    <div className={s.menuBtnLabel}><Send size={14} /> Send chase</div>
                     <div className={s.menuBtnSub}>Next: {getStageLabel(currentSendStage)}</div>
                   </button>
                 )}
                 {inv.status !== "paid" && inv.client_email && (
                   <button onClick={() => { setShowMore(false); showEmailPreview() }} className={s.menuBtn}>
-                    📧 Preview Chase Email
+                    <div className={s.menuBtnLabel}><Eye size={14} /> Preview chase email</div>
                   </button>
                 )}
                 {inv.status !== "paid" && !inv.client_email && (
                   <div className={s.menuNoEmail}>
-                    ⚠ No client email — chase unavailable
+                    No client email — chase unavailable
                   </div>
                 )}
                 <div className={s.menuDivider} />
                 <button onClick={() => { setShowMore(false); downloadPdf() }} disabled={downloading} className={s.menuBtn}>
-                  📥 Download PDF
+                  <div className={s.menuBtnLabel}><Download size={14} /> Download PDF</div>
                 </button>
                 <button onClick={() => {
                   setShowMore(false)
@@ -1022,11 +1026,11 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                   })) } catch {}
                   navigate("/create")
                 }} className={s.menuBtn}>
-                  📋 Clone Invoice
+                  <div className={s.menuBtnLabel}><Copy size={14} /> Clone invoice</div>
                 </button>
                 <div className={s.menuDivider} />
                 <button onClick={() => { setShowMore(false); deleteInvoice() }} disabled={deleting} className={s.menuBtnDanger}>
-                  🗑 Delete Invoice
+                  <div className={s.menuBtnLabel}><Trash2 size={14} /> Delete invoice</div>
                 </button>
               </div>
             </>

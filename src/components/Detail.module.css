@@ -308,6 +308,13 @@
 
 .menuBtnLabel {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.menuBtnLabel svg {
+  color: var(--tm);
+  flex-shrink: 0;
 }
 
 .menuBtnSub {
