@@ -344,6 +344,95 @@
   background: #fef2f2;
 }
 
+/* Section labels inside the menu — keep the long list scannable by
+   grouping items under faint uppercase headers (This invoice, Email,
+   Status). Without these the menu reads as one long blob. */
+.menuSectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--td);
+  padding: 8px 16px 4px;
+}
+
+/* ── Mobile bottom sheet ──
+   On phones the dropdown is replaced with a slide-up sheet — the
+   native action-sheet pattern for menus with more than ~5 items.
+   Bigger tap targets, more readable, swipe-friendly. */
+.sheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.4);
+  animation: sheetFadeIn 0.18s ease-out;
+}
+
+.bottomSheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  background: var(--sf);
+  border-radius: 18px 18px 0 0;
+  padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 16px);
+  max-height: 82vh;
+  overflow-y: auto;
+  box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.15);
+  animation: sheetSlideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sheetHandle {
+  width: 36px;
+  height: 4px;
+  background: var(--bd);
+  border-radius: 999px;
+  margin: 8px auto 4px;
+}
+
+.sheetTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx);
+  text-align: center;
+  padding: 8px 16px 12px;
+  border-bottom: 1px solid var(--bdl);
+  margin-bottom: 6px;
+}
+
+/* In the sheet, give items more generous touch targets than the
+   desktop dropdown — the native iOS action sheet has roughly 56px
+   rows. */
+.bottomSheet .menuBtn,
+.bottomSheet .menuBtnDanger {
+  padding: 14px 20px;
+  font-size: 14px;
+}
+
+.bottomSheet .menuBtnLabel {
+  font-size: 14px;
+}
+
+.bottomSheet .menuBtnSub {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.bottomSheet .menuSectionLabel {
+  padding: 12px 20px 4px;
+}
+
+@keyframes sheetFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
 /* Disputed banner */
 .disputeBanner {
   padding: 14px 18px;

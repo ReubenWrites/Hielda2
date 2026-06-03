@@ -192,14 +192,14 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       )}
 
       <div className={s.statsGrid}>
-        {/* StatCards intentionally monochromatic: all four use the same
-            soft accent border, all four use the same dark blue value
-            colour. Status differences are conveyed by the labels + the
-            "Being chased" pulse dot below, not by four different
-            colours fighting for attention. */}
+        {/* StatCard palette is restrained but not flat: three of the four
+            cards use the brand blue (--ac), and only "Being chased" uses
+            a warm accent (--or). That one card is the actionable one —
+            the money you should be collecting — so the row visually
+            highlights it without splashing four different colours. */}
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color="var(--ac)" borderColor="var(--ac)" />
-        <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--ac)" borderColor="var(--ac)" />
-        <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--or)" borderColor="var(--or)" />
+        <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color="var(--acl)" borderColor="var(--acl)" />
         <StatCard label="Paid (90 days)" value={fmt(paid.reduce((s, i) => s + Number(i.amount), 0))} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}`} color="var(--ac)" borderColor="var(--ac)" />
       </div>
 

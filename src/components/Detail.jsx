@@ -938,6 +938,13 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
           </Btn>
         )}
 
+        {/* Download is promoted out of the More menu — it's one of the
+            most-used actions (accountant handoff, archive, email forward)
+            and doesn't belong buried in a list of 10 items. */}
+        <Btn v="ghost" onClick={downloadPdf} dis={downloading} sz="sm">
+          <Download size={13} /> {isMobile ? "" : "Download"}
+        </Btn>
+
         {/* More menu */}
         <div className={s.moreWrap}>
           <Btn v="ghost" onClick={() => setShowMore(v => !v)} sz="sm">
@@ -945,12 +952,35 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
           </Btn>
           {showMore && (
             <>
-              {/* Backdrop to close on click outside */}
-              <div onClick={() => setShowMore(false)} className={s.moreBackdrop} />
-              <div className={s.moreMenu}>
-                {/* Mobile-only entries: secondary actions that live in the
-                    action row on desktop but get tucked into More on phones
-                    so the action row stays a clean two-button line. */}
+              {/* Backdrop: invisible on desktop (just for click-outside),
+                  dimmed on mobile where the menu is a bottom sheet. */}
+              <div
+                onClick={() => setShowMore(false)}
+                className={isMobile ? s.sheetBackdrop : s.moreBackdrop}
+              />
+              <div className={isMobile ? s.bottomSheet : s.moreMenu} role="menu">
+                {isMobile && (
+                  <div className={s.sheetHandle} aria-hidden="true" />
+                )}
+                {isMobile && (
+                  <div className={s.sheetTitle}>Invoice actions</div>
+                )}
+
+                {/* ── This invoice ── */}
+                <div className={s.menuSectionLabel}>This invoice</div>
+                <button onClick={() => {
+                  setShowMore(false)
+                  try { localStorage.setItem("hielda_clone", JSON.stringify({
+                    cn: inv.client_name, ce: inv.client_email, ca: inv.client_address || "",
+                    lineItems: inv.line_items?.length ? inv.line_items : [{ description: inv.description || "", amount: String(inv.amount) }],
+                    clientRef: inv.client_ref || "", cc: inv.cc_emails || "", bcc: inv.bcc_emails || "",
+                    terms: String(inv.payment_term_days || 30), noFines: inv.no_fines || false,
+                  })) } catch {}
+                  navigate("/create")
+                }} className={s.menuBtn}>
+                  <div className={s.menuBtnLabel}><Copy size={14} /> Clone invoice</div>
+                  <div className={s.menuBtnSub}>Start a new invoice with these client and line item details</div>
+                </button>
                 {isMobile && inv.status !== "paid" && (
                   <button onClick={() => {
                     setShowMore(false)
@@ -960,6 +990,49 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                     <div className={s.menuBtnLabel}><Pencil size={14} /> Edit invoice</div>
                     <div className={s.menuBtnSub}>Change client details, line items or anything else</div>
                   </button>
+                )}
+
+                {/* ── Email ── */}
+                <div className={s.menuDivider} />
+                <div className={s.menuSectionLabel}>Email</div>
+                {inv.status !== "paid" && inv.client_email && (
+                  <button onClick={() => { setShowMore(false); sendInvoiceEmail() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}><Mail size={14} /> {sendingInvoiceEmail ? "Sending..." : "Send invoice email"}</div>
+                    <div className={s.menuBtnSub}>Sends the introduction + invoice details to {inv.client_name}</div>
+                  </button>
+                )}
+                {inv.status !== "paid" && inv.client_email && (
+                  <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}><Send size={14} /> Send chase</div>
+                    <div className={s.menuBtnSub}>Next: {getStageLabel(currentSendStage)}</div>
+                  </button>
+                )}
+                {inv.status !== "paid" && inv.client_email && (
+                  <button onClick={() => { setShowMore(false); showEmailPreview() }} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}><Eye size={14} /> Preview chase email</div>
+                    <div className={s.menuBtnSub}>See exactly what your client will receive</div>
+                  </button>
+                )}
+                <button onClick={() => { setShowMore(false); sendCopyToSelf() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
+                  <div className={s.menuBtnLabel}><Forward size={14} /> {sendingInvoiceEmail ? "Sending..." : "Email me a copy"}</div>
+                  <div className={s.menuBtnSub}>Send this invoice's details to your own email (not your client)</div>
+                </button>
+                {inv.status !== "paid" && !inv.client_email && (
+                  <div className={s.menuNoEmail}>
+                    No client email — chase unavailable
+                  </div>
+                )}
+
+                {/* ── Status ── */}
+                {inv.status !== "paid" && (
+                  <>
+                    <div className={s.menuDivider} />
+                    <div className={s.menuSectionLabel}>Status</div>
+                    <button onClick={() => { setShowMore(false); setNewDueDate(inv.due_date); setShowAdjustDue(true) }} className={s.menuBtn}>
+                      <div className={s.menuBtnLabel}><Calendar size={14} /> Adjust due date</div>
+                      <div className={s.menuBtnSub}>Change when interest starts accruing (currently {formatDate(inv.due_date)})</div>
+                    </button>
+                  </>
                 )}
                 {isMobile && inv.status !== "paid" && (
                   <button onClick={() => { setShowMore(false); setShowPartialPayment(true) }} className={s.menuBtn}>
@@ -979,55 +1052,8 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                     <div className={s.menuBtnSub}>Mark the dispute as settled</div>
                   </button>
                 )}
-                {isMobile && <div className={s.menuDivider} />}
-                {inv.status !== "paid" && (
-                  <button onClick={() => { setShowMore(false); setNewDueDate(inv.due_date); setShowAdjustDue(true) }} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}><Calendar size={14} /> Adjust due date</div>
-                    <div className={s.menuBtnSub}>Change when interest starts accruing (currently {formatDate(inv.due_date)})</div>
-                  </button>
-                )}
-                {inv.status !== "paid" && inv.client_email && (
-                  <button onClick={() => { setShowMore(false); sendInvoiceEmail() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}><Mail size={14} /> {sendingInvoiceEmail ? "Sending..." : "Send invoice email"}</div>
-                    <div className={s.menuBtnSub}>Sends the introduction + invoice details to {inv.client_name}</div>
-                  </button>
-                )}
-                <button onClick={() => { setShowMore(false); sendCopyToSelf() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
-                  <div className={s.menuBtnLabel}><Forward size={14} /> {sendingInvoiceEmail ? "Sending..." : "Email me a copy"}</div>
-                  <div className={s.menuBtnSub}>Send this invoice's details to your own email (not your client)</div>
-                </button>
-                {inv.status !== "paid" && inv.client_email && (
-                  <button onClick={() => { setShowMore(false); sendChaseEmail() }} disabled={sending} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}><Send size={14} /> Send chase</div>
-                    <div className={s.menuBtnSub}>Next: {getStageLabel(currentSendStage)}</div>
-                  </button>
-                )}
-                {inv.status !== "paid" && inv.client_email && (
-                  <button onClick={() => { setShowMore(false); showEmailPreview() }} className={s.menuBtn}>
-                    <div className={s.menuBtnLabel}><Eye size={14} /> Preview chase email</div>
-                  </button>
-                )}
-                {inv.status !== "paid" && !inv.client_email && (
-                  <div className={s.menuNoEmail}>
-                    No client email — chase unavailable
-                  </div>
-                )}
-                <div className={s.menuDivider} />
-                <button onClick={() => { setShowMore(false); downloadPdf() }} disabled={downloading} className={s.menuBtn}>
-                  <div className={s.menuBtnLabel}><Download size={14} /> Download PDF</div>
-                </button>
-                <button onClick={() => {
-                  setShowMore(false)
-                  try { localStorage.setItem("hielda_clone", JSON.stringify({
-                    cn: inv.client_name, ce: inv.client_email, ca: inv.client_address || "",
-                    lineItems: inv.line_items?.length ? inv.line_items : [{ description: inv.description || "", amount: String(inv.amount) }],
-                    clientRef: inv.client_ref || "", cc: inv.cc_emails || "", bcc: inv.bcc_emails || "",
-                    terms: String(inv.payment_term_days || 30), noFines: inv.no_fines || false,
-                  })) } catch {}
-                  navigate("/create")
-                }} className={s.menuBtn}>
-                  <div className={s.menuBtnLabel}><Copy size={14} /> Clone invoice</div>
-                </button>
+
+                {/* ── Delete (bottom) ── */}
                 <div className={s.menuDivider} />
                 <button onClick={() => { setShowMore(false); deleteInvoice() }} disabled={deleting} className={s.menuBtnDanger}>
                   <div className={s.menuBtnLabel}><Trash2 size={14} /> Delete invoice</div>
