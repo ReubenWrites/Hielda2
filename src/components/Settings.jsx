@@ -388,6 +388,16 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           </p>
         </Card>
       </div>
+
+      {/* Mobile sticky-bottom Save bar. Hidden on desktop where the
+          header Save button is always visible up top. */}
+      {isMobile && (
+        <div className={s.mobileSaveBar}>
+          <Btn onClick={save} dis={saving || hasValidationErrors} sz="lg">
+            {saving ? "Saving..." : saved ? "✓ Saved!" : hasValidationErrors ? "Fix errors first" : "Save changes"}
+          </Btn>
+        </div>
+      )}
     </div>
   )
 }
