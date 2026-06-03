@@ -468,6 +468,47 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setMarking(false)
   }
 
+  // Retro-adjust the due date so interest stops or restarts accruing from
+  // a different point. Common scenario: user picked 7-day terms by mistake
+  // when creating the invoice, then realised they never actually agreed
+  // 7 days with the client. Lets them set the date to what was really
+  // agreed without redoing the whole invoice.
+  //
+  // After change: chase_stage is reset to null so the auto-chase
+  // reconciliation can re-derive the right stage from the new due_date.
+  // App.jsx will re-derive status from due_date on the next render
+  // (pending if future, overdue if past).
+  const [showAdjustDue, setShowAdjustDue] = useState(false)
+  const [newDueDate, setNewDueDate] = useState(inv?.due_date || "")
+  const [adjusting, setAdjusting] = useState(false)
+  const adjustDueDate = async () => {
+    if (!newDueDate || newDueDate === inv.due_date) { setShowAdjustDue(false); return }
+    const future = new Date(newDueDate) > new Date()
+    if (!window.confirm(
+      `Change the due date to ${formatDate(newDueDate)}?\n\n` +
+      `This is when statutory interest will start accruing if unpaid. ` +
+      `${future
+        ? "Since the new date is in the future, the invoice will go back to 'pending' and no interest will currently apply."
+        : "The new date is in the past — interest will accrue from that date forward."}\n\n` +
+      `Any chase emails already sent will remain in the chase log.`
+    )) return
+    setAdjusting(true)
+    setError("")
+    try {
+      const { error: err } = await supabase
+        .from("invoices")
+        .update({ due_date: newDueDate, chase_stage: null })
+        .eq("id", inv.id)
+      if (err) throw err
+      setShowAdjustDue(false)
+      trackEvent("invoice_due_date_adjusted", { ref: inv.ref })
+      onUpdate()
+    } catch (e) {
+      setError("Failed to update due date: " + e.message)
+    }
+    setAdjusting(false)
+  }
+
   // Recovery path for when the create-time intro email failed (e.g. network
   // glitch, server error). Sends the same introduction + invoice email that
   // would normally fire from the Create flow, so users don't have to fall
@@ -889,6 +930,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
               {/* Backdrop to close on click outside */}
               <div onClick={() => setShowMore(false)} className={s.moreBackdrop} />
               <div className={s.moreMenu}>
+                {inv.status !== "paid" && (
+                  <button onClick={() => { setShowMore(false); setNewDueDate(inv.due_date); setShowAdjustDue(true) }} className={s.menuBtn}>
+                    <div className={s.menuBtnLabel}>📅 Adjust due date</div>
+                    <div className={s.menuBtnSub}>Change when interest starts accruing (currently {formatDate(inv.due_date)})</div>
+                  </button>
+                )}
                 {inv.status !== "paid" && inv.client_email && (
                   <button onClick={() => { setShowMore(false); sendInvoiceEmail() }} disabled={sendingInvoiceEmail} className={s.menuBtn}>
                     <div className={s.menuBtnLabel}>{sendingInvoiceEmail ? "Sending..." : "✉ Send invoice email"}</div>
@@ -1452,6 +1499,41 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       )}
       {showResolveModal && (
         <ResolveDisputeModal invoice={inv} onConfirm={handleResolve} onClose={() => setShowResolveModal(false)} />
+      )}
+      {showAdjustDue && (
+        <div className={isMobile ? s.modalOverlayMobile : s.modalOverlay} onClick={() => !adjusting && setShowAdjustDue(false)}>
+          <div className={isMobile ? s.modalBoxMobile : s.modalBox} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className={s.modalHeader}>
+              <span className={s.modalTitle}>Adjust due date</span>
+              <button onClick={() => setShowAdjustDue(false)} className={s.modalCloseBtn} disabled={adjusting}>×</button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <p style={{ fontSize: 13, color: "var(--tm)", margin: "0 0 16px", lineHeight: 1.6 }}>
+                The due date sets when statutory interest starts accruing. Change it here if the original terms were wrong (eg you picked 7 days by mistake but actually agreed 30 with the client).
+              </p>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--tm)", marginBottom: 6 }}>New due date</label>
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                style={{ width: "100%", padding: "10px 14px", border: "1px solid var(--bd)", borderRadius: 8, fontSize: 14, fontFamily: "inherit", background: "var(--bg)" }}
+              />
+              {newDueDate && newDueDate !== inv.due_date && (
+                <div style={{ marginTop: 14, fontSize: 12, color: "var(--tm)", background: "var(--acd)", border: "1px solid var(--bdl)", borderRadius: 8, padding: "10px 12px", lineHeight: 1.6 }}>
+                  {new Date(newDueDate) > new Date()
+                    ? "✓ Invoice will return to 'pending'. No interest currently applies."
+                    : "Interest will accrue from this date forward at the statutory rate."}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, marginTop: 20, justifyContent: "flex-end" }}>
+                <Btn v="ghost" sz="sm" onClick={() => setShowAdjustDue(false)} dis={adjusting}>Cancel</Btn>
+                <Btn sz="sm" onClick={adjustDueDate} dis={adjusting || !newDueDate || newDueDate === inv.due_date}>
+                  {adjusting ? "Saving..." : "Update due date"}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

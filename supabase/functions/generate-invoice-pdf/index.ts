@@ -572,7 +572,7 @@ serve(async (req) => {
 
     if (isConsumer) {
       doc.setFontSize(7)
-      doc.text(`Payment terms: Payment is due within ${invoice.payment_term_days || 30} days. Invoices unpaid after this date will accrue interest at ${RATE}% per annum until settled in full.`, 105, footerY + 5, { align: "center" })
+      doc.text(`Swift payment is always appreciated. If still outstanding after ${invoice.payment_term_days || 30} days, statutory interest at ${RATE}% per annum will start to accrue until settled in full.`, 105, footerY + 5, { align: "center" })
     } else if (isOverdue) {
       doc.setFontSize(7)
       doc.text("Late payment charges applied under the Late Payment of Commercial Debts (Interest) Act 1998.", 105, footerY + 5, { align: "center" })

@@ -78,21 +78,67 @@ export default function Settings({ profile, onUpdate, isMobile }) {
 
   const uploadLogo = async (file) => {
     if (!file || !p.id) return
-    const ext = file.name.split(".").pop().toLowerCase()
-    if (!["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
-      setError("Logo must be a PNG, JPG, GIF, WebP, or SVG file.")
+
+    // MIME type is more reliable than file extension — Android content URIs
+    // and some camera roll exports don't carry an extension at all. Use the
+    // MIME type as the authoritative source, fall back to extension only as
+    // a last resort.
+    const mime = (file.type || "").toLowerCase()
+    const extFromName = file.name?.split(".").pop()?.toLowerCase() || ""
+
+    // SVG silently fails in the PDF generator (jsPDF can't render SVG via
+    // addImage), so we'd be accepting a logo that never appears on actual
+    // invoices. Explicitly reject upfront with a useful message rather
+    // than letting the user discover the problem at PDF time.
+    if (mime === "image/svg+xml" || extFromName === "svg") {
+      setError("SVG logos aren't supported on invoices (PDFs can't render them). Please upload a PNG or JPG instead.")
       return
     }
+
+    // HEIC is the default iPhone camera format. Reject with guidance —
+    // jsPDF can't render HEIC and converting in-browser needs a heavy
+    // dependency we'd rather not ship. iOS Photos can re-export as JPG.
+    if (mime === "image/heic" || mime === "image/heif" || extFromName === "heic" || extFromName === "heif") {
+      setError("iPhone HEIC photos aren't supported. In iOS Photos, tap Edit → Done to convert, or take a screenshot of the logo and upload that instead.")
+      return
+    }
+
+    // 5MB is the Supabase storage default cap and well past anything a
+    // PDF logo actually needs (the PDF resizes to a 50×20mm bounding box).
+    const MAX_BYTES = 5 * 1024 * 1024
+    if (file.size > MAX_BYTES) {
+      setError(`Logo is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB — try a smaller export or screenshot.`)
+      return
+    }
+
+    const supportedTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"]
+    const supportedExts = ["png", "jpg", "jpeg", "gif", "webp"]
+    const looksSupported = supportedTypes.includes(mime) || supportedExts.includes(extFromName)
+    if (!looksSupported) {
+      setError(`That file type isn't supported (${mime || extFromName || "unknown"}). Please upload a PNG, JPG, GIF, or WebP.`)
+      return
+    }
+
     setLogoUploading(true)
     setError("")
     try {
+      // Pick the extension from the MIME type so an extension-less Android
+      // file ends up with a sensible name in storage.
+      const ext = mime === "image/png" ? "png"
+        : mime === "image/jpeg" ? "jpg"
+        : mime === "image/gif" ? "gif"
+        : mime === "image/webp" ? "webp"
+        : (supportedExts.includes(extFromName) ? extFromName : "png")
       const path = `${p.id}/logo.${ext}`
       const { error: upErr } = await supabase.storage
         .from("logos")
-        .upload(path, file, { upsert: true, contentType: file.type })
+        .upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` })
       if (upErr) throw new Error(upErr.message)
+      // Cache-bust so the new logo replaces the old one in the preview
+      // immediately — Supabase's public URL would otherwise serve the
+      // cached old version because the path is the same.
       const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path)
-      update("logo_url", urlData.publicUrl)
+      update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`)
     } catch (e) {
       setError("Logo upload failed: " + e.message + ". Make sure the 'logos' storage bucket exists in Supabase with public access.")
     }
@@ -228,31 +274,34 @@ export default function Settings({ profile, onUpdate, isMobile }) {
             <label className={s.logoLabel}>
               Company Logo
             </label>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+              style={{ display: "none" }}
+            />
             {p.logo_url ? (
               <div className={s.logoPreview}>
                 <img src={p.logo_url} alt="Logo" className={s.logoImg} />
+                <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading} className={s.uploadBtn}>
+                  {logoUploading ? "Uploading..." : "Replace"}
+                </button>
                 <button onClick={removeLogo} className={s.removeBtn}>
                   Remove
                 </button>
               </div>
             ) : (
               <div>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                  onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
-                  style={{ display: "none" }}
-                />
                 <button
                   onClick={() => logoInputRef.current?.click()}
                   disabled={logoUploading}
                   className={s.uploadBtn}
                 >
-                  {logoUploading ? "Uploading..." : "Upload logo (PNG, JPG, SVG)"}
+                  {logoUploading ? "Uploading..." : "Upload logo"}
                 </button>
                 <p className={s.hintSmall}>
-                  Recommended: PNG with transparent background, min 200px wide.
+                  PNG, JPG, GIF or WebP. Up to 5MB. Recommended: PNG with transparent background, at least 200px wide. iPhone HEIC photos need converting to JPG first.
                 </p>
               </div>
             )}
