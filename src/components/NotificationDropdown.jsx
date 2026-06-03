@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../supabase"
+import { Skeleton } from "./ui"
 import s from "./NotificationDropdown.module.css"
 
 export default function NotificationDropdown({ userId }) {
@@ -104,9 +105,25 @@ export default function NotificationDropdown({ userId }) {
           </div>
 
           {loading && notifications.length === 0 ? (
-            <div className={s.empty}>Loading...</div>
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <Skeleton width={32} height={32} radius={16} />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <Skeleton width="70%" height={12} />
+                    <Skeleton width="40%" height={11} />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : notifications.length === 0 ? (
-            <div className={s.empty}>No notifications yet</div>
+            <div className={s.empty} style={{ padding: "32px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.6 }} aria-hidden="true">🔔</div>
+              <div style={{ fontWeight: 600, color: "var(--tx)", fontSize: 13, marginBottom: 4 }}>You're all caught up</div>
+              <div style={{ fontSize: 12, color: "var(--tm)", lineHeight: 1.5 }}>
+                We'll let you know when a client pays, when a chase needs your approval, or when something needs attention.
+              </div>
+            </div>
           ) : (
             <div className={s.list}>
               {notifications.map((n) => (
