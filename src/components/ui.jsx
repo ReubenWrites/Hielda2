@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useContext, createContext } from "react"
+import { Check, AlertTriangle, Info } from "lucide-react"
 import s from "./ui.module.css"
 
 // ── ConfirmDialog ──
@@ -121,7 +122,7 @@ function ToastItem({ id, message, variant, onDismiss }) {
       className={`${s.toast} ${variant === "error" ? s.toastError : variant === "success" ? s.toastSuccess : s.toastInfo}`}
     >
       <span className={s.toastIcon} aria-hidden="true">
-        {variant === "error" ? "⚠" : variant === "success" ? "✓" : "•"}
+        {variant === "error" ? <AlertTriangle size={15} /> : variant === "success" ? <Check size={15} strokeWidth={2.5} /> : <Info size={15} />}
       </span>
       <span className={s.toastMessage}>{message}</span>
       <button onClick={() => onDismiss(id)} className={s.toastDismiss} aria-label="Dismiss notification">×</button>

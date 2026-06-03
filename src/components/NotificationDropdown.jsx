@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
+import { Bell, AlertTriangle, Ban, Eye, Link as LinkIcon, Check, Circle } from "lucide-react"
 import { supabase } from "../supabase"
 import { Skeleton } from "./ui"
 import s from "./NotificationDropdown.module.css"
@@ -64,12 +65,12 @@ export default function NotificationDropdown({ userId }) {
 
   const typeIcon = (type) => {
     switch (type) {
-      case "bounce": return "⚠"
-      case "complaint": return "🚫"
-      case "opened": return "👁"
-      case "clicked": return "🔗"
-      case "delivered": return "✓"
-      default: return "•"
+      case "bounce": return <AlertTriangle size={14} />
+      case "complaint": return <Ban size={14} />
+      case "opened": return <Eye size={14} />
+      case "clicked": return <LinkIcon size={14} />
+      case "delivered": return <Check size={14} strokeWidth={2.5} />
+      default: return <Circle size={6} fill="currentColor" />
     }
   }
 
@@ -91,7 +92,7 @@ export default function NotificationDropdown({ userId }) {
         className={s.bell}
         aria-label={`Notifications${unreadCount ? ` (${unreadCount} unread)` : ""}`}
       >
-        🔔
+        <Bell size={18} />
         {unreadCount > 0 && <span className={s.badge}>{unreadCount > 9 ? "9+" : unreadCount}</span>}
       </button>
 
@@ -118,7 +119,7 @@ export default function NotificationDropdown({ userId }) {
             </div>
           ) : notifications.length === 0 ? (
             <div className={s.empty} style={{ padding: "32px 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.6 }} aria-hidden="true">🔔</div>
+              <div style={{ marginBottom: 8, color: "var(--td)", display: "flex", justifyContent: "center" }} aria-hidden="true"><Bell size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, color: "var(--tx)", fontSize: 13, marginBottom: 4 }}>You're all caught up</div>
               <div style={{ fontSize: 12, color: "var(--tm)", lineHeight: 1.5 }}>
                 We'll let you know when a client pays, when a chase needs your approval, or when something needs attention.

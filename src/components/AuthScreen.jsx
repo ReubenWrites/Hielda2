@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Lock, Mail } from "lucide-react"
 import { supabase } from "../supabase"
 import { Card, Inp, Btn, ShieldLogo, ErrorBanner, InfoBanner } from "./ui"
 import { trackEvent } from "../posthog"
@@ -223,11 +224,11 @@ export default function AuthScreen({ onAuth, onBack }) {
           before they've used the product. */}
       <div className={s.trustRow} aria-label="Trust signals">
         <div className={s.trustItem}>
-          <span className={s.trustIcon} aria-hidden="true">🔒</span>
+          <span className={s.trustIcon} aria-hidden="true"><Lock size={14} /></span>
           <span>Encrypted in transit and at rest</span>
         </div>
         <div className={s.trustItem}>
-          <span className={s.trustIcon} aria-hidden="true">✉</span>
+          <span className={s.trustIcon} aria-hidden="true"><Mail size={14} /></span>
           <span>We never email your clients without your approval</span>
         </div>
         <div className={s.trustItem}>
