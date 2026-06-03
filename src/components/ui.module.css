@@ -11,22 +11,35 @@
   white-space: nowrap;
 }
 
-/* ── Button ── */
+/* ── Button ──
+   Premium upgrades:
+   - Subtle box-shadow on primary so it sits above the surface
+   - Cubic-bezier ease (more considered than linear)
+   - Slightly larger padding for breathing room
+   - Letter-spacing tighter on text */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   font-family: var(--font);
   font-weight: 600;
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .btn:hover:not([data-disabled="true"]) {
   transform: translateY(-1px);
+}
+.btn:active:not([data-disabled="true"]) {
+  transform: translateY(0);
 }
 
 .btn[data-disabled="true"] {
@@ -35,58 +48,89 @@
 }
 
 .btn[data-size="sm"] {
-  padding: 7px 14px;
+  padding: 8px 14px;
   font-size: 12px;
+  min-height: 32px;
 }
 
 .btn[data-size="md"] {
-  padding: 10px 20px;
+  padding: 11px 22px;
   font-size: 13px;
+  min-height: 40px;
 }
 
 .btn[data-size="lg"] {
-  padding: 14px 28px;
+  padding: 15px 30px;
   font-size: 14px;
+  min-height: 48px;
 }
 
 .btn[data-variant="primary"] {
   background: var(--ac);
   color: var(--w);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.btn[data-variant="primary"]:hover:not([data-disabled="true"]) {
+  background: var(--acl);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn[data-variant="ghost"] {
-  background: transparent;
+  background: var(--sf);
   color: var(--tm);
   border: 1px solid var(--bd);
+}
+.btn[data-variant="ghost"]:hover:not([data-disabled="true"]) {
+  background: var(--sfh);
+  border-color: var(--td);
+  color: var(--tx);
 }
 
 .btn[data-variant="danger"] {
   background: var(--ord);
   color: var(--or);
-  border: 1px solid rgba(217, 119, 6, 0.125);
+  border: 1px solid rgba(201, 107, 3, 0.15);
+}
+.btn[data-variant="danger"]:hover:not([data-disabled="true"]) {
+  background: rgba(201, 107, 3, 0.12);
 }
 
 .btn[data-variant="success"] {
   background: var(--gnd);
   color: var(--gn);
-  border: 1px solid rgba(22, 163, 74, 0.125);
+  border: 1px solid rgba(21, 146, 74, 0.15);
+}
+.btn[data-variant="success"]:hover:not([data-disabled="true"]) {
+  background: rgba(21, 146, 74, 0.12);
 }
 
 .btn[data-variant="successAction"] {
-  background: transparent;
+  background: var(--sf);
   color: var(--gn);
-  border: 2px solid var(--gn);
+  border: 1.5px solid var(--gn);
+}
+.btn[data-variant="successAction"]:hover:not([data-disabled="true"]) {
+  background: var(--gnd);
+  box-shadow: var(--shadow-sm);
 }
 
-/* ── Card ── */
+/* ── Card ──
+   Premium upgrades:
+   - Soft layered shadow replaces the harsh border for depth
+   - Slightly larger radius
+   - More generous default padding
+   - Hover-on-clickable now uses shadow lift instead of border colour
+     change for a more polished feel */
 .card {
   background: var(--sf);
-  border: 1px solid var(--bd);
+  border: 1px solid var(--bdl);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 28px;
   cursor: default;
-  transition: all 0.15s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
 }
 
 .card[data-clickable="true"] {
@@ -94,8 +138,13 @@
 }
 
 .card[data-clickable="true"]:hover {
-  background: var(--sfh);
-  border-color: var(--acl);
+  box-shadow: var(--shadow-md);
+  border-color: var(--bd);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .card { padding: 20px; }
 }
 
 /* ── Input wrapper ── */
@@ -113,15 +162,23 @@
 
 .inpField {
   width: 100%;
-  padding: 10px 14px;
-  background: var(--bg);
+  padding: 11px 14px;
+  background: var(--sf);
   border: 1px solid var(--bd);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--tx);
   font-family: var(--font);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.inpField:hover:not([data-disabled="true"]) {
+  border-color: var(--td);
+}
+.inpField:focus {
+  border-color: var(--ac);
+  box-shadow: var(--shadow-focus);
 }
 
 .inpField[data-error="true"] {
@@ -319,13 +376,13 @@
 }
 
 .confirmBox {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+  background: var(--sf);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(15, 23, 42, 0.04);
   width: 100%;
   max-width: 420px;
-  padding: 24px;
-  animation: confirmSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 28px;
+  animation: confirmSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes confirmSlide {
@@ -437,18 +494,18 @@
 .toast {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid var(--bd);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  gap: 11px;
+  padding: 14px 16px;
+  background: var(--sf);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bdl);
+  box-shadow: var(--shadow-md);
   font-size: 13px;
   line-height: 1.5;
   color: var(--tx);
   pointer-events: auto;
-  animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  min-width: 240px;
+  animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 260px;
 }
 
 @keyframes toastIn {

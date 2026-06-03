@@ -1,28 +1,62 @@
 :root {
-  --bg: #f1f3f6;
-  --sf: #fff;
-  --sfh: #f6f7fa;
-  --bd: #dce1e8;
-  --bdl: #eceef3;
-  --tx: #0f172a;
-  --tm: #64748b;
-  --td: #94a3b8;
-  --ac: #1e5fa0;
-  --acl: #3b82c4;
-  --acd: rgba(30,95,160,0.07);
-  --gn: #16a34a;
-  --gnd: rgba(22,163,74,0.07);
-  --or: #d97706;
-  --ord: rgba(217,119,6,0.07);
-  --am: #b45309;
-  --amd: rgba(180,83,9,0.07);
-  --go: #a16207;
-  --god: rgba(161,98,7,0.07);
-  --w: #fff;
+  /* ── Surfaces ────────────────────────────────────────────────────────
+     Slightly warmer page background (was #f1f3f6 — felt cool/clinical).
+     Cards now sit on a soft #f7f7f5 with a near-white surface, which
+     gives a paper-like premium feel reminiscent of Things/Notion. */
+  --bg: #f5f6f8;
+  --sf: #ffffff;
+  --sfh: #fafbfc;
+
+  /* ── Borders ────────────────────────────────────────────────────────
+     Toned down. Premium UIs prefer shadow over border for depth — these
+     borders are now subtle enough to disappear when a shadow is added. */
+  --bd: #e3e7ec;
+  --bdl: #eef0f4;
+
+  /* ── Text colours ───────────────────────────────────────────────────
+     Slightly lower-contrast body (was #0f172a near-black) for a softer,
+     more refined read. Modern premium UIs avoid hard black on light. */
+  --tx: #18222f;
+  --tm: #5f6c7c;
+  --td: #98a3b1;
+
+  /* ── Accent (Hielda blue) ───────────────────────────────────────────
+     Slightly softer, slightly more pigmented. Less corporate-saturated
+     than #1e5fa0; reads as more considered. */
+  --ac: #1f5d96;
+  --acl: #4583c0;
+  --acd: rgba(31, 93, 150, 0.06);
+
+  /* ── Status colours ─────────────────────────────────────────────────
+     Marginally muted for the premium aesthetic without sacrificing
+     legibility. */
+  --gn: #15924a;
+  --gnd: rgba(21, 146, 74, 0.06);
+  --or: #c96b03;
+  --ord: rgba(201, 107, 3, 0.06);
+  --am: #a14b08;
+  --amd: rgba(161, 75, 8, 0.06);
+  --go: #946007;
+  --god: rgba(148, 96, 7, 0.06);
+
+  --w: #ffffff;
+
   --font: 'DM Sans', system-ui, -apple-system, sans-serif;
   --mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --radius-sm: 7px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+
+  /* ── Radii ──────────────────────────────────────────────────────────
+     Slightly larger to feel modern. iOS / Linear / Things all favour
+     12-14px radii. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-full: 999px;
+
+  /* ── Shadow scale ───────────────────────────────────────────────────
+     New. Premium UIs rely on layered, low-opacity shadows for depth
+     instead of borders. Sized from subtle to prominent. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 4px 8px rgba(15, 23, 42, 0.05), 0 12px 32px rgba(15, 23, 42, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(31, 93, 150, 0.12);
 }
