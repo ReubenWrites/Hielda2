@@ -404,6 +404,39 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         </p>
       </section>
 
+      {/* Footer nav — crawlable links to every guide and free tool.
+          This is the main internal-linking surface for SEO: the landing
+          page has the most authority, and these links pass it down to
+          the long-tail guide pages. */}
+      <section className={s.footerNav} aria-label="Site links">
+        <div className={s.footerNavCol}>
+          <div className={s.footerNavHeading}>Free tools</div>
+          <a href="/calculator" className={s.footerNavLink}>Late payment interest calculator</a>
+          <a href="/late-payment-letter-template" className={s.footerNavLink}>Late payment letter generator</a>
+        </div>
+        <div className={s.footerNavCol}>
+          <div className={s.footerNavHeading}>Guides</div>
+          <a href="/guides/client-not-paying-invoice" className={s.footerNavLink}>Client not paying? What to do</a>
+          <a href="/guides/how-to-chase-late-invoices" className={s.footerNavLink}>How to chase late invoices</a>
+          <a href="/guides/how-much-interest-late-invoice" className={s.footerNavLink}>How much interest can you charge?</a>
+          <a href="/guides/letter-before-action" className={s.footerNavLink}>Letter Before Action</a>
+        </div>
+        <div className={s.footerNavCol}>
+          <div className={s.footerNavHeading}>More guides</div>
+          <a href="/guides/freelancer-rights-late-payment" className={s.footerNavLink}>Your late payment rights</a>
+          <a href="/guides/small-claims-court-unpaid-invoice" className={s.footerNavLink}>Small claims court — worth it?</a>
+          <a href="/guides/invoice-payment-terms-uk" className={s.footerNavLink}>Payment terms: 30, 14, or 7 days?</a>
+          <a href="/guides/late-payment-act-1998-explained" className={s.footerNavLink}>The Late Payment Act, explained</a>
+        </div>
+        <div className={s.footerNavCol}>
+          <div className={s.footerNavHeading}>Hielda</div>
+          <a href="/how" className={s.footerNavLink}>How it works</a>
+          <a href="/guides" className={s.footerNavLink}>All guides</a>
+          <a href="/privacy" className={s.footerNavLink}>Privacy policy</a>
+          <a href="mailto:support@hielda.com" className={s.footerNavLink}>support@hielda.com</a>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className={s.footer}>
         <span>© {new Date().getFullYear()} Hielda. Protecting your pay.</span>
