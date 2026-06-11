@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { ShieldLogo } from "../ui"
+import { trackEvent } from "../../posthog"
 import s from "./guides.module.css"
 
 // Wraps a guide article with nav, breadcrumbs, body, CTA, and a Related
@@ -38,7 +39,7 @@ export default function GuideLayout({
           <ShieldLogo size={28} />
           <span className={s.navLogoText}>Hielda</span>
         </div>
-        <button onClick={onGetStarted} className={s.navTrialBtn}>
+        <button onClick={() => { trackEvent("guide_cta_clicked", { guide: canonicalPath, placement: "nav" }); onGetStarted() }} className={s.navTrialBtn}>
           Start Free Trial
         </button>
       </nav>
@@ -100,7 +101,7 @@ export default function GuideLayout({
             does it all on your behalf — automatically, professionally, and
             legally backed.
           </p>
-          <button onClick={onGetStarted} className={s.ctaBtn}>
+          <button onClick={() => { trackEvent("guide_cta_clicked", { guide: canonicalPath, placement: "bottom" }); onGetStarted() }} className={s.ctaBtn}>
             Start your free 6-week trial
           </button>
           <p className={s.ctaSmall}>No credit card required</p>

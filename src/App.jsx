@@ -29,6 +29,12 @@ const LetterTemplate = lazy(() => import("./components/LetterTemplate"))
 const GuidesIndex = lazy(() => import("./components/guides/GuidesIndex"))
 const LatePaymentActExplained = lazy(() => import("./components/guides/LatePaymentActExplained"))
 const HowToChaseLateInvoices = lazy(() => import("./components/guides/HowToChaseLateInvoices"))
+const ClientNotPayingInvoice = lazy(() => import("./components/guides/ClientNotPayingInvoice"))
+const LetterBeforeAction = lazy(() => import("./components/guides/LetterBeforeAction"))
+const SmallClaimsCourtUnpaidInvoice = lazy(() => import("./components/guides/SmallClaimsCourtUnpaidInvoice"))
+const HowMuchInterestLateInvoice = lazy(() => import("./components/guides/HowMuchInterestLateInvoice"))
+const InvoicePaymentTermsUk = lazy(() => import("./components/guides/InvoicePaymentTermsUk"))
+const FreelancerRightsLatePayment = lazy(() => import("./components/guides/FreelancerRightsLatePayment"))
 
 const PageLoader = () => (
   <div className={s.pageLoader}>
@@ -301,6 +307,12 @@ export default function App() {
           <Route path="/guides" element={<GuidesIndex onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/guides/late-payment-act-1998-explained" element={<LatePaymentActExplained onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/guides/how-to-chase-late-invoices" element={<HowToChaseLateInvoices onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/client-not-paying-invoice" element={<ClientNotPayingInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/letter-before-action" element={<LetterBeforeAction onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/small-claims-court-unpaid-invoice" element={<SmallClaimsCourtUnpaidInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/how-much-interest-late-invoice" element={<HowMuchInterestLateInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/invoice-payment-terms-uk" element={<InvoicePaymentTermsUk onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/freelancer-rights-late-payment" element={<FreelancerRightsLatePayment onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
           <Route path="/ref/:code" element={<ReferralRedirect />} />
