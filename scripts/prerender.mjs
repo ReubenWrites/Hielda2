@@ -59,13 +59,15 @@ const routes = [
     title: "Late Payment Interest Calculator — UK Freelancers — Hielda",
     description:
       "Free calculator for the statutory interest and fixed debt recovery cost owed on overdue UK invoices under the Late Payment of Commercial Debts (Interest) Act 1998. For freelancers and small businesses.",
+    ogImage: `${SITE}/og/calculator.png`,
   },
   {
     file: "late-payment-letter-template.html",
     canonical: `${SITE}/late-payment-letter-template`,
-    title: "Late Payment Letter Template — Free for UK Freelancers — Hielda",
+    title: "Late Payment Letter Generator — Free for UK Freelancers — Hielda",
     description:
-      "Free, professional late payment demand letter template for UK freelancers. Cites the Late Payment of Commercial Debts (Interest) Act 1998 and includes statutory interest and fixed debt recovery cost wording.",
+      "Free late payment demand letter generator for UK freelancers. Fill in your invoice details and get a ready-to-send letter citing the Late Payment of Commercial Debts (Interest) Act 1998, with statutory interest calculated.",
+    ogImage: `${SITE}/og/late-payment-letter-template.png`,
   },
   {
     file: "how.html",
@@ -88,6 +90,7 @@ const routes = [
     title: "Guides for UK freelancers and SMEs — Hielda",
     description:
       "Plain-English explainers, free tools, and templates for getting paid on time and enforcing what you're owed under UK late payment law.",
+    ogImage: `${SITE}/og/guides.png`,
   },
   {
     file: "guides-late-payment-act-1998-explained.html",
@@ -95,6 +98,7 @@ const routes = [
     title: "Late Payment of Commercial Debts Act 1998 — explained for UK freelancers — Hielda",
     description:
       "Plain-English guide to the UK statute that gives every business the right to charge statutory interest and a fixed debt recovery cost on overdue B2B invoices.",
+    ogImage: `${SITE}/og/guide-late-payment-act.png`,
   },
   {
     file: "guides-how-to-chase-late-invoices.html",
@@ -102,6 +106,7 @@ const routes = [
     title: "How to chase late invoices — a practical playbook for UK freelancers — Hielda",
     description:
       "Day-by-day timeline professional accounts teams use to chase late invoices, adapted for freelancers. Covers reminders, formal letters, and when to escalate.",
+    ogImage: `${SITE}/og/guide-how-to-chase.png`,
   },
   {
     file: "guides-client-not-paying-invoice.html",
@@ -109,6 +114,7 @@ const routes = [
     title: "Client not paying your invoice? What to do, step by step — Hielda",
     description:
       "A practical, step-by-step escalation path for UK freelancers when a client won't pay: polite chases, statutory charges, Letter Before Action, and court — plus what not to do.",
+    ogImage: `${SITE}/og/guide-client-not-paying.png`,
   },
   {
     file: "guides-letter-before-action.html",
@@ -116,6 +122,7 @@ const routes = [
     title: "Letter Before Action for an unpaid invoice — how to write one (UK) — Hielda",
     description:
       "How to write and send a Letter Before Action for an unpaid invoice in the UK: what it must contain, response windows for companies vs sole traders, and why it usually gets you paid.",
+    ogImage: `${SITE}/og/guide-letter-before-action.png`,
   },
   {
     file: "guides-small-claims-court-unpaid-invoice.html",
@@ -123,6 +130,7 @@ const routes = [
     title: "Taking an unpaid invoice to small claims court — is it worth it? — Hielda",
     description:
       "Honest guide to Money Claim Online for unpaid invoices: when court is worth it, current fees, what to write, what happens after filing, and enforcement if they still don't pay.",
+    ogImage: `${SITE}/og/guide-small-claims.png`,
   },
   {
     file: "guides-how-much-interest-late-invoice.html",
@@ -130,6 +138,7 @@ const routes = [
     title: "How much interest can you charge on a late invoice in the UK? — Hielda",
     description:
       "The statutory rate is 8% above Bank of England base rate, accruing daily, plus a £40–£100 fixed recovery cost. The exact formula, worked examples, and how to claim it.",
+    ogImage: `${SITE}/og/guide-how-much-interest.png`,
   },
   {
     file: "guides-invoice-payment-terms-uk.html",
@@ -137,6 +146,15 @@ const routes = [
     title: "Invoice payment terms for UK freelancers: 30 days, 14, or 7? — Hielda",
     description:
       "What payment terms UK freelancers should use, the 30-day legal default, the 60-day cap on B2B terms, and how to state terms so they actually stick.",
+    ogImage: `${SITE}/og/guide-payment-terms.png`,
+  },
+  {
+    file: "guides-debt-collection-agency-vs-diy.html",
+    canonical: `${SITE}/guides/debt-collection-agency-vs-diy`,
+    title: "Debt collection agency, DIY, or automation? Recovering unpaid invoices compared — Hielda",
+    description:
+      "Honest comparison of the ways to recover an unpaid invoice in the UK: chasing it yourself, debt collection agencies and their fees, solicitors and court, and automation — with a clear decision guide.",
+    ogImage: `${SITE}/og/guide-debt-collection-agency.png`,
   },
   {
     file: "guides-freelancer-rights-late-payment.html",
@@ -144,6 +162,7 @@ const routes = [
     title: "Your legal rights when a client pays late — UK freelancer's guide — Hielda",
     description:
       "UK freelancers have unusually strong late-payment rights: statutory interest, fixed recovery costs, six years to claim, and court access without a solicitor. Here's how to use them.",
+    ogImage: `${SITE}/og/guide-freelancer-rights.png`,
   },
 ]
 
@@ -194,6 +213,13 @@ for (const route of routes) {
   html = setMetaContent(html, 'property="og:url"', route.canonical)
   html = setMetaContent(html, 'name="twitter:title"', route.title)
   html = setMetaContent(html, 'name="twitter:description"', route.description)
+  if (route.ogImage) {
+    // Per-page share card (generated by build-og-image.mjs). The alt
+    // doubles as the page title for screen-reader link previews.
+    html = setMetaContent(html, 'property="og:image"', route.ogImage)
+    html = setMetaContent(html, 'property="og:image:alt"', route.title)
+    html = setMetaContent(html, 'name="twitter:image"', route.ogImage)
+  }
   html = injectSchemas(html, route.extraSchemas)
 
   fs.writeFileSync(path.join(DIST, route.file), html)

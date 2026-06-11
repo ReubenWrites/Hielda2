@@ -35,6 +35,7 @@ const SmallClaimsCourtUnpaidInvoice = lazy(() => import("./components/guides/Sma
 const HowMuchInterestLateInvoice = lazy(() => import("./components/guides/HowMuchInterestLateInvoice"))
 const InvoicePaymentTermsUk = lazy(() => import("./components/guides/InvoicePaymentTermsUk"))
 const FreelancerRightsLatePayment = lazy(() => import("./components/guides/FreelancerRightsLatePayment"))
+const DebtCollectionAgencyVsDiy = lazy(() => import("./components/guides/DebtCollectionAgencyVsDiy"))
 
 const PageLoader = () => (
   <div className={s.pageLoader}>
@@ -313,6 +314,7 @@ export default function App() {
           <Route path="/guides/how-much-interest-late-invoice" element={<HowMuchInterestLateInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/guides/invoice-payment-terms-uk" element={<InvoicePaymentTermsUk onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/guides/freelancer-rights-late-payment" element={<FreelancerRightsLatePayment onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/guides/debt-collection-agency-vs-diy" element={<DebtCollectionAgencyVsDiy onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
           <Route path="/ref/:code" element={<ReferralRedirect />} />
