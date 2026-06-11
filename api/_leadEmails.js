@@ -16,18 +16,19 @@ export const BASE_INTERVAL_DAYS = 8
 export const ENGAGED_INTERVAL_DAYS = 4
 export const CONVERTED_STAGE = 99
 
-// 50% off the first 3 months. The code must exist in Stripe (Products →
-// Coupons → create coupon + promotion code "CHASE50"); checkout already
-// has allow_promotion_codes enabled.
-export const DISCOUNT_CODE = 'CHASE50'
-export const DISCOUNT_BLURB = '50% off your first 3 months'
+// Promotion code created in Stripe by Reuben; checkout already has
+// allow_promotion_codes enabled.
+export const DISCOUNT_CODE = 'FOREVER25'
+export const DISCOUNT_BLURB = '25% off, forever'
 
 export function newUnsubscribeToken() {
   return crypto.randomBytes(24).toString('hex')
 }
 
+// Unsubscribe is handled by calculator-lead.js (?action=unsubscribe)
+// rather than its own endpoint — Hobby plan function-count limit.
 export function unsubscribeUrl(email, token) {
-  return `https://hielda.com/api/lead-unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`
+  return `https://hielda.com/api/calculator-lead?action=unsubscribe&email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`
 }
 
 export function fmt(amount) {

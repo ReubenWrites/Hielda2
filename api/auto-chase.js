@@ -396,9 +396,22 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Lead drip ──────────────────────────────────────────────────────────
+  // Piggybacks on this daily cron (Hobby plan caps deployments at 12
+  // serverless functions, so the drip can't be its own endpoint). A drip
+  // failure must never affect the invoice-chasing results above.
+  let leadDrip = null
+  try {
+    const { runLeadDrip } = await import('./_leadDrip.js')
+    leadDrip = await runLeadDrip(supabase, RESEND_API_KEY)
+  } catch (e) {
+    leadDrip = { error: e.message }
+  }
+
   return res.status(200).json({
     success: true,
     ...results,
     ...(errors.length > 0 ? { error_detail: errors } : {}),
+    lead_drip: leadDrip,
   })
 }

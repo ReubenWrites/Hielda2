@@ -1,4 +1,7 @@
-// Vercel Serverless Function (cron, daily): lead drip sequence.
+// Lead drip sequence — runs inside the daily auto-chase cron rather than
+// as its own endpoint: the Vercel Hobby plan caps deployments at 12
+// serverless functions, so this lives as a module called from
+// auto-chase.js (underscore prefix = not built as a function).
 //
 // Sends the follow-up emails in the lead nurture series to people who used
 // the free calculator or letter generator. Engagement-adaptive and finite:
@@ -15,7 +18,6 @@
 // Open tracking: emails are tagged `lead_drip`; resend-webhook.js records
 // opens onto the lead row (opened_count / last_opened_at).
 
-import { createClient } from '@supabase/supabase-js'
 import {
   MAX_STAGE,
   BASE_INTERVAL_DAYS,
@@ -28,32 +30,13 @@ import {
   newUnsubscribeToken,
 } from './_leadEmails.js'
 
-const CRON_SECRET = process.env.CRON_SECRET
-const RESEND_API_KEY = process.env.RESEND_API_KEY
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
 // Cap per run: stays well inside serverless time limits, and any backlog
 // simply drains over the following daily runs.
 const BATCH_SIZE = 50
 
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString()
 
-export default async function handler(req, res) {
-  if (!CRON_SECRET) {
-    return res.status(500).json({ error: 'CRON_SECRET not configured' })
-  }
-  const headerOk = req.headers.authorization === `Bearer ${CRON_SECRET}`
-  const querySecret = typeof req.query?.secret === 'string' ? req.query.secret : null
-  if (!headerOk && !(querySecret !== null && querySecret === CRON_SECRET)) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
-  if (!RESEND_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    return res.status(500).json({ error: 'Server not configured — missing env vars' })
-  }
-
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+export async function runLeadDrip(supabase, resendApiKey) {
   const results = { sent: 0, skipped_not_due: 0, skipped_converted: 0, stopped_unengaged: 0, errors: 0 }
   const errors = []
 
@@ -74,7 +57,7 @@ export default async function handler(req, res) {
   if (qErr) {
     // Most likely cause: migration 020 not applied yet. Fail loudly but
     // harmlessly — nothing has been sent.
-    return res.status(500).json({ error: `Lead query failed (has migration 020_add_lead_drip.sql been applied?): ${qErr.message}` })
+    return { ...results, errors: 1, error_detail: [`Lead query failed (has migration 020_add_lead_drip.sql been applied?): ${qErr.message}`] }
   }
 
   // Leads who became users get parked permanently — they're customers now
@@ -131,7 +114,7 @@ export default async function handler(req, res) {
       }
 
       const emailId = await sendLeadEmail({
-        apiKey: RESEND_API_KEY,
+        apiKey: resendApiKey,
         to: lead.email,
         subject: content.subject,
         html: emailShell(content.body, { email: lead.email, token }),
@@ -154,5 +137,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ ...results, ...(errors.length ? { error_detail: errors.slice(0, 5) } : {}) })
+  return { ...results, ...(errors.length ? { error_detail: errors.slice(0, 5) } : {}) }
 }

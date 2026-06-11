@@ -46,10 +46,6 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/lead-drip",
-      "schedule": "15 9 * * *"
-    },
-    {
       "path": "/api/social-post",
       "schedule": "30 11 * * *"
     },
