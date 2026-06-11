@@ -88,6 +88,18 @@
   position: relative;
 }
 
+/* Oversized ghosted shield behind the hero — the same watermark motif
+   the app sidebar uses, tying marketing and product together. Very low
+   opacity so the copy stays effortlessly readable. */
+.heroShield {
+  position: absolute;
+  top: -60px;
+  right: -100px;
+  opacity: 0.05;
+  transform: rotate(10deg);
+  pointer-events: none;
+}
+
 /* ── Hero visual: illustrative chase email ── */
 .heroVisual {
   position: relative;
@@ -465,9 +477,24 @@
     radial-gradient(ellipse 600px 300px at 80% 0%, rgba(31, 93, 150, 0.35), transparent 70%),
     linear-gradient(135deg, #0f172a, #1e293b);
   flex-wrap: wrap;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ghost shield on the dark band — identical asset + treatment to the
+   app sidebar watermark. */
+.statsShield {
+  position: absolute;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%) rotate(-6deg);
+  width: 150px;
+  opacity: 0.09;
+  pointer-events: none;
 }
 .statItem {
   text-align: center;
+  position: relative;
 }
 .statVal {
   font-size: 30px;
@@ -845,19 +872,43 @@
   background:
     radial-gradient(ellipse 700px 360px at 50% 0%, rgba(31, 93, 150, 0.45), transparent 75%),
     linear-gradient(135deg, #0f172a, #1e293b);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Large ghosted shield centred behind the CTA copy. */
+.ctaShieldBg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 280px;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+/* Small solid shield mark above the CTA title — the brand signing off. */
+.ctaShieldMark {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+  position: relative;
 }
 .ctaTitle {
+  position: relative;
   font-size: 28px;
   font-weight: 700;
   color: #fff;
   margin: 0 0 8px;
 }
 .ctaSubtitle {
+  position: relative;
   color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
   margin: 0 0 24px;
 }
 .ctaBtn {
+  position: relative;
   background: #fff;
   color: var(--ac);
   border: none;
@@ -870,6 +921,7 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 .ctaSmall {
+  position: relative;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 10px;
@@ -982,6 +1034,15 @@
   }
   .heroVisual {
     margin-top: 36px;
+  }
+  /* On phones the oversized hero shield would sit directly behind the
+     copy — drop it and let the dot grid carry the texture. */
+  .heroShield {
+    display: none;
+  }
+  .statsShield {
+    width: 110px;
+    right: -20px;
   }
   .mockEmail {
     padding: 18px 16px;
