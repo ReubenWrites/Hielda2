@@ -84,12 +84,11 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
 
       {/* Hero */}
       <div className={s.heroWrap}>
-        {/* Oversized ghosted brand shield — same watermark motif as the
-            app sidebar, so the marketing page and product feel like one
-            thing. Sits behind the hero copy and email mockup. */}
-        <div className={s.heroShield} aria-hidden="true">
-          <ShieldLogo size={420} />
-        </div>
+        {/* Oversized ghosted brand shield — the detailed knotwork artwork
+            (white PNG rendered in brand blue via CSS mask), same watermark
+            motif as the app sidebar. The simple SVG logo reads as too
+            basic at this scale. */}
+        <div className={s.heroShield} aria-hidden="true" />
         <section className={s.hero}>
           <div className={s.heroBadge}>
             UK Late Payment Act 1998
@@ -243,7 +242,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
 
       {/* Stats bar */}
       <section className={s.statsBar}>
-        <img src="/shield-f2-single.png?v=2" alt="" className={s.statsShield} aria-hidden="true" />
+        <img src="/shield-d6-single.png?v=2" alt="" className={s.statsShield} aria-hidden="true" />
         {[
           { val: `${getRate()}%`, label: "Statutory interest rate" },
           { val: "£40–100", label: "Fixed recovery cost per invoice" },
@@ -435,7 +434,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
 
       {/* CTA */}
       <section className={s.ctaSection}>
-        <img src="/shield-f2-single.png?v=2" alt="" className={s.ctaShieldBg} aria-hidden="true" />
+        <img src="/shield-d6-single.png?v=2" alt="" className={s.ctaShieldBg} aria-hidden="true" />
         <div className={s.ctaShieldMark} aria-hidden="true">
           <ShieldLogo size={42} white />
         </div>

@@ -88,14 +88,20 @@
   position: relative;
 }
 
-/* Oversized ghosted shield behind the hero — the same watermark motif
-   the app sidebar uses, tying marketing and product together. Very low
-   opacity so the copy stays effortlessly readable. */
+/* Oversized ghosted shield behind the hero — the detailed knotwork
+   artwork, tinted brand blue by using the white PNG as a mask over a
+   solid colour. Slightly higher opacity than a solid shape needs,
+   because fine knotwork lines disappear faster. */
 .heroShield {
   position: absolute;
-  top: -60px;
-  right: -100px;
-  opacity: 0.05;
+  top: -50px;
+  right: -90px;
+  width: 430px;
+  height: 510px;
+  background: var(--ac);
+  -webkit-mask: url("/shield-d6-single.png?v=2") no-repeat center / contain;
+  mask: url("/shield-d6-single.png?v=2") no-repeat center / contain;
+  opacity: 0.08;
   transform: rotate(10deg);
   pointer-events: none;
 }
