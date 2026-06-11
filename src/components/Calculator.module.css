@@ -179,6 +179,28 @@
   margin-bottom: 16px;
 }
 
+/* Copy-result-link: quiet secondary action under the total. */
+.copyLinkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  margin-bottom: 16px;
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-full);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tm);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.copyLinkBtn:hover {
+  border-color: var(--ac);
+  color: var(--ac);
+}
+
 /* ── Lead capture ── */
 .leadSection {
   border-top: 1px solid var(--bd);
