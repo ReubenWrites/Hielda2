@@ -37,7 +37,7 @@
     { "source": "/guides/freelancer-rights-late-payment", "destination": "/guides-freelancer-rights-late-payment.html" },
     { "source": "/how", "destination": "/how.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/((?!sitemap\\.xml|robots\\.txt).*)", "destination": "/index.html" }
+    { "source": "/((?!sitemap\\.xml|robots\\.txt|llms\\.txt).*)", "destination": "/index.html" }
   ],
   "crons": [
     {
