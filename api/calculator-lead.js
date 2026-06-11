@@ -3,16 +3,25 @@
 // or the letter template/generator page. The `source` field picks which
 // email they get: letter-template leads were promised the actual template,
 // calculator leads get their calculation summary.
+//
+// This capture email is stage 1 of the lead drip sequence — see
+// api/lead-drip.js for the follow-ups and api/_leadEmails.js for the
+// shared pieces. Every email carries an unsubscribe link.
 
 import { createClient } from '@supabase/supabase-js'
+import {
+  emailShell,
+  nextStepsHtml,
+  trialCtaHtml,
+  sendLeadEmail,
+  unsubscribeUrl,
+  newUnsubscribeToken,
+  fmt,
+} from './_leadEmails.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-function fmt(amount) {
-  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount)
-}
 
 // Statutory rate: 8% over BoE base. Live-fetched with a static fallback so
 // the email never blocks on the BoE endpoint.
@@ -24,55 +33,6 @@ async function statutoryRate() {
   } catch {
     return 11.75
   }
-}
-
-function emailShell(bodyHtml) {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
-<body style="margin:0;padding:0;background:#f1f3f6;font-family:'DM Sans',system-ui,-apple-system,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:24px;">
-    <div style="background:#fff;border-radius:12px;border:1px solid #dce1e8;overflow:hidden;">
-      <div style="background:#1e5fa0;padding:16px 24px;">
-        <div style="color:#fff;font-weight:700;font-size:14px;">Hielda</div>
-      </div>
-      <div style="padding:28px 24px;font-size:14px;line-height:1.7;color:#0f172a;">
-        ${bodyHtml}
-      </div>
-    </div>
-    <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">
-      <a href="https://hielda.com" style="color:#1e5fa0;text-decoration:none;font-weight:600;">hielda.com</a>
-      · <a href="https://hielda.com/privacy" style="color:#94a3b8;">Privacy Policy</a>
-    </div>
-  </div>
-</body>
-</html>`
-}
-
-// Shared "useful next steps" block — free resources first, then the trial
-// pitch. Leads who got value from a free tool convert better than leads
-// who only got a sales email.
-function nextStepsHtml() {
-  return `
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin:20px 0;">
-          <div style="font-weight:700;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Useful next steps</div>
-          <p style="margin:0 0 8px;font-size:13px;"><a href="https://hielda.com/late-payment-letter-template" style="color:#1e5fa0;font-weight:600;text-decoration:none;">Generate a formal demand letter</a> — your figures filled in, ready to send</p>
-          <p style="margin:0 0 8px;font-size:13px;"><a href="https://hielda.com/guides/client-not-paying-invoice" style="color:#1e5fa0;font-weight:600;text-decoration:none;">Client not paying? The step-by-step playbook</a></p>
-          <p style="margin:0;font-size:13px;"><a href="https://hielda.com/guides/letter-before-action" style="color:#1e5fa0;font-weight:600;text-decoration:none;">When and how to send a Letter Before Action</a></p>
-        </div>`
-}
-
-function trialCtaHtml() {
-  return `
-        <p>Hielda automates the entire process: it sends formal chase emails, applies the statutory charges, and escalates through 19 stages — so you never have to ask awkwardly for your own money.</p>
-
-        <div style="text-align:center;margin:28px 0;">
-          <a href="https://hielda.com" style="display:inline-block;padding:14px 36px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;">Start your free 6-week trial</a>
-        </div>
-
-        <p style="font-size:13px;color:#64748b;">Your first 6 weeks are completely free. No card required to start — you only pay when you're ready.</p>
-
-        <p>Best,<br/>The Hielda Team</p>`
 }
 
 function calculatorEmail({ invoice_amount, days_overdue, total_claimable }) {
@@ -109,7 +69,7 @@ function calculatorEmail({ invoice_amount, days_overdue, total_claimable }) {
     subject: totalStr
       ? `Your late payment calculation: ${totalStr} claimable`
       : 'Your late payment calculation from Hielda',
-    html: emailShell(body),
+    body,
   }
 }
 
@@ -141,7 +101,7 @@ function letterTemplateEmail({ invoice_amount, days_overdue, total_claimable, ra
 
   return {
     subject: 'Your late payment letter template',
-    html: emailShell(body),
+    body,
   }
 }
 
@@ -156,49 +116,62 @@ export default async function handler(req, res) {
 
   // The letter template page historically posted `amount`; the calculator
   // posts `invoice_amount`. Accept both.
-  const { email, invoice_amount, amount, days_overdue, total_claimable, source } = req.body
+  const { email: rawEmail, invoice_amount, amount, days_overdue, total_claimable, source } = req.body
   const amt = Number(invoice_amount || amount) || null
 
-  if (!email || !email.includes('@')) {
+  if (!rawEmail || !rawEmail.includes('@')) {
     return res.status(400).json({ error: 'Valid email required' })
   }
+  const email = rawEmail.trim().toLowerCase()
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-  // Save the lead (upsert to avoid duplicates on same email)
-  await supabase.from('calculator_leads').upsert(
-    {
-      email: email.trim().toLowerCase(),
-      invoice_amount: amt,
-      days_overdue: days_overdue || null,
-      total_claimable: total_claimable || null,
-    },
-    { onConflict: 'email', ignoreDuplicates: false }
-  )
+  // Reuse the existing row's unsubscribe token and preference. Someone who
+  // unsubscribed from the drip still gets this directly-requested email,
+  // but their drip opt-out is never reset.
+  const { data: existing } = await supabase
+    .from('calculator_leads')
+    .select('unsubscribe_token, unsubscribed')
+    .eq('email', email)
+    .maybeSingle()
 
-  // Send follow-up email if Resend is configured
+  const token = existing?.unsubscribe_token || newUnsubscribeToken()
+
+  let emailId = null
   if (RESEND_API_KEY) {
     const payload = { invoice_amount: amt, days_overdue, total_claimable }
-    const { subject, html } =
+    const { subject, body } =
       source === 'letter_template'
         ? letterTemplateEmail({ ...payload, rate: await statutoryRate() })
         : calculatorEmail(payload)
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Hielda <hello@hielda.com>',
-        to: [email.trim()],
-        subject,
-        html,
-      }),
+    emailId = await sendLeadEmail({
+      apiKey: RESEND_API_KEY,
+      to: email,
+      subject,
+      html: emailShell(body, { email, token }),
+      unsubUrl: unsubscribeUrl(email, token),
     })
     // Fire and forget — don't fail the response if email sending fails
   }
+
+  // Upsert after sending so we can record the Resend id for open tracking.
+  // Re-submissions restart the drip from stage 1 with fresh figures —
+  // they're actively using the tools again, so the sequence is relevant
+  // again (unless they've unsubscribed, which is preserved above).
+  await supabase.from('calculator_leads').upsert(
+    {
+      email,
+      invoice_amount: amt,
+      days_overdue: days_overdue || null,
+      total_claimable: total_claimable || null,
+      drip_stage: 1,
+      last_email_at: new Date().toISOString(),
+      last_email_id: emailId,
+      unsubscribe_token: token,
+    },
+    { onConflict: 'email', ignoreDuplicates: false }
+  )
 
   return res.status(200).json({ success: true })
 }

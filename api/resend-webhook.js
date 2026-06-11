@@ -73,6 +73,49 @@ export default async function handler(req, res) {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+    // ── Lead drip emails ──────────────────────────────────────────────
+    // Sends from api/lead-drip.js and api/calculator-lead.js are tagged
+    // `lead_drip`. Opens/clicks feed the engagement-adaptive cadence:
+    // leads who open get the faster interval and the discount email.
+    // Resend delivers tags as either an object map or an array of
+    // {name, value} — handle both.
+    const rawTags = event.data?.tags
+    const tagType = Array.isArray(rawTags)
+      ? rawTags.find((t) => t?.name === 'type')?.value
+      : rawTags?.type
+    if (tagType === 'lead_drip') {
+      if (deliveryStatus === 'opened' || deliveryStatus === 'clicked') {
+        const { data: lead } = await supabase
+          .from('calculator_leads')
+          .select('id, opened_count, last_opened_at, last_email_at')
+          .eq('last_email_id', resendEmailId)
+          .maybeSingle()
+        if (lead) {
+          // Count each email's open once — Resend fires an event per
+          // render, and one enthusiastic re-reader shouldn't look like
+          // five engaged leads.
+          const alreadyCounted =
+            lead.last_opened_at && lead.last_email_at &&
+            new Date(lead.last_opened_at) >= new Date(lead.last_email_at)
+          await supabase
+            .from('calculator_leads')
+            .update({
+              last_opened_at: new Date().toISOString(),
+              ...(alreadyCounted ? {} : { opened_count: (lead.opened_count || 0) + 1 }),
+            })
+            .eq('id', lead.id)
+        }
+      } else if (deliveryStatus === 'bounced' || deliveryStatus === 'complained') {
+        // Hard bounce or spam complaint: stop the sequence permanently.
+        await supabase
+          .from('calculator_leads')
+          .update({ unsubscribed: true })
+          .eq('last_email_id', resendEmailId)
+      }
+      return res.status(200).json({ received: true, status: deliveryStatus, kind: 'lead_drip' })
+    }
+
+    // ── Chase emails (invoice-related) ────────────────────────────────
     // Update the matching chase_log entry
     const { data: logEntry } = await supabase
       .from('chase_log')
