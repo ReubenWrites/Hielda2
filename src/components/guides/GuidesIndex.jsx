@@ -38,6 +38,11 @@ const GUIDES = [
     desc: "An honest cost-benefit guide to Money Claim Online: fees, timelines, what happens after filing, and enforcement if they still don't pay.",
   },
   {
+    href: "/guides/debt-collection-agency-vs-diy",
+    title: "Debt collection agency, DIY, or automation?",
+    desc: "What agencies actually charge and can actually do, when a solicitor's letter beats both, and an honest decision guide by how late the invoice is.",
+  },
+  {
     href: "/guides/invoice-payment-terms-uk",
     title: "Invoice payment terms: 30 days, 14, or 7?",
     desc: "What terms to use by client type, the 30-day legal default, the 60-day cap, and how to state terms so they actually stick.",
