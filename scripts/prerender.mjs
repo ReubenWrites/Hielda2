@@ -103,6 +103,48 @@ const routes = [
     description:
       "Day-by-day timeline professional accounts teams use to chase late invoices, adapted for freelancers. Covers reminders, formal letters, and when to escalate.",
   },
+  {
+    file: "guides-client-not-paying-invoice.html",
+    canonical: `${SITE}/guides/client-not-paying-invoice`,
+    title: "Client not paying your invoice? What to do, step by step — Hielda",
+    description:
+      "A practical, step-by-step escalation path for UK freelancers when a client won't pay: polite chases, statutory charges, Letter Before Action, and court — plus what not to do.",
+  },
+  {
+    file: "guides-letter-before-action.html",
+    canonical: `${SITE}/guides/letter-before-action`,
+    title: "Letter Before Action for an unpaid invoice — how to write one (UK) — Hielda",
+    description:
+      "How to write and send a Letter Before Action for an unpaid invoice in the UK: what it must contain, response windows for companies vs sole traders, and why it usually gets you paid.",
+  },
+  {
+    file: "guides-small-claims-court-unpaid-invoice.html",
+    canonical: `${SITE}/guides/small-claims-court-unpaid-invoice`,
+    title: "Taking an unpaid invoice to small claims court — is it worth it? — Hielda",
+    description:
+      "Honest guide to Money Claim Online for unpaid invoices: when court is worth it, current fees, what to write, what happens after filing, and enforcement if they still don't pay.",
+  },
+  {
+    file: "guides-how-much-interest-late-invoice.html",
+    canonical: `${SITE}/guides/how-much-interest-late-invoice`,
+    title: "How much interest can you charge on a late invoice in the UK? — Hielda",
+    description:
+      "The statutory rate is 8% above Bank of England base rate, accruing daily, plus a £40–£100 fixed recovery cost. The exact formula, worked examples, and how to claim it.",
+  },
+  {
+    file: "guides-invoice-payment-terms-uk.html",
+    canonical: `${SITE}/guides/invoice-payment-terms-uk`,
+    title: "Invoice payment terms for UK freelancers: 30 days, 14, or 7? — Hielda",
+    description:
+      "What payment terms UK freelancers should use, the 30-day legal default, the 60-day cap on B2B terms, and how to state terms so they actually stick.",
+  },
+  {
+    file: "guides-freelancer-rights-late-payment.html",
+    canonical: `${SITE}/guides/freelancer-rights-late-payment`,
+    title: "Your legal rights when a client pays late — UK freelancer's guide — Hielda",
+    description:
+      "UK freelancers have unusually strong late-payment rights: statutory interest, fixed recovery costs, six years to claim, and court access without a solicitor. Here's how to use them.",
+  },
 ]
 
 function escapeAttr(s) {

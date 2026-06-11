@@ -3,14 +3,44 @@ import s from "./guides.module.css"
 
 const GUIDES = [
   {
-    href: "/guides/late-payment-act-1998-explained",
-    title: "The Late Payment Act 1998 — explained for freelancers and SMEs",
-    desc: "A plain-English guide to the UK statute that gives every business the automatic right to charge statutory interest and a fixed debt recovery cost on overdue B2B invoices.",
+    href: "/guides/client-not-paying-invoice",
+    title: "Client not paying your invoice? What to do, step by step",
+    desc: "The practical escalation path when a client won't pay: ruling out admin slip-ups, polite chases, statutory charges, the Letter Before Action, and court — plus the mistakes to avoid.",
   },
   {
     href: "/guides/how-to-chase-late-invoices",
     title: "How to chase late invoices — a practical playbook for UK freelancers",
     desc: "Day-by-day timeline used by professional accounts teams, adapted for solo freelancers and small businesses. Covers gentle reminders, formal letters, and when to escalate.",
+  },
+  {
+    href: "/guides/how-much-interest-late-invoice",
+    title: "How much interest can you charge on a late invoice?",
+    desc: "The statutory rate, the exact daily formula, the £40–£100 fixed recovery sums, and worked examples for typical invoice sizes.",
+  },
+  {
+    href: "/guides/freelancer-rights-late-payment",
+    title: "Your legal rights when a client pays late",
+    desc: "UK law is unusually strong on late payment — statutory interest, fixed recovery costs, six years to claim, and court access without a solicitor. Most freelancers never use any of it.",
+  },
+  {
+    href: "/guides/late-payment-act-1998-explained",
+    title: "The Late Payment Act 1998 — explained for freelancers and SMEs",
+    desc: "A plain-English guide to the UK statute that gives every business the automatic right to charge statutory interest and a fixed debt recovery cost on overdue B2B invoices.",
+  },
+  {
+    href: "/guides/letter-before-action",
+    title: "Letter Before Action — how and when to send one",
+    desc: "The formal pre-court letter that gets most stubborn invoices paid: what it must contain, response windows, and how to send it properly.",
+  },
+  {
+    href: "/guides/small-claims-court-unpaid-invoice",
+    title: "Taking an unpaid invoice to small claims court — is it worth it?",
+    desc: "An honest cost-benefit guide to Money Claim Online: fees, timelines, what happens after filing, and enforcement if they still don't pay.",
+  },
+  {
+    href: "/guides/invoice-payment-terms-uk",
+    title: "Invoice payment terms: 30 days, 14, or 7?",
+    desc: "What terms to use by client type, the 30-day legal default, the 60-day cap, and how to state terms so they actually stick.",
   },
   {
     href: "/calculator",
@@ -19,8 +49,8 @@ const GUIDES = [
   },
   {
     href: "/late-payment-letter-template",
-    title: "Free late payment demand letter template",
-    desc: "Professionally-worded letter you can send to any UK B2B client, citing the Act and putting the debtor on formal notice.",
+    title: "Free late payment letter generator",
+    desc: "Fill in your invoice details and get a ready-to-send demand letter with the statutory interest and fixed recovery cost calculated for you.",
   },
 ]
 

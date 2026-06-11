@@ -29,6 +29,12 @@
     { "source": "/guides", "destination": "/guides.html" },
     { "source": "/guides/late-payment-act-1998-explained", "destination": "/guides-late-payment-act-1998-explained.html" },
     { "source": "/guides/how-to-chase-late-invoices", "destination": "/guides-how-to-chase-late-invoices.html" },
+    { "source": "/guides/client-not-paying-invoice", "destination": "/guides-client-not-paying-invoice.html" },
+    { "source": "/guides/letter-before-action", "destination": "/guides-letter-before-action.html" },
+    { "source": "/guides/small-claims-court-unpaid-invoice", "destination": "/guides-small-claims-court-unpaid-invoice.html" },
+    { "source": "/guides/how-much-interest-late-invoice", "destination": "/guides-how-much-interest-late-invoice.html" },
+    { "source": "/guides/invoice-payment-terms-uk", "destination": "/guides-invoice-payment-terms-uk.html" },
+    { "source": "/guides/freelancer-rights-late-payment", "destination": "/guides-freelancer-rights-late-payment.html" },
     { "source": "/how", "destination": "/how.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/((?!sitemap\\.xml|robots\\.txt).*)", "destination": "/index.html" }
