@@ -1,37 +1,42 @@
 import { useState } from "react"
+import {
+  ShieldCheck, Scale, MailCheck, CalendarClock, Coins, Lock,
+  Landmark, MessageSquareWarning, UserRound, Building2, Brush, Check,
+} from "lucide-react"
 import { getRate, getBoe } from "../constants"
+import { calcInterest, fmt, round2 } from "../utils"
 import { ShieldLogo } from "./ui"
 import { LANDING_FAQS } from "../data/faqs"
 import s from "./LandingPage.module.css"
 
 const FEATURES = [
   {
-    ico: "🛡️",
+    Ico: ShieldCheck,
     title: "Automatic Chase Emails",
     desc: "From friendly reminders to formal legal notices — Hielda sends escalating chase emails on your behalf so you don't have to.",
   },
   {
-    ico: "⚖️",
+    Ico: Scale,
     title: "Statutory Interest & Fines",
     desc: "Under the Late Payment of Commercial Debts Act 1998, you're legally entitled to charge interest and penalties. Hielda calculates and enforces them for you.",
   },
   {
-    ico: "📧",
+    Ico: MailCheck,
     title: "Check-in Before Every Step",
     desc: "We always ask you first — 'Has your client paid?' — before sending the next chase. You stay in full control.",
   },
   {
-    ico: "📊",
+    Ico: CalendarClock,
     title: "19-Stage Chase Timeline",
     desc: "From 5 days before the due date to 30 days overdue. The pressure builds gradually, giving your client every chance to pay.",
   },
   {
-    ico: "💰",
+    Ico: Coins,
     title: "You Keep Every Penny",
     desc: "Interest and penalties are yours by law. Hielda ensures you receive every pound you're entitled to.",
   },
   {
-    ico: "🔒",
+    Ico: Lock,
     title: "Secure & Professional",
     desc: "AES-256 encryption, TLS in transit, and row-level access controls. Your data is protected to bank-grade standards.",
   },
@@ -78,32 +83,64 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
       </nav>
 
       {/* Hero */}
-      <section className={s.hero}>
-        <div className={s.heroBadge}>
-          UK Late Payment Act 1998
-        </div>
-        <h1 className={s.heroTitle}>
-          They're using your invoice<br />
-          <span className={s.heroAccent}>as a free loan. Time to charge for it.</span>
-        </h1>
-        <p className={s.heroSubtitle}>
-          Large companies deliberately delay paying freelancers — using your money as their interest-free working capital. We know that as an individual or small business, it can be hard to assert your right to payment on time — or to levy the fees and fines you're entitled to — when you can't afford to damage the relationship. That's why we chase on your behalf, and if they're late paying, we add the charges for you, so you never have to be the bad guy.
-        </p>
-        <div className={s.heroCtas}>
-          <button onClick={onGetStarted} className={s.heroTrialBtn}>
-            Start Free Trial
-          </button>
-          <button
-            onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
-            className={s.heroOutlineBtn}
-          >
-            See How It Works
-          </button>
-        </div>
-        <p className={s.heroSmall}>
-          No credit card required · 6-week free trial · Cancel anytime
-        </p>
-      </section>
+      <div className={s.heroWrap}>
+        <section className={s.hero}>
+          <div className={s.heroBadge}>
+            UK Late Payment Act 1998
+          </div>
+          <h1 className={s.heroTitle}>
+            They're using your invoice<br />
+            <span className={s.heroAccent}>as a free loan. Time to charge for it.</span>
+          </h1>
+          <p className={s.heroSubtitle}>
+            Large companies deliberately delay paying freelancers — using your money as their interest-free working capital. We know that as an individual or small business, it can be hard to assert your right to payment on time — or to levy the fees and fines you're entitled to — when you can't afford to damage the relationship. That's why we chase on your behalf, and if they're late paying, we add the charges for you, so you never have to be the bad guy.
+          </p>
+          <div className={s.heroCtas}>
+            <button onClick={onGetStarted} className={s.heroTrialBtn}>
+              Start Free Trial
+            </button>
+            <button
+              onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+              className={s.heroOutlineBtn}
+            >
+              See How It Works
+            </button>
+          </div>
+          <p className={s.heroSmall}>
+            No credit card required · 6-week free trial · Cancel anytime
+          </p>
+
+          {/* Product visual: an illustrative chase email so the page shows
+              the product doing its job instead of only describing it. The
+              figures are real maths (£3,000 at the live statutory rate). */}
+          <div className={s.heroVisual} aria-hidden="true">
+            <div className={s.mockEmail}>
+              <div className={s.mockEmailHeader}>
+                <div className={s.mockAvatar}><ShieldLogo size={18} /></div>
+                <div className={s.mockMeta}>
+                  <div className={s.mockFrom}>Hielda — on behalf of Taylor Design Studio</div>
+                  <div className={s.mockTo}>to: accounts@acme-agency.co.uk</div>
+                </div>
+                <div className={s.mockDay}>14 days overdue</div>
+              </div>
+              <div className={s.mockSubject}>Invoice INV-204 — statutory charges now applied</div>
+              <p className={s.mockBody}>
+                Invoice INV-204 remains unpaid. Under the Late Payment of Commercial Debts
+                (Interest) Act 1998, the following charges now apply and accrue daily:
+              </p>
+              <div className={s.mockTable}>
+                <div className={s.mockRow}><span>Original invoice</span><span>{fmt(3000)}</span></div>
+                <div className={s.mockRow}><span>Fixed debt recovery cost</span><span className={s.mockCharge}>+ {fmt(70)}</span></div>
+                <div className={s.mockRow}><span>Interest (14 days at {getRate()}% p.a.)</span><span className={s.mockCharge}>+ {fmt(calcInterest(3000, 14))}</span></div>
+                <div className={s.mockTotalRow}><span>Now due</span><span>{fmt(round2(3070 + calcInterest(3000, 14)))}</span></div>
+              </div>
+            </div>
+            <div className={s.mockPaidChip}>
+              <Check size={14} strokeWidth={3} /> Paid in full, 3 days later
+            </div>
+          </div>
+        </section>
+      </div>
 
       {/* The Problem */}
       <section className={s.problemSection}>
@@ -116,23 +153,23 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <div className={s.problemGrid}>
           {[
             {
-              ico: "🏦",
+              Ico: Landmark,
               title: "They do it on purpose",
               desc: "Large companies routinely delay paying freelancers by 30, 60, even 90 days. Your unpaid invoice is an interest-free loan — and their finance team knows exactly what they're doing.",
             },
             {
-              ico: "😬",
+              Ico: MessageSquareWarning,
               title: "You can't push back",
               desc: "You're legally entitled to charge statutory interest and fixed penalties. But asking your client directly risks souring the relationship, losing future work, and making every future email awkward. So most freelancers stay quiet — and never see that money.",
             },
             {
-              ico: "⚖️",
+              Ico: Scale,
               title: "The law is on your side",
               desc: `Under the Late Payment of Commercial Debts Act 1998, every overdue B2B invoice automatically accrues interest at ${getRate()}% p.a. plus a fixed debt recovery cost of £40–£100. Most freelancers never claim it.`,
             },
           ].map((f) => (
             <div key={f.title} className={s.problemCard}>
-              <div className={s.problemCardIco}>{f.ico}</div>
+              <div className={s.cardIcoChip}><f.Ico size={19} /></div>
               <div className={s.problemCardTitle}>{f.title}</div>
               <div className={s.problemCardDesc}>{f.desc}</div>
             </div>
@@ -154,14 +191,14 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               <div className={s.solutionCardLabelTheir}>Their side</div>
               <div className={s.solutionCardItems}>
                 <div className={s.solutionCardRow}>
-                  <div className={s.avatarBlue}>👤</div>
+                  <div className={s.avatarBlue}><UserRound size={17} /></div>
                   <div>
                     <div className={s.solutionCardRowTitle}>The person who hired you</div>
                     <div className={s.solutionCardRowSub}>Loves your work. Not responsible for payment.</div>
                   </div>
                 </div>
                 <div className={s.solutionCardRow}>
-                  <div className={s.avatarYellow}>🏢</div>
+                  <div className={s.avatarYellow}><Building2 size={17} /></div>
                   <div>
                     <div className={s.solutionCardRowTitle}>Their accounts department</div>
                     <div className={s.solutionCardRowSub}>Delays payment. Applies pressure. Nothing personal.</div>
@@ -176,14 +213,14 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               <div className={s.solutionCardLabelYour}>Your side</div>
               <div className={s.solutionCardItems}>
                 <div className={s.solutionCardRow}>
-                  <div className={s.avatarBlue}>🎨</div>
+                  <div className={s.avatarBlue}><Brush size={17} /></div>
                   <div>
                     <div className={s.solutionCardRowTitle}>You</div>
                     <div className={s.solutionCardRowSub}>Do great work. Maintain the relationship.</div>
                   </div>
                 </div>
                 <div className={s.solutionCardRow}>
-                  <div className={s.avatarBlue}>🛡️</div>
+                  <div className={s.avatarBlue}><ShieldLogo size={20} /></div>
                   <div>
                     <div className={s.solutionCardRowTitleAccent}>Hielda</div>
                     <div className={s.solutionCardRowSub}>Chases payment. Applies fines. Nothing personal.</div>
@@ -202,8 +239,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
       <section className={s.statsBar}>
         {[
           { val: `${getRate()}%`, label: "Statutory interest rate" },
-          { val: "£40–100", label: "Fixed debt recovery cost per invoice" },
+          { val: "£40–100", label: "Fixed recovery cost per invoice" },
           { val: "19", label: "Chase stages over 30 days" },
+          { val: "6 years", label: "To claim what you're owed" },
         ].map((stat) => (
           <div key={stat.label} className={s.statItem}>
             <div className={s.statVal}>{stat.val}</div>
@@ -223,7 +261,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <div className={s.featuresGrid}>
           {FEATURES.map((f) => (
             <div key={f.title} className={s.featureCard}>
-              <div className={s.featureIco}>{f.ico}</div>
+              <div className={s.cardIcoChip}><f.Ico size={18} /></div>
               <div className={s.featureTitle}>{f.title}</div>
               <div className={s.featureDesc}>{f.desc}</div>
             </div>
@@ -268,9 +306,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
             <span className={s.penaltyHeaderText}>Example: £3,000 invoice, 30 days late</span>
           </div>
           {[
-            { label: "Original invoice", val: "£3,000.00", col: "var(--tx)" },
-            { label: "Fixed debt recovery cost", val: "+ £70.00", col: "var(--or)" },
-            { label: `Interest (30 days at ${getRate()}% p.a.)`, val: "+ £28.97", col: "var(--or)" },
+            { label: "Original invoice", val: fmt(3000), col: "var(--tx)" },
+            { label: "Fixed debt recovery cost", val: `+ ${fmt(70)}`, col: "var(--or)" },
+            { label: `Interest (30 days at ${getRate()}% p.a.)`, val: `+ ${fmt(calcInterest(3000, 30))}`, col: "var(--or)" },
           ].map((r) => (
             <div key={r.label} className={s.penaltyRow}>
               <span className={s.penaltyRowLabel}>{r.label}</span>
@@ -279,7 +317,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           ))}
           <div className={s.penaltyTotal}>
             <span className={s.penaltyTotalLabel}>Total owed to you</span>
-            <span className={s.penaltyTotalVal}>£3,098.97</span>
+            <span className={s.penaltyTotalVal}>{fmt(round2(3070 + calcInterest(3000, 30)))}</span>
           </div>
         </div>
         <button onClick={onCalculator} className={s.calcLink}>
@@ -344,7 +382,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               "Email support",
             ].map(f => (
               <div key={f} className={s.includedItem}>
-                <span className={s.includedCheck}>✓</span> {f}
+                <span className={s.includedCheck}><Check size={13} strokeWidth={3} /></span> {f}
               </div>
             ))}
           </div>
