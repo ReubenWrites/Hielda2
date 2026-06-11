@@ -1,9 +1,27 @@
 import { useState, useCallback, useEffect } from "react"
+import { Check, Link as LinkIcon } from "lucide-react"
 import { getRate, getBoe } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, ShieldLogo } from "./ui"
 import { trackEvent } from "../posthog"
 import s from "./Calculator.module.css"
+
+// Read ?amount= and ?days= so calculation results are shareable as
+// plain links — e.g. pasting "hielda.com/calculator?amount=3000&days=45"
+// into a forum answer shows that person their exact figures.
+function paramsFromUrl() {
+  try {
+    const p = new URLSearchParams(window.location.search)
+    const amount = parseFloat(p.get("amount"))
+    const days = parseInt(p.get("days"), 10)
+    return {
+      amount: amount > 0 && amount < 10_000_000 ? String(amount) : "",
+      days: days > 0 && days < 10_000 ? String(days) : "",
+    }
+  } catch {
+    return { amount: "", days: "" }
+  }
+}
 
 const CALC_FAQS = [
   {
@@ -29,8 +47,10 @@ const CALC_FAQS = [
 ]
 
 export default function Calculator({ onBack, onGetStarted, isMobile }) {
-  const [amount, setAmount] = useState("")
-  const [daysOverdue, setDaysOverdue] = useState("")
+  const initial = paramsFromUrl()
+  const [amount, setAmount] = useState(initial.amount)
+  const [daysOverdue, setDaysOverdue] = useState(initial.days)
+  const [linkCopied, setLinkCopied] = useState(false)
   useEffect(() => {
     const script = document.createElement("script")
     script.type = "application/ld+json"
@@ -56,6 +76,34 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
   const parsedAmt = parseFloat(amount) || 0
   const parsedDays = parseInt(daysOverdue) || 0
   const hasInput = parsedAmt > 0 && parsedDays > 0
+
+  // Track arrivals via a shared link (once per mount).
+  useEffect(() => {
+    if (initial.amount && initial.days) {
+      trackEvent("calculator_shared_link_visited", { amount: parseFloat(initial.amount), days: parseInt(initial.days, 10) })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Keep the address bar shareable: reflect the current calculation in
+  // the query string without adding history entries.
+  useEffect(() => {
+    try {
+      const url = hasInput
+        ? `${window.location.pathname}?amount=${parsedAmt}&days=${parsedDays}`
+        : window.location.pathname
+      window.history.replaceState(null, "", url)
+    } catch {}
+  }, [hasInput, parsedAmt, parsedDays])
+
+  const copyResultLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`https://hielda.com/calculator?amount=${parsedAmt}&days=${parsedDays}`)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2500)
+      trackEvent("calculator_link_copied", { amount: parsedAmt, days: parsedDays })
+    } catch {}
+  }
 
   const trackCalc = useCallback(() => {
     if (parsedAmt > 0 && parsedDays > 0) trackEvent("calculator_used", { amount: parsedAmt, days: parsedDays })
@@ -175,6 +223,12 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 Interest accrues daily. The longer they wait, the more you're owed.
               </p>
 
+              <button onClick={copyResultLink} className={s.copyLinkBtn}>
+                {linkCopied
+                  ? <><Check size={13} strokeWidth={2.5} /> Link copied</>
+                  : <><LinkIcon size={13} /> Copy link to this result</>}
+              </button>
+
               {/* Lead capture */}
               {!leadSent ? (
                 <div className={s.leadSection}>
@@ -205,7 +259,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 </div>
               ) : (
                 <div className={s.leadSuccess}>
-                  <span className={s.leadSuccessText}>✓ Saved! Check your inbox.</span>
+                  <span className={s.leadSuccessText}><Check size={14} strokeWidth={2.5} style={{ verticalAlign: "-2px", marginRight: 4 }} /> Saved! Check your inbox.</span>
                   <button onClick={onGetStarted} className={s.leadBtn} style={{ marginTop: 12, width: "100%" }}>
                     Start your free trial — chase this invoice now
                   </button>
