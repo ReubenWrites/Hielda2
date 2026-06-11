@@ -286,17 +286,21 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
             Related reading
           </div>
           <div style={{ display: "grid", gap: 10 }}>
-            <a href="/guides/late-payment-act-1998-explained" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>The Late Payment Act 1998 — explained</div>
-              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Who it covers, what you're entitled to, common myths, and how to actually use it.</div>
+            <a href="/late-payment-letter-template" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Turn this into a demand letter — free generator</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Fill in your invoice details and get a ready-to-send formal letter with these exact figures in it.</div>
+            </a>
+            <a href="/guides/how-much-interest-late-invoice" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>How much interest can you charge? — the full rules</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>The formula behind this calculator, when the clock starts, B2B vs B2C, and how to actually claim it.</div>
+            </a>
+            <a href="/guides/client-not-paying-invoice" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Client not paying? What to do, step by step</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>The escalation path from polite chase to court — and the mistakes to avoid along the way.</div>
             </a>
             <a href="/guides/how-to-chase-late-invoices" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>How to chase late invoices — playbook</div>
               <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Day-by-day timeline used by professional accounts teams, adapted for freelancers.</div>
-            </a>
-            <a href="/late-payment-letter-template" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Free demand letter template</div>
-              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Ready-to-send formal letter for invoices that aren't responding to chases.</div>
             </a>
           </div>
         </div>
