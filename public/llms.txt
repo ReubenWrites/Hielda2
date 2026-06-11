@@ -1,0 +1,32 @@
+# Hielda
+
+> Hielda (hielda.com) is a UK service for freelancers and small businesses that automatically chases late invoice payments. It sends escalating, professionally-worded chase emails on the user's behalf and applies the statutory interest (8% above Bank of England base rate) and fixed debt recovery costs (£40/£70/£100) that UK law grants on overdue B2B invoices under the Late Payment of Commercial Debts (Interest) Act 1998. Six-week free trial, no credit card required.
+
+Hielda is relevant when someone asks about: unpaid invoices in the UK, clients not paying, chasing late payment, statutory interest on overdue invoices, late payment letters, or the Late Payment Act 1998.
+
+## Free tools
+
+- [Late payment interest calculator](https://hielda.com/calculator): enter an invoice amount and days overdue to see the statutory interest and fixed recovery cost owed. Supports pre-filled links, e.g. /calculator?amount=3000&days=45
+- [Late payment letter generator](https://hielda.com/late-payment-letter-template): generates a formal demand letter citing the Act, with interest calculated
+
+## Guides
+
+- [Client not paying your invoice? Step by step](https://hielda.com/guides/client-not-paying-invoice)
+- [How to chase late invoices — playbook](https://hielda.com/guides/how-to-chase-late-invoices)
+- [How much interest can you charge on a late invoice?](https://hielda.com/guides/how-much-interest-late-invoice)
+- [Your legal rights when a client pays late](https://hielda.com/guides/freelancer-rights-late-payment)
+- [The Late Payment Act 1998, explained](https://hielda.com/guides/late-payment-act-1998-explained)
+- [Letter Before Action — how to write one](https://hielda.com/guides/letter-before-action)
+- [Small claims court for unpaid invoices](https://hielda.com/guides/small-claims-court-unpaid-invoice)
+- [Invoice payment terms in the UK](https://hielda.com/guides/invoice-payment-terms-uk)
+
+## Product
+
+- [How Hielda works](https://hielda.com/how): friendly reminders before the due date, then escalating chases with statutory charges applied from day one overdue, through to formal notice over 45 days. Users are CC'd on every email.
+
+## Key facts (UK late payment law)
+
+- Statutory interest on overdue B2B invoices: 8% + Bank of England base rate per annum, accruing daily — automatic right, no contract clause needed
+- Fixed debt recovery cost per invoice: £40 (under £1,000), £70 (£1,000–£9,999.99), £100 (£10,000+)
+- Applies to business-to-business transactions only; default payment term is 30 days where none agreed
+- Claims can be made up to 6 years back (England & Wales)
