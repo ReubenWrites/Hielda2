@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal } from "lucide-react"
+import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper } from "lucide-react"
 import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm } from "./ui"
@@ -29,6 +29,24 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [dismissedBanner, setDismissedBanner] = useState(false)
   const [showOverflow, setShowOverflow] = useState(false)
+
+  // One-shot celebration after marking an invoice paid (set by Detail).
+  // The happiest moment in the product — and the natural moment to ask
+  // for a referral. Read-and-clear so it never shows twice.
+  const [celebration, setCelebration] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("hielda_paid_celebration")
+      if (!raw) return null
+      sessionStorage.removeItem("hielda_paid_celebration")
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  })
+  useEffect(() => {
+    if (celebration) trackEvent("referral_nudge_shown", { extra: celebration.extra })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
 
@@ -170,10 +188,33 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         </p>
       </div>
 
+      {celebration && (
+        <div className={s.banner} data-celebrate="true">
+          <div className={s.bannerBody}>
+            <span className={s.bannerIcon}><PartyPopper size={18} /></span>
+            <span className={s.bannerText}>
+              <strong>{celebration.client} paid — {fmt(celebration.amount + celebration.extra)}.</strong>
+              {celebration.extra > 0 && <> That includes {fmt(celebration.extra)} in late charges Hielda chased for you.</>}
+              {" "}Know another freelancer who waits to get paid? You both get £10 off.
+            </span>
+          </div>
+          <div className={s.bannerActions}>
+            <Btn sz="sm" onClick={() => { trackEvent("referral_nudge_clicked"); navigate("/referrals") }}>Share Hielda</Btn>
+            <button
+              onClick={() => setCelebration(null)}
+              className={s.dismissBtn}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {needsPaymentDetails && !dismissedBanner && (
         <div className={s.banner}>
           <div className={s.bannerBody}>
-            <span className={s.bannerIcon}>💳</span>
+            <span className={s.bannerIcon}><CreditCard size={18} /></span>
             <span className={s.bannerText}>
               Add your payment details so clients know where to pay.
             </span>

@@ -442,6 +442,16 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         .eq("id", inv.id)
       if (err) throw err
       trackEvent("invoice_paid", { amount: Number(inv.amount), ref: inv.ref })
+      // One-shot flag for the dashboard's payment celebration + referral
+      // nudge — the moment an invoice gets paid is the moment users are
+      // happiest with Hielda, which is the right time to ask for a share.
+      try {
+        sessionStorage.setItem("hielda_paid_celebration", JSON.stringify({
+          client: inv.client_name || "Your client",
+          amount: Number(inv.amount),
+          extra: ov ? ex : 0,
+        }))
+      } catch {}
       onUpdate()
       navigate("/dashboard")
     } catch (e) {

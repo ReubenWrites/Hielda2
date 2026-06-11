@@ -44,6 +44,19 @@
 .bannerIcon {
   font-size: 18px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: #b45309;
+}
+
+/* Celebration variant: green, congratulatory — used for the one-shot
+   "invoice paid" banner with the referral nudge. */
+.banner[data-celebrate="true"] {
+  background: rgba(21, 146, 74, 0.06);
+  border-color: rgba(21, 146, 74, 0.25);
+}
+.banner[data-celebrate="true"] .bannerIcon {
+  color: var(--gn);
 }
 
 .bannerText {
