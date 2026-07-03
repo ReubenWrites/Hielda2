@@ -354,6 +354,37 @@
   margin: -8px 0 8px;
 }
 
+/* Live confirmation that CC/BCC entries have been accepted — answers
+   "did it save?" for a field that has no explicit save button. */
+.ccConfirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--gn);
+  margin: -8px 0 10px;
+  line-height: 1.5;
+}
+.ccConfirm svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Note under the client email when a remembered CC was auto-restored. */
+.ccRestoredNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--gn);
+  margin: 2px 0 0;
+  line-height: 1.5;
+}
+.ccRestoredNote svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 /* line items */
 .lineItemsLabel {
   font-size: 12px;
@@ -843,7 +874,13 @@
 .step1Footer {
   grid-column: 1/-1;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  /* Primary action stays right-most: Review is first in DOM but the ghost
+     "Save & finish later" should sit to its left — row-reverse puts DOM
+     order right-to-left, and flex-start packs to the visual right. */
+  flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 
 /* On mobile the form is long and the Review button used to disappear

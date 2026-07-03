@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
+import { Check } from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, TERMS, getRate } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
-import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection } from "./ui"
+import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection, useToast } from "./ui"
 import { trackEvent } from "../posthog"
 import { buildIntroText as buildIntroTextLib } from "../lib/introText"
 import s from "./Create.module.css"
@@ -12,6 +13,7 @@ const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
 
 export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const navigate = useNavigate()
+  const toast = useToast()
   const defaultTerms = profile?.default_payment_terms ? String(profile.default_payment_terms) : "30"
   const isCustomDefault = !TERMS.slice(0, -1).some(t => String(t.d) === defaultTerms)
 
@@ -146,17 +148,42 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       const saved = localStorage.getItem(DRAFT_KEY(userId))
       if (saved) {
         const d = JSON.parse(saved)
-        if (d.cn || d.ce || d.lineItems?.length || d.amt) setDraftBanner(true)
+        // Only offer restore when the draft actually contains something —
+        // lineItems always has one blank row, so its length alone doesn't
+        // mean there's content (that used to trigger the banner for empty
+        // drafts, and Restore would visibly do nothing).
+        const hasDraftContent = d.cn || d.ce || d.ca || d.notes || d.cc || d.bcc || d.clientRef || d.amt || d.desc ||
+          d.lineItems?.some(li => li.description || li.amount)
+        if (hasDraftContent) setDraftBanner(true)
       }
     } catch {}
   }, [userId])
 
-  // Auto-save draft whenever form changes
+  const hasContent = Boolean(
+    cn || ce || ca || notes || cc || bcc || clientRef ||
+    lineItems.some(li => li.description || li.amount)
+  )
+
+  // Auto-save draft whenever form changes.
+  //
+  // Guards fix the bug where re-entering this page instantly overwrote a
+  // saved draft with the blank initial form — making the Restore button
+  // appear to do nothing:
+  //  - skip the mount run (initial state isn't user input)
+  //  - never save an effectively-empty form
+  //  - never save while editing an existing invoice (edits are saved via
+  //    "Save Changes", and a stale "draft" of an edit is confusing)
+  //  - while the restore banner is up, the first real edit counts as an
+  //    implicit "start fresh": dismiss the banner, then start saving
+  const autosaveMounted = useRef(false)
   useEffect(() => {
-    if (!userId || step === 3) return
+    if (!autosaveMounted.current) { autosaveMounted.current = true; return }
+    if (!userId || step === 3 || isEditing || !hasContent) return
+    if (draftBanner) setDraftBanner(false)
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
     } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, userId, step])
 
   const restoreDraft = () => {
@@ -195,12 +222,52 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     try { localStorage.removeItem(DRAFT_KEY(userId)) } catch {}
   }
 
+  // CC/BCC are remembered per client: the most recent invoice to this
+  // client that had them set is the source of truth, even if their very
+  // latest invoice didn't. invs is ordered newest-first.
+  const savedRecipientsFor = (email) => {
+    if (!email) return { cc: "", bcc: "" }
+    const norm = email.trim().toLowerCase()
+    const withCc = invs?.find(i => i.client_email?.toLowerCase() === norm && i.cc_emails)
+    const withBcc = invs?.find(i => i.client_email?.toLowerCase() === norm && i.bcc_emails)
+    return { cc: withCc?.cc_emails || "", bcc: withBcc?.bcc_emails || "" }
+  }
+
+  const [ccAutoFilled, setCcAutoFilled] = useState(false)
+
+  const saveDraftAndLeave = () => {
+    // Autosave has already written it — this button exists so users can
+    // leave *confident* the draft is safe, per user feedback that the
+    // autosave alone wasn't discoverable or trusted.
+    try {
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
+    } catch {}
+    trackEvent("invoice_draft_saved_manually")
+    toast.success("Draft saved — pick it up any time from Create invoice")
+    navigate("/dashboard")
+  }
+
   const fillClient = (inv) => {
     setCn(inv.client_name || "")
     setCe(inv.client_email || "")
     setCa(inv.client_address || "")
-    setCc(inv.cc_emails || "")
-    setBcc(inv.bcc_emails || "")
+    const saved = savedRecipientsFor(inv.client_email)
+    setCc(inv.cc_emails || saved.cc)
+    setBcc(inv.bcc_emails || saved.bcc)
+    setCcAutoFilled(Boolean(!inv.cc_emails && saved.cc))
+  }
+
+  // When a known client email is typed by hand, quietly restore the CC
+  // they've used before (only if the CC field is still empty — never
+  // overwrite something the user has entered this session).
+  const prefillRecipientsForEmail = () => {
+    if (cc.trim()) return
+    const saved = savedRecipientsFor(ce)
+    if (saved.cc) {
+      setCc(saved.cc)
+      setCcAutoFilled(true)
+      if (!bcc.trim() && saved.bcc) setBcc(saved.bcc)
+    }
   }
 
   const updateLineItem = (index, field, value) => {
@@ -520,7 +587,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
       {draftBanner && (
         <div className={s.draftBanner}>
-          <span className={s.draftText}>📝 You have a saved draft — want to restore it?</span>
+          <span className={s.draftText}>You have an unfinished invoice — want to pick up where you left off?</span>
           <div className={s.draftBtnRow}>
             <Btn sz="sm" onClick={restoreDraft}>Restore</Btn>
             <button onClick={discardDraft} className={s.discardBtn}>Discard</button>
@@ -567,8 +634,13 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             )}
             <Inp label="Company Name" value={cn} onChange={setCn} ph="e.g. Mega Corp Ltd"
               autoComplete="organization" autoCapitalize="words" enterKeyHint="next" />
-            <Inp label="Email" value={ce} onChange={setCe} ph="accounts@client.com" type="email" error={emailError}
+            <Inp label="Email" value={ce} onChange={setCe} onBlur={prefillRecipientsForEmail} ph="accounts@client.com" type="email" error={emailError}
               inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} enterKeyHint="next" />
+            {ccAutoFilled && cc.trim() && (
+              <p className={s.ccRestoredNote}>
+                <Check size={12} strokeWidth={3} /> {cc} will be CC'd — restored from your last invoice to this client. Change it under "Address &amp; recipients" below.
+              </p>
+            )}
           </Card>
           <Card>
             <h3 className={s.cardHeading}>Job</h3>
@@ -722,7 +794,14 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           <div className={s.step1Footer}>
             {isEditing
               ? <Btn dis={!canProceed || saving} onClick={saveEdit}>{saving ? "Saving..." : "Save Changes"}</Btn>
-              : <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+              : (
+                <>
+                  <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+                  {hasContent && (
+                    <Btn v="ghost" sz="sm" onClick={saveDraftAndLeave}>Save & finish later</Btn>
+                  )}
+                </>
+              )
             }
           </div>
 
@@ -734,14 +813,27 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             >
               <Inp label="Address" value={ca} onChange={setCa} ph="Full address" ta
                 autoComplete="street-address" autoCapitalize="sentences" rows={4} />
-              <Inp label="CC (optional)" value={cc} onChange={setCc} ph="sarah@company.com, boss@company.com"
+              <Inp label="CC (optional)" value={cc} onChange={(v) => { setCc(v); setCcAutoFilled(false) }} ph="sarah@company.com, boss@company.com"
                 inputMode="email" autoCapitalize="none" spellCheck={false}
                 error={cc.trim() && cc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more CC emails are invalid" : ""} />
+              {/* Live confirmation so users know the CC "took" — there's no
+                  save button here on purpose (it saves as you type), but
+                  without feedback that's impossible to tell. */}
+              {cc.trim() && cc.split(",").every(e => !e.trim() || isValidEmail(e.trim())) && (
+                <p className={s.ccConfirm}>
+                  <Check size={12} strokeWidth={3} /> Will be CC'd on every email for this invoice: {cc.split(",").map(e => e.trim()).filter(Boolean).join(", ")}
+                </p>
+              )}
               <Inp label="BCC (optional)" value={bcc} onChange={setBcc} ph="accountant@mine.com"
                 inputMode="email" autoCapitalize="none" spellCheck={false}
                 error={bcc.trim() && bcc.split(",").some(e => e.trim() && !isValidEmail(e.trim())) ? "One or more BCC emails are invalid" : ""} />
+              {bcc.trim() && bcc.split(",").every(e => !e.trim() || isValidEmail(e.trim())) && (
+                <p className={s.ccConfirm}>
+                  <Check size={12} strokeWidth={3} /> Will be BCC'd: {bcc.split(",").map(e => e.trim()).filter(Boolean).join(", ")}
+                </p>
+              )}
               <p className={s.ccHint}>
-                Separate multiple emails with a comma. You'll always be BCC'd automatically (your client won't see you on the recipient list).
+                Separate multiple emails with a comma — they're saved with the invoice automatically, no save button needed. CC is also remembered for the next invoice to this client. You'll always be BCC'd yourself (your client won't see you on the recipient list).
               </p>
 
               <div className={s.clientTypeWrap}>
@@ -872,7 +964,14 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           <div className={s.step1Footer}>
             {isEditing
               ? <Btn dis={!canProceed || saving} onClick={saveEdit}>{saving ? "Saving..." : "Save Changes"}</Btn>
-              : <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+              : (
+                <>
+                  <Btn dis={!canProceed} onClick={() => setStep(2)}>Review →</Btn>
+                  {hasContent && (
+                    <Btn v="ghost" sz="sm" onClick={saveDraftAndLeave}>Save & finish later</Btn>
+                  )}
+                </>
+              )
             }
           </div>
         </div>
