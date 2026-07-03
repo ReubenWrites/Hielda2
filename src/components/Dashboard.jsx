@@ -250,7 +250,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             highlights it without splashing four different colours. */}
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color="var(--ac)" borderColor="var(--ac)" />
         <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--or)" borderColor="var(--or)" />
-        <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color="var(--acl)" borderColor="var(--acl)" />
+        {/* outstanding() so a part-paid pending invoice isn't double
+            counted — its paid slice lives in the Paid card. */}
+        <StatCard label="Pending" value={fmt(round2(pending.reduce((s, i) => s + outstanding(i), 0)))} sub={`${pending.length} not yet due`} color="var(--acl)" borderColor="var(--acl)" />
         <StatCard label="Paid (90 days)" value={fmt(totPaid)} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}`} color="var(--ac)" borderColor="var(--ac)" />
       </div>
 

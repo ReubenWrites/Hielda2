@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from "react-router-dom"
 import { supabase } from "./supabase"
 import { loadLiveBoeRate } from "./constants"
-import { fmt, todayStr } from "./utils"
+import { fmt, todayStr, outstanding } from "./utils"
 import { identifyUser, resetUser, trackPageView, trackEvent } from "./posthog"
 import { ShieldLogo, Spinner } from "./components/ui"
 import AuthScreen from "./components/AuthScreen"
@@ -434,7 +434,7 @@ export default function App() {
                   <span className="header-pulse" />
                   <span className={s.pulseDot} />
                 </span>
-                {overdueInvs.length} chasing{!isMobile && ` · ${fmt(overdueInvs.reduce((s, i) => s + Number(i.amount), 0))}`}
+                {overdueInvs.length} chasing{!isMobile && ` · ${fmt(overdueInvs.reduce((s, i) => s + outstanding(i), 0))}`}
               </div>
             )}
             {pendingInvs.length > 0 && !isMobile && (
