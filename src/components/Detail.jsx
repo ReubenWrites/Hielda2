@@ -341,10 +341,15 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const vatAmount = Number(inv.vat_amount) || 0
   const invoiceTotal = Number(inv.total_with_vat) || netAmount
   const hasVat = vatAmount > 0
-  const interest = ov && finesEnabled ? calcInterest(netAmount, dl) : 0
-  const pen = ov && finesEnabled ? penalty(netAmount) : 0
+  const paidSoFar = Number(inv.amount_paid) || 0
+  const netOutstanding = Math.max(0, round2(netAmount - paidSoFar))
+  // Interest accrues on what's still owed — a partial payment stops the
+  // meter on the part that's been paid. The fixed sum stays tiered on the
+  // original invoice amount (the size of the debt that arose).
+  const interest = ov && finesEnabled ? calcInterest(netOutstanding, dl) : 0
+  const pen = ov && finesEnabled && netOutstanding > 0 ? penalty(netAmount) : 0
   const ex = round2(interest + pen)
-  const tot = round2(invoiceTotal + ex)
+  const tot = round2(invoiceTotal - paidSoFar + ex)
   const si = CHASE_STAGES.findIndex((s) => s.id === inv.chase_stage)
 
   // VAT breakdown from line items
@@ -517,9 +522,17 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setAdjusting(true)
     setError("")
     try {
+      // The confirm above promises "the invoice will go back to pending"
+      // for future dates — so actually flip the status. Without this the
+      // invoice stayed 'overdue' and the dashboard kept showing fines and
+      // interest that no longer apply. Paid/disputed are never touched.
+      const updates = { due_date: newDueDate, chase_stage: null }
+      if (inv.status === "overdue" || inv.status === "pending") {
+        updates.status = future ? "pending" : "overdue"
+      }
       const { error: err } = await supabase
         .from("invoices")
-        .update({ due_date: newDueDate, chase_stage: null })
+        .update(updates)
         .eq("id", inv.id)
       if (err) throw err
       setShowAdjustDue(false)
@@ -1172,7 +1185,48 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <span className={s.extrasLabel}>Extra added by Hielda</span>
             <span className={s.extrasDetail}>penalty + {dl}d interest</span>
           </div>
-          <div className={isMobile ? s.extrasAmountMobile : s.extrasAmount}>+{fmt(ex)}</div>
+          <div className={s.extrasRight}>
+            <div className={isMobile ? s.extrasAmountMobile : s.extrasAmount}>+{fmt(ex)}</div>
+            {/* One-tap waive, right where the charges are shown — the full
+                toggle with explanation lives further down in settings, but
+                users shouldn't have to hunt for it. */}
+            <button
+              onClick={async () => {
+                if (!(await confirm({
+                  title: "Stop charging fines & interest on this invoice?",
+                  message: `The ${fmt(ex)} currently added will be removed and chase emails will stop mentioning charges. Hielda keeps chasing the invoice itself. You can turn them back on any time.`,
+                  confirmLabel: "Turn off charges",
+                  cancelLabel: "Keep charging",
+                }))) return
+                toggleNoFines()
+              }}
+              className={s.extrasWaiveBtn}
+            >
+              Don't charge these
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Counterpart when fines are switched off: shows why no extras are
+          accruing, with a one-tap way back on. */}
+      {ov && !isConsumer && inv.no_fines && (
+        <div className={s.finesOffBar}>
+          <span className={s.finesOffText}>Fines &amp; interest are switched off for this invoice — Hielda is chasing without charges.</span>
+          <button
+            onClick={async () => {
+              if (!(await confirm({
+                title: "Charge fines & interest on this invoice?",
+                message: `Statutory interest (${getRate()}% p.a., backdated to the due date) and the fixed recovery cost will be added to chase emails from now on.`,
+                confirmLabel: "Turn on charges",
+                cancelLabel: "Leave off",
+              }))) return
+              toggleNoFines()
+            }}
+            className={s.extrasWaiveBtn}
+          >
+            Turn back on
+          </button>
         </div>
       )}
 
@@ -1312,8 +1366,9 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.oweLaw}>Late Payment of Commercial Debts (Interest) Act 1998</div>
             {[
               [hasVat ? "Invoice (inc. VAT)" : "Original invoice", fmt(invoiceTotal), c.tx],
+              ...(paidSoFar > 0 ? [["Payments received", `−${fmt(paidSoFar)}`, c.gn]] : []),
               ["Fixed debt recovery cost", `+${fmt(pen)}`, c.go],
-              [`Interest (${dl}d)`, `+${fmt(interest)}`, c.go],
+              [`Interest (${dl}d${paidSoFar > 0 ? " on balance" : ""})`, `+${fmt(interest)}`, c.go],
             ].map(([k, v, cl]) => (
               <div key={k} className={s.oweRow}>
                 <span className={s.oweRowKey}>{k}</span>

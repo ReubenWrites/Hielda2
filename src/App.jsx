@@ -238,6 +238,13 @@ export default function App() {
           if (i.status === "pending" && i.due_date < today) {
             return { ...i, status: "overdue", chase_stage: i.chase_stage || "reminder_1" }
           }
+          // Reverse derivation: an 'overdue' invoice whose due date is now
+          // in the future (date was adjusted forward) is really pending —
+          // no fines or interest apply. Self-heals rows written before
+          // adjustDueDate learned to flip the status itself.
+          if (i.status === "overdue" && i.due_date >= today) {
+            return { ...i, status: "pending" }
+          }
           return i
         })
       )

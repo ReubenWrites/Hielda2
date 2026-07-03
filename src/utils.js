@@ -47,3 +47,23 @@ export const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
 /** Round a number to 2 decimal places (for monetary values) */
 export const round2 = (n) => Math.round(n * 100) / 100
+
+/** Principal still owed on an invoice after partial payments. */
+export const outstanding = (inv) =>
+  round2(Math.max(0, Number(inv.amount) - (Number(inv.amount_paid) || 0)))
+
+/**
+ * Statutory extras (interest + fixed recovery cost) actually chargeable on
+ * an invoice right now. Zero unless overdue; zero when fines are waived
+ * (no_fines) or the client is a consumer (the Act is B2B only); interest
+ * accrues on the outstanding balance, not the original amount, so partial
+ * payments stop the meter on what's been paid. The fixed sum tier stays
+ * based on the invoiced amount — that's the size of the debt that arose.
+ */
+export const chargeableExtras = (inv) => {
+  if (inv.status !== "overdue") return 0
+  if (inv.no_fines || inv.client_type === "consumer") return 0
+  const owed = outstanding(inv)
+  if (owed <= 0) return 0
+  return round2(calcInterest(owed, daysLate(inv.due_date)) + penalty(Number(inv.amount)))
+}
