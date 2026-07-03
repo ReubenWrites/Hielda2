@@ -50,7 +50,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
   const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
 
-  const { overdue, pending, paid, disputed, totExtra, totOwed } = useMemo(() => {
+  const { overdue, pending, paid, disputed, totExtra, totOwed, totPaid, partPaidCount } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
     const pending = invs.filter((i) => i.status === "pending")
     const disputed = invs.filter((i) => i.status === "disputed")
@@ -64,7 +64,20 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
     const totOwed = round2(overdue.reduce((s, i) => s + outstanding(i) + chargeableExtras(i), 0))
 
-    return { overdue, pending, paid, disputed, totExtra, totOwed }
+    // "Paid" counts money actually received: fully paid invoices in the
+    // 90-day window PLUS part-payments sitting on still-open invoices.
+    // Without the second term a £1,000 part-payment on a £3,000 invoice
+    // appeared nowhere in the paid figures.
+    const openWithPartPayment = invs.filter(
+      (i) => i.status !== "paid" && (Number(i.amount_paid) || 0) > 0
+    )
+    const partPaidCount = openWithPartPayment.length
+    const totPaid = round2(
+      paid.reduce((s, i) => s + Number(i.amount), 0) +
+      openWithPartPayment.reduce((s, i) => s + (Number(i.amount_paid) || 0), 0)
+    )
+
+    return { overdue, pending, paid, disputed, totExtra, totOwed, totPaid, partPaidCount }
   }, [invs])
 
   const filtered = useMemo(() => {
@@ -238,7 +251,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color="var(--ac)" borderColor="var(--ac)" />
         <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--or)" borderColor="var(--or)" />
         <StatCard label="Pending" value={fmt(pending.reduce((s, i) => s + Number(i.amount), 0))} sub={`${pending.length} not yet due`} color="var(--acl)" borderColor="var(--acl)" />
-        <StatCard label="Paid (90 days)" value={fmt(paid.reduce((s, i) => s + Number(i.amount), 0))} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}`} color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard label="Paid (90 days)" value={fmt(totPaid)} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}`} color="var(--ac)" borderColor="var(--ac)" />
       </div>
 
       {overdue.length > 0 && (
@@ -478,6 +491,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                             <div>
                               <span className={s.mobileAmount}>{fmt(owed + ex)}</span>
                               {ex > 0 && <span className={s.mobileExtra}>+{fmt(ex)}</span>}
+                              {i.status !== "paid" && (Number(i.amount_paid) || 0) > 0 && (
+                                <span className={s.partPaidTag}>{fmt(Number(i.amount_paid))} paid</span>
+                              )}
                             </div>
                             <span className={s.mobileDue}>Due {formatDate(i.due_date)}</span>
                           </div>
