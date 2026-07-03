@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper } from "lucide-react"
 import { colors as c, CHASE_STAGES } from "../constants"
-import { daysLate, calcInterest, penalty, fmt, formatDate, round2 } from "../utils"
+import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm } from "./ui"
 import { supabase } from "../supabase"
 import { trackEvent } from "../posthog"
@@ -57,15 +57,12 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90)
     const paid = invs.filter((i) => i.status === "paid" && (!i.paid_date || new Date(i.paid_date) >= cutoff))
 
-    const totExtra = round2(overdue.reduce((s, i) => {
-      const dl = daysLate(i.due_date)
-      return s + calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
-    }, 0))
+    // chargeableExtras is zero for no-fines and consumer invoices and
+    // computes interest on the outstanding balance — so waived fines and
+    // partial payments are reflected honestly here, not just on Detail.
+    const totExtra = round2(overdue.reduce((s, i) => s + chargeableExtras(i), 0))
 
-    const totOwed = round2(overdue.reduce((s, i) => {
-      const dl = daysLate(i.due_date)
-      return s + Number(i.amount) + calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))
-    }, 0))
+    const totOwed = round2(overdue.reduce((s, i) => s + outstanding(i) + chargeableExtras(i), 0))
 
     return { overdue, pending, paid, disputed, totExtra, totOwed }
   }, [invs])
@@ -255,8 +252,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           </div>
           <div className={s.chasingList}>
             {overdue.map((i) => {
-              const dl = daysLate(i.due_date)
-              const ex = round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount)))
+              const ex = chargeableExtras(i)
+              const owed = outstanding(i)
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
               return (
                 <Card key={i.id} onClick={() => navigate(`/invoice/${i.id}`)} style={{ padding: isMobile ? "12px 14px" : "13px 18px" }}>
@@ -275,8 +272,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                       </div>
                       <div className={s.chaseMobileBottom}>
                         <div>
-                          <span className={s.chaseMobileTotal}>{fmt(Number(i.amount) + ex)}</span>
-                          <span className={s.chaseMobileExtra}>+{fmt(ex)}</span>
+                          <span className={s.chaseMobileTotal}>{fmt(owed + ex)}</span>
+                          {ex > 0 && <span className={s.chaseMobileExtra}>+{fmt(ex)}</span>}
                         </div>
                         {stg && <Badge color={stg.col}>{stg.label}</Badge>}
                       </div>
@@ -295,8 +292,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                       </div>
                       <div className={s.chaseRight}>
                         <div className={s.chaseAmounts}>
-                          <div className={s.chaseTotal}>{fmt(Number(i.amount) + ex)}</div>
-                          <div className={s.chaseExtra}>+{fmt(ex)} extra</div>
+                          <div className={s.chaseTotal}>{fmt(owed + ex)}</div>
+                          {ex > 0 && <div className={s.chaseExtra}>+{fmt(ex)} extra</div>}
                         </div>
                         {stg && <Badge color={stg.col}>{stg.label}</Badge>}
                         <span className={s.arrowIcon} aria-hidden="true">→</span>
@@ -450,8 +447,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 </Card>
               ) : (
                 filtered.map((i) => {
-                  const dl = daysLate(i.due_date)
-                  const ex = i.status === "overdue" ? round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))) : 0
+                  const ex = chargeableExtras(i)
+                  const owed = i.status === "paid" ? Number(i.amount) : outstanding(i)
                   return (
                     <Card
                       key={i.id}
@@ -479,7 +476,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                           <div className={s.mobileRef}>{i.ref}</div>
                           <div className={s.mobileCardBottom}>
                             <div>
-                              <span className={s.mobileAmount}>{fmt(Number(i.amount) + ex)}</span>
+                              <span className={s.mobileAmount}>{fmt(owed + ex)}</span>
                               {ex > 0 && <span className={s.mobileExtra}>+{fmt(ex)}</span>}
                             </div>
                             <span className={s.mobileDue}>Due {formatDate(i.due_date)}</span>
@@ -530,8 +527,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                     </tr>
                   ) : (
                     filtered.map((i) => {
-                      const dl = daysLate(i.due_date)
-                      const ex = i.status === "overdue" ? round2(calcInterest(Number(i.amount), dl) + penalty(Number(i.amount))) : 0
+                      const ex = chargeableExtras(i)
+                      const owed = i.status === "paid" ? Number(i.amount) : outstanding(i)
+                      const partPaid = i.status !== "paid" && (Number(i.amount_paid) || 0) > 0
                       return (
                         <tr
                           key={i.id}
@@ -545,11 +543,14 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                           </td>
                           <td className={s.tdRef}>{i.ref}</td>
                           <td className={s.tdClient}>{i.client_name || "—"}</td>
-                          <td className={s.tdMono}>{fmt(i.amount)}</td>
+                          <td className={s.tdMono}>
+                            {fmt(i.amount)}
+                            {partPaid && <span className={s.partPaidTag}>{fmt(Number(i.amount_paid))} paid</span>}
+                          </td>
                           <td className={s.tdMonoBold} style={{ color: ex > 0 ? c.go : c.td }}>
                             {ex > 0 ? `+${fmt(ex)}` : "—"}
                           </td>
-                          <td className={s.tdMonoBold}>{fmt(Number(i.amount) + ex)}</td>
+                          <td className={s.tdMonoBold}>{fmt(owed + ex)}</td>
                           <td className={s.tdDue}>{formatDate(i.due_date)}</td>
                           <td className={s.td}>
                             <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>

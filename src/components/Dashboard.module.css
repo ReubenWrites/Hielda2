@@ -596,6 +596,16 @@
   font-weight: 600;
 }
 
+/* Small tag under the amount when a partial payment has been received. */
+.partPaidTag {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gn);
+  font-family: var(--font);
+  margin-top: 2px;
+}
+
 .tdDue {
   composes: td;
   color: var(--tm);

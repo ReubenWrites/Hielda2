@@ -112,12 +112,20 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
   // Escape user-controlled fields used in templates
   invoice = { ...invoice, client_name: esc(invoice.client_name), ref: esc(invoice.ref) }
 
+  // Acknowledge partial payments in the breakdown — the rows must add up
+  // to the total, and crediting what's been paid keeps the demand credible.
+  const paidSoFar = Number(invoice.amount_paid) || 0
+  const paidRow = paidSoFar > 0
+    ? `<tr><td style="padding:6px 16px 6px 0;color:#64748b;">Payments received — thank you</td><td style="padding:6px 0;font-weight:600;color:#15803d;">−${fmt(paidSoFar)}</td></tr>`
+    : ''
+
   const interestTable = `
       ${lineBlock}
       <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
         <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
+        ${paidRow}
         <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.${paidSoFar > 0 ? ', on the outstanding balance' : ''})</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
         <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
       </table>`
 
@@ -126,7 +134,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
       <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
         <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
         <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Debt recovery cost: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)}${paidSoFar > 0 ? ` − Paid: ${fmt(paidSoFar)}` : ''} + Debt recovery cost: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
       </div>`
 
 
@@ -282,12 +290,17 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: 'This chase stage has already been sent for this invoice' })
     }
 
-    // Calculate amounts (respect no_fines flag), rounded to avoid floating-point display issues
+    // Calculate amounts (respect no_fines flag), rounded to avoid floating-point display issues.
+    // Interest accrues on the OUTSTANDING balance — a partial payment stops
+    // the meter on what's been paid, and the email must reflect that or the
+    // client is being over-charged (and will rightly push back).
     const dl = daysLate(invoice.due_date)
     const finesEnabled = !invoice.no_fines
-    const interest = finesEnabled ? Math.round(Number(invoice.amount) * DAILY_RATE * dl * 100) / 100 : 0
-    const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-    const total = Math.round((Number(invoice.amount) + interest + pen) * 100) / 100
+    const amountPaid = Number(invoice.amount_paid) || 0
+    const outstanding = Math.max(0, Math.round((Number(invoice.amount) - amountPaid) * 100) / 100)
+    const interest = finesEnabled ? Math.round(outstanding * DAILY_RATE * dl * 100) / 100 : 0
+    const pen = finesEnabled && outstanding > 0 ? penalty(Number(invoice.amount)) : 0
+    const total = Math.round((outstanding + interest + pen) * 100) / 100
 
     // Build email (use profile's chase_tone, default to 'firm')
     const tone = profile.chase_tone || 'firm'

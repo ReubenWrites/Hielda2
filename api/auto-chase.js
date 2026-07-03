@@ -234,6 +234,16 @@ export default async function handler(req, res) {
 
   results.status_updates = updated || 0
 
+  // Reverse direction: an 'overdue' invoice whose due date is today or
+  // later means the user adjusted the date forward — it's really pending
+  // and must not be chased or accrue charges. Self-heals rows written
+  // before the due-date-adjust flow learned to flip the status itself.
+  await supabase
+    .from('invoices')
+    .update({ status: 'pending', chase_stage: null })
+    .eq('status', 'overdue')
+    .gte('due_date', today)
+
   // ── Step 2: Find users with active subscriptions ──────────────────────────
   // 'trialing' rows whose trial_end has passed must be excluded — if a user
   // never converts to paid, no Stripe webhook fires and the row sits at
