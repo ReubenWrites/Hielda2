@@ -1,0 +1,64 @@
+import Database from 'better-sqlite3';
+import { config } from './config.js';
+
+let db = null;
+
+export function getDb() {
+  if (db) return db;
+  db = new Database(config.dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  migrate(db);
+  return db;
+}
+
+function migrate(d) {
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS rooms (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      dm_secret TEXT NOT NULL,
+      map_image_url TEXT,
+      grid_size INTEGER NOT NULL DEFAULT 64,
+      grid_w INTEGER NOT NULL DEFAULT 30,
+      grid_h INTEGER NOT NULL DEFAULT 20,
+      offset_x INTEGER NOT NULL DEFAULT 0,
+      offset_y INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tokens (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      image_url TEXT,
+      color TEXT NOT NULL DEFAULT '#5b9bd5',
+      owner TEXT NOT NULL DEFAULT 'dm',
+      x REAL NOT NULL DEFAULT 0,
+      y REAL NOT NULL DEFAULT 0,
+      sight_radius REAL NOT NULL DEFAULT 6,
+      visible_to_players INTEGER NOT NULL DEFAULT 1,
+      ddb_character_id TEXT,
+      ddb_data TEXT
+    );
+    CREATE INDEX IF NOT EXISTS tokens_room_idx ON tokens(room_id);
+
+    CREATE TABLE IF NOT EXISTS walls (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      x1 REAL NOT NULL,
+      y1 REAL NOT NULL,
+      x2 REAL NOT NULL,
+      y2 REAL NOT NULL,
+      is_door INTEGER NOT NULL DEFAULT 0,
+      door_open INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS walls_room_idx ON walls(room_id);
+  `);
+}
+
+// Test/util only.
+export function _resetDb() {
+  if (db) db.close();
+  db = null;
+}

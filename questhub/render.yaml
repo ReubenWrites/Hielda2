@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: questhub
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.0.0
+      - key: NODE_ENV
+        value: production
+    # NOTE: Render's free tier has ephemeral storage. Uploaded maps and the
+    # SQLite DB live in ./server/data and will reset if the service restarts
+    # (which happens after ~15 min idle on free). To persist data, upgrade to
+    # a paid plan and uncomment the disk block below.
+    #
+    # disk:
+    #   name: questhub-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
