@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { Check } from "lucide-react"
+import { Check, FileUp } from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, TERMS, getRate } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
@@ -265,6 +265,38 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   }
 
   const [ccAutoFilled, setCcAutoFilled] = useState(false)
+
+  // ── PDF purchase-order import (all in-browser, see parsePurchaseOrder) ──
+  const poFileRef = useRef(null)
+  const [importingPo, setImportingPo] = useState(false)
+  const [poImportResult, setPoImportResult] = useState(null)
+
+  const importPo = async (file) => {
+    if (!file || importingPo) return
+    setImportingPo(true)
+    setPoImportResult(null)
+    try {
+      const { extractPdfLines, parsePurchaseOrder } = await import("../lib/parsePurchaseOrder")
+      const lines = await extractPdfLines(file)
+      if (!lines.length) {
+        setPoImportResult({ error: "That PDF has no readable text — it's probably a scanned image. You'll need to type the details in for now." })
+      } else {
+        const r = parsePurchaseOrder(lines)
+        if (!r.lineItems.length && !r.poNumber && !r.clientName) {
+          setPoImportResult({ error: "Couldn't find line items in that PDF. If your client sends this format regularly, email it to support@hielda.com and we'll teach Hielda to read it." })
+        } else {
+          if (r.lineItems.length) setLineItems(r.lineItems.map(li => ({ ...li, vatRate: defaultVatRate })))
+          if (r.poNumber) setClientRef(r.poNumber)
+          if (r.clientName && !cn.trim()) setCn(r.clientName)
+          setPoImportResult({ items: r.lineItems.length, ref: r.poNumber, client: r.clientName && !cn.trim() ? r.clientName : null })
+          trackEvent("po_pdf_imported", { items: r.lineItems.length, found_ref: !!r.poNumber })
+        }
+      }
+    } catch (e) {
+      setPoImportResult({ error: "Couldn't read that PDF (" + (e.message || "unknown error") + "). Password-protected files can't be opened." })
+    }
+    setImportingPo(false)
+  }
 
   const [savingDraft, setSavingDraft] = useState(false)
   const saveDraftAndLeave = async () => {
@@ -664,6 +696,36 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
       {step === 1 && (
         <div className={s.step1Grid}>
+          {/* PDF purchase-order import. Parsing happens entirely in the
+              browser (pdf.js + heuristics) — the file never leaves the
+              device and there's no per-use cost. Results land in the
+              editable form below, never straight into an invoice. */}
+          {!isEditing && (
+            <div className={s.introFullWidth}>
+              <input
+                ref={poFileRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                style={{ display: "none" }}
+                onChange={(e) => { importPo(e.target.files?.[0]); e.target.value = "" }}
+              />
+              <button type="button" className={s.poImportZone} onClick={() => poFileRef.current?.click()} disabled={importingPo}>
+                <FileUp size={16} />
+                {importingPo ? "Reading PDF…" : "Got a purchase order? Import the PDF and Hielda will fill this in"}
+              </button>
+              {poImportResult?.error && (
+                <p className={s.poImportError}>{poImportResult.error}</p>
+              )}
+              {poImportResult && !poImportResult.error && (
+                <p className={s.poImportSuccess}>
+                  <Check size={12} strokeWidth={3} /> Imported {poImportResult.items} line item{poImportResult.items !== 1 ? "s" : ""}
+                  {poImportResult.ref ? <> · ref {poImportResult.ref}</> : null}
+                  {poImportResult.client ? <> · {poImportResult.client}</> : null}
+                  {" "}— check everything below before sending.
+                </p>
+              )}
+            </div>
+          )}
           <Card>
             <h3 className={s.cardHeading}>Client</h3>
             {recentClients.length > 0 && (
