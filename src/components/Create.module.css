@@ -347,6 +347,71 @@
   border-left-color: rgba(30, 95, 160, 0.25);
 }
 
+/* ── "Hielda will…" switches ──
+   First-class controls for intro email / chasing / fines on step 1. */
+.willCard {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.willTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--td);
+  margin-bottom: 4px;
+}
+.willRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bdl);
+}
+.willRow:last-child {
+  border-bottom: none;
+  padding-bottom: 2px;
+}
+.willRowText {
+  flex: 1;
+  min-width: 0;
+}
+.willRowLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx);
+}
+.willRowSub {
+  font-size: 11px;
+  color: var(--tm);
+  margin-top: 1px;
+  line-height: 1.5;
+}
+.willSwitch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s;
+}
+.willSwitchThumb {
+  position: absolute;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: left 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* hint text beneath CC/BCC */
 .ccHint {
   font-size: 11px;
