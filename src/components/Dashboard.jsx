@@ -77,7 +77,13 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       danger: true,
     }))) return
     await supabase.from("invoice_drafts").delete().eq("id", id)
-    setDrafts((prev) => prev.filter((d) => d.id !== id))
+    setDrafts((prev) => {
+      const next = prev.filter((d) => d.id !== id)
+      // Deleting the last draft removes the Drafts pill — fall back to All
+      // rather than stranding the user on an empty, unreachable filter.
+      if (next.length === 0) setStatusFilter("all")
+      return next
+    })
   }
 
   const draftAge = (dateStr) => {
@@ -362,31 +368,6 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
       <EmailQueue invs={invs} profile={profile} onUpdate={onUpdate} />
 
-      {/* Unfinished drafts — one tap back into the create form. */}
-      {drafts.length > 0 && (
-        <div className={s.draftsStrip}>
-          <div className={s.draftsHeading}>Drafts</div>
-          <div className={s.draftsList}>
-            {drafts.map((d) => (
-              <button key={d.id} className={s.draftChip} onClick={() => navigate(`/create?draft=${d.id}`)}>
-                <FileText size={14} className={s.draftChipIcon} />
-                <span className={s.draftChipName}>{d.client_name || "Untitled invoice"}</span>
-                {d.amount > 0 && <span className={s.draftChipAmount}>{fmt(d.amount)}</span>}
-                <span className={s.draftChipAge}>{draftAge(d.updated_at)}</span>
-                <span
-                  role="button"
-                  aria-label="Delete draft"
-                  className={s.draftChipDelete}
-                  onClick={(e) => deleteDraft(d.id, e)}
-                >
-                  <X size={13} />
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div>
         <div className={s.invoicesHeader}>
           <h2 className={s.invoicesTitle}>All invoices</h2>
@@ -465,6 +446,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
             { id: "pending", label: "Pending", count: pending.length, color: c.am },
             { id: "paid", label: "Paid", count: paid.length, color: c.gn },
+            ...(drafts.length > 0 ? [{ id: "drafts", label: "Drafts", count: drafts.length, color: c.td }] : []),
           ].map(f => (
             <button
               key={f.id}
@@ -481,7 +463,27 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           ))}
         </div>
 
-        {invs.length === 0 ? (
+        {statusFilter === "drafts" ? (
+          /* Drafts view — unfinished invoices, one tap back into the form. */
+          <div className={s.draftsList}>
+            {drafts.map((d) => (
+              <button key={d.id} className={s.draftChip} onClick={() => navigate(`/create?draft=${d.id}`)}>
+                <FileText size={14} className={s.draftChipIcon} />
+                <span className={s.draftChipName}>{d.client_name || "Untitled invoice"}</span>
+                {d.amount > 0 && <span className={s.draftChipAmount}>{fmt(d.amount)}</span>}
+                <span className={s.draftChipAge}>edited {draftAge(d.updated_at)}</span>
+                <span
+                  role="button"
+                  aria-label="Delete draft"
+                  className={s.draftChipDelete}
+                  onClick={(e) => deleteDraft(d.id, e)}
+                >
+                  <X size={13} />
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : invs.length === 0 ? (
           <Card style={{ textAlign: "center", padding: isMobile ? "40px 24px" : "56px 32px" }}>
             <div className={s.emptyIcon} aria-hidden="true" style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: "var(--td)" }}>
               <Inbox size={48} strokeWidth={1.5} />
