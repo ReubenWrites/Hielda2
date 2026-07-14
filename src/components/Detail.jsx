@@ -1208,27 +1208,79 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         </div>
       )}
 
-      {/* Counterpart when fines are switched off: shows why no extras are
-          accruing, with a one-tap way back on. */}
-      {ov && !isConsumer && inv.no_fines && (
-        <div className={s.finesOffBar}>
-          <span className={s.finesOffText}>Fines &amp; interest are switched off for this invoice — Hielda is chasing without charges.</span>
+      {/* Auto-chase toggle. The old subtitle said "Hielda will send chase
+          emails automatically" — technically misleading because chases
+          only fire after the freelancer approves via the check-in email.
+          Reworded to reflect what actually happens, which also doubles
+          as reassurance for users worried about their client being
+          hassled. */}
+      {inv.status !== "paid" && (
+        <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.autoChaseMargin}`}>
+          <div className={s.toggleContent}>
+            <div className={s.toggleTitle}>Automatic chasing</div>
+            <div className={s.toggleSub}>
+              {autoChase
+                ? "When a chase is due, Hielda emails you first to ask — nothing goes to your client without your approval."
+                : "Paused. Hielda won't email you or your client about this invoice."}
+            </div>
+          </div>
           <button
-            onClick={async () => {
-              if (!(await confirm({
-                title: "Charge fines & interest on this invoice?",
-                message: `Statutory interest (${getRate()}% p.a., backdated to the due date) and the fixed recovery cost will be added to chase emails from now on.`,
-                confirmLabel: "Turn on charges",
-                cancelLabel: "Leave off",
-              }))) return
-              toggleNoFines()
-            }}
-            className={s.extrasWaiveBtn}
+            onClick={toggleAutoChase}
+            className={s.toggleTrack}
+            style={{ background: autoChase ? c.ac : c.bd }}
+            aria-label={autoChase ? "Pause automatic chasing" : "Resume automatic chasing"}
           >
-            Turn back on
+            <div className={s.toggleThumb} style={{ left: autoChase ? 23 : 3 }} />
           </button>
         </div>
       )}
+
+      {/* Fines toggle — uses positive "finesActive" for clarity; ON (blue) = fines applied, OFF (grey) = chase only */}
+      {inv.status !== "paid" && (() => {
+        const finesActive = !noFines
+        return (
+        <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.finesMargin}`}>
+          <div className={s.toggleContentFlex}>
+            <div className={s.toggleTitleRow}>
+              <div className={s.toggleTitle}>
+                Statutory penalties {finesActive ? "on" : "off"}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFinesInfo(v => !v)}
+                className={s.finesInfoBtn}
+                style={{
+                  background: showFinesInfo ? c.acd : c.sf,
+                  color: showFinesInfo ? c.ac : c.td,
+                }}
+                aria-label="About statutory penalties"
+              >
+                ?
+              </button>
+            </div>
+            <div className={s.toggleSub} style={{ color: finesActive ? c.gn : undefined }}>
+              {finesActive
+                ? "Statutory interest and a fixed debt recovery cost will be applied when overdue"
+                : "Chase emails won't include fines or interest — chasing only"}
+            </div>
+            {showFinesInfo && (
+              <div className={s.finesInfoPanel}>
+                <strong>On:</strong> Overdue chase emails include statutory interest and a fixed debt recovery cost under the Late Payment Act 1998.<br />
+                <strong>Off:</strong> Hielda still chases this invoice but emails won't mention additional charges. Useful for keeping things informal with a particular client.
+              </div>
+            )}
+          </div>
+          <button
+            onClick={toggleNoFines}
+            className={s.toggleTrack}
+            style={{ background: finesActive ? c.ac : c.bd }}
+            aria-label={finesActive ? "Turn off statutory penalties" : "Turn on statutory penalties"}
+          >
+            <div className={s.toggleThumb} style={{ left: finesActive ? 23 : 3 }} />
+          </button>
+        </div>
+        )
+      })()}
 
       {/* Line items breakdown */}
       {inv.line_items?.length > 0 && (
@@ -1416,79 +1468,6 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         </Card>
       )}
 
-      {/* Auto-chase toggle. The old subtitle said "Hielda will send chase
-          emails automatically" — technically misleading because chases
-          only fire after the freelancer approves via the check-in email.
-          Reworded to reflect what actually happens, which also doubles
-          as reassurance for users worried about their client being
-          hassled. */}
-      {inv.status !== "paid" && (
-        <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.autoChaseMargin}`}>
-          <div className={s.toggleContent}>
-            <div className={s.toggleTitle}>Automatic chasing</div>
-            <div className={s.toggleSub}>
-              {autoChase
-                ? "When a chase is due, Hielda emails you first to ask — nothing goes to your client without your approval."
-                : "Paused. Hielda won't email you or your client about this invoice."}
-            </div>
-          </div>
-          <button
-            onClick={toggleAutoChase}
-            className={s.toggleTrack}
-            style={{ background: autoChase ? c.ac : c.bd }}
-            aria-label={autoChase ? "Pause automatic chasing" : "Resume automatic chasing"}
-          >
-            <div className={s.toggleThumb} style={{ left: autoChase ? 23 : 3 }} />
-          </button>
-        </div>
-      )}
-
-      {/* Fines toggle — uses positive "finesActive" for clarity; ON (blue) = fines applied, OFF (grey) = chase only */}
-      {inv.status !== "paid" && (() => {
-        const finesActive = !noFines
-        return (
-        <div className={`${isMobile ? s.toggleRowMobile : s.toggleRow} ${s.finesMargin}`}>
-          <div className={s.toggleContentFlex}>
-            <div className={s.toggleTitleRow}>
-              <div className={s.toggleTitle}>
-                Statutory penalties {finesActive ? "on" : "off"}
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowFinesInfo(v => !v)}
-                className={s.finesInfoBtn}
-                style={{
-                  background: showFinesInfo ? c.acd : c.sf,
-                  color: showFinesInfo ? c.ac : c.td,
-                }}
-                aria-label="About statutory penalties"
-              >
-                ?
-              </button>
-            </div>
-            <div className={s.toggleSub} style={{ color: finesActive ? c.gn : undefined }}>
-              {finesActive
-                ? "Statutory interest and a fixed debt recovery cost will be applied when overdue"
-                : "Chase emails won't include fines or interest — chasing only"}
-            </div>
-            {showFinesInfo && (
-              <div className={s.finesInfoPanel}>
-                <strong>On:</strong> Overdue chase emails include statutory interest and a fixed debt recovery cost under the Late Payment Act 1998.<br />
-                <strong>Off:</strong> Hielda still chases this invoice but emails won't mention additional charges. Useful for keeping things informal with a particular client.
-              </div>
-            )}
-          </div>
-          <button
-            onClick={toggleNoFines}
-            className={s.toggleTrack}
-            style={{ background: finesActive ? c.ac : c.bd }}
-            aria-label={finesActive ? "Turn off statutory penalties" : "Turn on statutory penalties"}
-          >
-            <div className={s.toggleThumb} style={{ left: finesActive ? 23 : 3 }} />
-          </button>
-        </div>
-        )
-      })()}
 
       {/* CC / BCC recipients */}
       {inv.status !== "paid" && (

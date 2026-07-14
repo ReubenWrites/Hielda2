@@ -390,6 +390,76 @@
   line-height: 1.3;
 }
 
+/* ── Drafts strip ──
+   Unfinished invoices saved via "Save & finish later" — visible and one
+   tap from resuming, instead of hidden in localStorage. */
+.draftsStrip {
+  margin-bottom: 20px;
+}
+.draftsHeading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--td);
+  margin-bottom: 8px;
+}
+.draftsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.draftChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--sf);
+  border: 1px dashed var(--bd);
+  border-radius: var(--radius-md);
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--tx);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  max-width: 100%;
+}
+.draftChip:hover {
+  border-color: var(--ac);
+  box-shadow: var(--shadow-sm);
+}
+.draftChipIcon {
+  color: var(--tm);
+  flex-shrink: 0;
+}
+.draftChipName {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.draftChipAmount {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--tm);
+}
+.draftChipAge {
+  font-size: 11px;
+  color: var(--td);
+}
+.draftChipDelete {
+  display: inline-flex;
+  align-items: center;
+  color: var(--td);
+  border-radius: 999px;
+  padding: 2px;
+}
+.draftChipDelete:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
 /* ── Empty State ── */
 .emptyIcon {
   font-size: 28px;

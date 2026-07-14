@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Check } from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, TERMS, getRate } from "../constants"
@@ -14,6 +14,11 @@ const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
 export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const navigate = useNavigate()
   const toast = useToast()
+  const [searchParams] = useSearchParams()
+  // Server-side draft being edited (invoice_drafts row id). Set when the
+  // user arrives via a dashboard draft's Resume link or after "Save &
+  // finish later"; the row is deleted once the invoice is created.
+  const [draftId, setDraftId] = useState(null)
   const defaultTerms = profile?.default_payment_terms ? String(profile.default_payment_terms) : "30"
   const isCustomDefault = !TERMS.slice(0, -1).some(t => String(t.d) === defaultTerms)
 
@@ -37,6 +42,9 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   })
   const [clientType, setClientType] = useState("business")
   const [noFines, setNoFines] = useState(false)
+  // Whether Hielda chases this invoice automatically (check-ins + chase
+  // emails). Surfaced as a first-class switch on step 1.
+  const [autoChase, setAutoChase] = useState(true)
   const [newInvId, setNewInvId] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -86,9 +94,26 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       .filter(i => !hiddenClients.includes(i.client_email))
   }, [invs, hiddenClients])
 
-  // Check for clone data or saved draft on mount
+  // Check for a server draft (?draft=id from the dashboard), clone data,
+  // or a locally autosaved draft on mount — in that priority order.
   useEffect(() => {
     if (!userId) return
+    const serverDraftId = searchParams.get("draft")
+    if (serverDraftId) {
+      ;(async () => {
+        const { data } = await supabase
+          .from("invoice_drafts")
+          .select("id, payload")
+          .eq("id", serverDraftId)
+          .eq("user_id", userId)
+          .maybeSingle()
+        if (data?.payload) {
+          setDraftId(data.id)
+          applyDraftPayload(data.payload)
+        }
+      })()
+      return // Server draft wins — skip edit/clone/local-draft checks
+    }
     try {
       const edit = localStorage.getItem("hielda_edit")
       if (edit) {
@@ -181,34 +206,40 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     if (!userId || step === 3 || isEditing || !hasContent) return
     if (draftBanner) setDraftBanner(false)
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, userId, step])
+  }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, clientType, clientRef, cc, bcc, notes, userId, step])
+
+  // Shared between the localStorage restore banner and server-draft resume.
+  const applyDraftPayload = (d) => {
+    if (d.cn !== undefined) setCn(d.cn)
+    if (d.ce !== undefined) setCe(d.ce)
+    if (d.ca !== undefined) setCa(d.ca)
+    if (d.terms !== undefined) setTerms(d.terms)
+    if (d.customDays !== undefined) setCustomDays(d.customDays)
+    if (d.date !== undefined) setDate(d.date)
+    if (d.noFines !== undefined) setNoFines(d.noFines)
+    if (d.autoChase !== undefined) setAutoChase(d.autoChase)
+    if (d.sendIntro !== undefined) setSendIntro(d.sendIntro)
+    if (d.clientType !== undefined) setClientType(d.clientType)
+    if (d.clientRef !== undefined) setClientRef(d.clientRef)
+    if (d.cc !== undefined) setCc(d.cc)
+    if (d.bcc !== undefined) setBcc(d.bcc)
+    if (d.notes !== undefined) setNotes(d.notes)
+    // New drafts have lineItems; legacy drafts had desc+amt — convert to single line item
+    if (d.lineItems?.length) {
+      setLineItems(d.lineItems)
+    } else if (d.amt || d.desc) {
+      setLineItems([{ description: d.desc || "", amount: d.amt || "" }])
+    }
+  }
 
   const restoreDraft = () => {
     try {
       const saved = localStorage.getItem(DRAFT_KEY(userId))
       if (!saved) return
-      const d = JSON.parse(saved)
-      if (d.cn !== undefined) setCn(d.cn)
-      if (d.ce !== undefined) setCe(d.ce)
-      if (d.ca !== undefined) setCa(d.ca)
-      if (d.terms !== undefined) setTerms(d.terms)
-      if (d.customDays !== undefined) setCustomDays(d.customDays)
-      if (d.date !== undefined) setDate(d.date)
-      if (d.noFines !== undefined) setNoFines(d.noFines)
-      if (d.clientType !== undefined) setClientType(d.clientType)
-      if (d.clientRef !== undefined) setClientRef(d.clientRef)
-      if (d.cc !== undefined) setCc(d.cc)
-      if (d.bcc !== undefined) setBcc(d.bcc)
-      if (d.notes !== undefined) setNotes(d.notes)
-      // New drafts have lineItems; legacy drafts had desc+amt — convert to single line item
-      if (d.lineItems?.length) {
-        setLineItems(d.lineItems)
-      } else if (d.amt || d.desc) {
-        setLineItems([{ description: d.desc || "", amount: d.amt || "" }])
-      }
+      applyDraftPayload(JSON.parse(saved))
     } catch {}
     setDraftBanner(false)
   }
@@ -235,16 +266,46 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
   const [ccAutoFilled, setCcAutoFilled] = useState(false)
 
-  const saveDraftAndLeave = () => {
-    // Autosave has already written it — this button exists so users can
-    // leave *confident* the draft is safe, per user feedback that the
-    // autosave alone wasn't discoverable or trusted.
+  const [savingDraft, setSavingDraft] = useState(false)
+  const saveDraftAndLeave = async () => {
+    // Saves to the server so the draft is visible on the dashboard and
+    // follows the user across devices — the old localStorage-only draft
+    // was a single invisible slot that users couldn't find again.
+    if (savingDraft) return
+    setSavingDraft(true)
+    const payload = { cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, clientType, clientRef, cc, bcc, notes }
+    const display = {
+      client_name: cn.trim() || null,
+      amount: parsedTotal > 0 ? parsedTotal : null,
+    }
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
-    } catch {}
-    trackEvent("invoice_draft_saved_manually")
-    toast.success("Draft saved — pick it up any time from Create invoice")
-    navigate("/dashboard")
+      if (draftId) {
+        const { error: err } = await supabase
+          .from("invoice_drafts")
+          .update({ payload, ...display, updated_at: new Date().toISOString() })
+          .eq("id", draftId)
+        if (err) throw err
+      } else {
+        const { data, error: err } = await supabase
+          .from("invoice_drafts")
+          .insert({ user_id: userId, payload, ...display })
+          .select("id")
+          .single()
+        if (err) throw err
+        setDraftId(data.id)
+      }
+      clearDraft() // server copy is now the source of truth
+      trackEvent("invoice_draft_saved_manually")
+      toast.success("Draft saved — resume it from your dashboard any time")
+      navigate("/dashboard")
+    } catch (e) {
+      // Fall back to the local autosave so nothing is lost, and say so.
+      try {
+        localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ ...payload, savedAt: Date.now() }))
+      } catch {}
+      toast.error("Couldn't save to your account (" + e.message + ") — kept a local copy on this device instead")
+    }
+    setSavingDraft(false)
   }
 
   const fillClient = (inv) => {
@@ -365,6 +426,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         status: isOverdue ? "overdue" : "pending",
         chase_stage: isOverdue ? "reminder_1" : null,
         send_method: meth,
+        auto_chase: autoChase,
         no_fines: clientType === "consumer" ? true : noFines,
         client_type: clientType,
         client_name: cn,
@@ -377,6 +439,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       }).select().single()
       if (dbError) throw dbError
       clearDraft()
+      // The draft has become a real invoice — remove it from the dashboard.
+      if (draftId) {
+        supabase.from("invoice_drafts").delete().eq("id", draftId).then(() => {})
+        setDraftId(null)
+      }
       trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: meth })
 
       setNewInvId(newInv.id)
@@ -788,6 +855,57 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               )}
             </div>
           </Card>
+
+          {/* What Hielda does with this invoice — first-class switches.
+              These controls lived in collapsed accordions and users
+              couldn't find them; the detailed configuration (intro text,
+              send method) still lives in the accordions below. */}
+          <div className={s.introFullWidth}>
+            <div className={s.willCard}>
+              <div className={s.willTitle}>Hielda will…</div>
+              {[
+                {
+                  key: "intro",
+                  on: sendIntro,
+                  toggle: () => setSendIntro(v => !v),
+                  label: "Email the invoice to your client",
+                  sub: sendIntro ? "An introduction + the invoice PDF, sent when you create it" : "Off — you'll send the invoice yourself",
+                },
+                {
+                  key: "chase",
+                  on: autoChase,
+                  toggle: () => setAutoChase(v => !v),
+                  label: "Chase it if unpaid",
+                  sub: autoChase ? "Escalating reminders — Hielda always checks with you before emailing your client" : "Off — no reminders or chase emails for this invoice",
+                },
+                ...(clientType !== "consumer" ? [{
+                  key: "fines",
+                  on: !noFines,
+                  toggle: () => setNoFines(v => !v),
+                  label: "Add fines & interest when late",
+                  sub: !noFines ? `Statutory ${getRate()}% p.a. + £${penalty(parsedTotal || 0)} fixed recovery cost, from day one overdue` : "Off — chasing stays informal, no charges added",
+                }] : []),
+              ].map(row => (
+                <div key={row.key} className={s.willRow}>
+                  <div className={s.willRowText}>
+                    <div className={s.willRowLabel}>{row.label}</div>
+                    <div className={s.willRowSub}>{row.sub}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={row.toggle}
+                    className={s.willSwitch}
+                    style={{ background: row.on ? "var(--ac)" : "var(--bd)" }}
+                    role="switch"
+                    aria-checked={row.on}
+                    aria-label={row.label}
+                  >
+                    <div className={s.willSwitchThumb} style={{ left: row.on ? 21 : 3 }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Primary CTA — for a standard invoice, users tap this without
               ever opening the accordions below. */}

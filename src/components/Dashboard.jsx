@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper } from "lucide-react"
+import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
 import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm } from "./ui"
@@ -49,6 +49,44 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   }, [])
 
   const needsPaymentDetails = !profile?.sort_code || !profile?.account_number
+
+  // Server-backed invoice drafts (saved via "Save & finish later" on the
+  // create form). Fetched here so unfinished invoices are visible and
+  // resumable instead of living in an invisible localStorage slot.
+  const [drafts, setDrafts] = useState([])
+  useEffect(() => {
+    if (!profile?.id) return
+    ;(async () => {
+      const { data } = await supabase
+        .from("invoice_drafts")
+        .select("id, client_name, amount, updated_at")
+        .eq("user_id", profile.id)
+        .order("updated_at", { ascending: false })
+        .limit(10)
+      setDrafts(data || [])
+    })()
+  }, [profile?.id, invs])
+
+  const deleteDraft = async (id, e) => {
+    e.stopPropagation()
+    if (!(await confirm({
+      title: "Delete this draft?",
+      message: "The unfinished invoice will be discarded. This can't be undone.",
+      confirmLabel: "Delete draft",
+      cancelLabel: "Keep it",
+      danger: true,
+    }))) return
+    await supabase.from("invoice_drafts").delete().eq("id", id)
+    setDrafts((prev) => prev.filter((d) => d.id !== id))
+  }
+
+  const draftAge = (dateStr) => {
+    const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000)
+    if (mins < 60) return `${Math.max(1, mins)}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    return `${Math.floor(hrs / 24)}d ago`
+  }
 
   const { overdue, pending, paid, disputed, totExtra, totOwed, totPaid, partPaidCount } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
@@ -323,6 +361,31 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       )}
 
       <EmailQueue invs={invs} profile={profile} onUpdate={onUpdate} />
+
+      {/* Unfinished drafts — one tap back into the create form. */}
+      {drafts.length > 0 && (
+        <div className={s.draftsStrip}>
+          <div className={s.draftsHeading}>Drafts</div>
+          <div className={s.draftsList}>
+            {drafts.map((d) => (
+              <button key={d.id} className={s.draftChip} onClick={() => navigate(`/create?draft=${d.id}`)}>
+                <FileText size={14} className={s.draftChipIcon} />
+                <span className={s.draftChipName}>{d.client_name || "Untitled invoice"}</span>
+                {d.amount > 0 && <span className={s.draftChipAmount}>{fmt(d.amount)}</span>}
+                <span className={s.draftChipAge}>{draftAge(d.updated_at)}</span>
+                <span
+                  role="button"
+                  aria-label="Delete draft"
+                  className={s.draftChipDelete}
+                  onClick={(e) => deleteDraft(d.id, e)}
+                >
+                  <X size={13} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <div className={s.invoicesHeader}>
