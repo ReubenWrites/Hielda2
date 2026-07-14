@@ -347,6 +347,52 @@
   border-left-color: rgba(30, 95, 160, 0.25);
 }
 
+/* ── PDF purchase-order import ── */
+.poImportZone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--sf);
+  border: 1.5px dashed var(--bd);
+  border-radius: var(--radius-md);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.poImportZone:hover:not(:disabled) {
+  border-color: var(--ac);
+  color: var(--ac);
+}
+.poImportZone:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.poImportSuccess {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--gn);
+  margin: 8px 2px 0;
+  line-height: 1.5;
+}
+.poImportSuccess svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.poImportError {
+  font-size: 12px;
+  color: var(--or);
+  margin: 8px 2px 0;
+  line-height: 1.5;
+}
+
 /* ── "Hielda will…" switches ──
    First-class controls for intro email / chasing / fines on step 1. */
 .willCard {
