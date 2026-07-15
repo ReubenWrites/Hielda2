@@ -115,6 +115,18 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
             No credit card required · 6-week free trial · Cancel anytime
           </p>
 
+          {/* Press mention — third-party validation right under the CTA. */}
+          <a
+            href="https://marketspy.com/news/the-startup-helping-uk-freelancers-get-paid-without-the-awkward-chase-jb0kt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={s.pressStrip}
+          >
+            <span className={s.pressLabel}>As featured in</span>
+            <span className={s.pressName}>MarketSpy</span>
+            <span className={s.pressQuote}>"The startup helping UK freelancers get paid — without the awkward chase"</span>
+          </a>
+
           {/* Product visual: an illustrative chase email so the page shows
               the product doing its job instead of only describing it. The
               figures are real maths (£3,000 at the live statutory rate). */}
