@@ -144,9 +144,16 @@ serve(async (req) => {
     const invoiceTotal = Number(invoice.total_with_vat) || netAmount
     const hasVat = vatAmount > 0
     const finesEnabled = !invoice.no_fines
-    const interest = isOverdue ? netAmount * DAILY_RATE * daysOverdue : 0
-    const pen = isOverdue && !isConsumer && finesEnabled ? penalty(netAmount) : 0
-    const total = invoiceTotal + interest + pen
+    // Partial payments: credit what's been received and accrue interest on
+    // the outstanding balance only — the PDF must agree with the app and
+    // the chase emails or the client has grounds to dispute the lot.
+    const amountPaid = Number(invoice.amount_paid) || 0
+    const netOutstanding = Math.max(0, netAmount - amountPaid)
+    // Interest requires fines enabled for B2B; consumer invoices keep their
+    // contractual interest (they always have no_fines set at creation).
+    const interest = isOverdue && (finesEnabled || isConsumer) ? netOutstanding * DAILY_RATE * daysOverdue : 0
+    const pen = isOverdue && !isConsumer && finesEnabled && netOutstanding > 0 ? penalty(netAmount) : 0
+    const total = Math.max(0, invoiceTotal - amountPaid) + interest + pen
 
     const lineItems = coerceLineItems(invoice.line_items)
 
@@ -430,6 +437,13 @@ serve(async (req) => {
       doc.text(hasVat ? "Invoice total" : "Original amount", 120, y)
       doc.text(fmt(invoiceTotal), 190, y, { align: "right" })
 
+      if (amountPaid > 0) {
+        y += 6
+        doc.setTextColor("#15803d")
+        doc.text("Payments received — thank you", 120, y)
+        doc.text(`-${fmt(amountPaid)}`, 190, y, { align: "right" })
+      }
+
       if (pen > 0) {
         y += 6
         doc.setTextColor("#a16207")
@@ -437,10 +451,12 @@ serve(async (req) => {
         doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
       }
 
-      y += 6
-      doc.setTextColor("#a16207")
-      doc.text(`Interest (${daysOverdue}d at ${RATE}% p.a.)`, 120, y)
-      doc.text(`+${fmt(interest)}`, 190, y, { align: "right" })
+      if (interest > 0) {
+        y += 6
+        doc.setTextColor("#a16207")
+        doc.text(`Interest (${daysOverdue}d at ${RATE}% p.a.${amountPaid > 0 ? " on balance" : ""})`, 120, y)
+        doc.text(`+${fmt(interest)}`, 190, y, { align: "right" })
+      }
 
       y += 8
       doc.setDrawColor(blue)
@@ -451,8 +467,24 @@ serve(async (req) => {
       doc.setFontSize(11)
       doc.setTextColor(blue)
       doc.setFont("helvetica", "bold")
-      doc.text("TOTAL NOW OWED", 120, y)
+      doc.text(amountPaid > 0 ? "BALANCE NOW OWED" : "TOTAL NOW OWED", 120, y)
       doc.text(fmt(total), 190, y, { align: "right" })
+    } else if (amountPaid > 0) {
+      // Not overdue (or paid same-day) but part-paid: credit the payment
+      // and show the balance rather than restating the full amount.
+      y += 7
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.setTextColor("#15803d")
+      doc.text("Payments received — thank you", 120, y)
+      doc.text(`-${fmt(amountPaid)}`, 190, y, { align: "right" })
+
+      y += 8
+      doc.setFontSize(11)
+      doc.setTextColor(blue)
+      doc.setFont("helvetica", "bold")
+      doc.text("BALANCE DUE", 120, y)
+      doc.text(fmt(Math.max(0, invoiceTotal - amountPaid)), 190, y, { align: "right" })
     } else if (!hasVat) {
       y += 8
       doc.setFontSize(11)
@@ -461,7 +493,7 @@ serve(async (req) => {
       doc.text("TOTAL DUE", 120, y)
       doc.text(fmt(netAmount), 190, y, { align: "right" })
     }
-    // If has VAT and not overdue, total already shown above
+    // If has VAT, not overdue, and nothing part-paid: total already shown above
 
     // Payment details box
     y += 16
