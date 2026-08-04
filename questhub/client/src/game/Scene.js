@@ -30,6 +30,7 @@ export class Scene {
     this.pointer = { x: 0, y: 0, world: { x: 0, y: 0 }, cell: { x: 0, y: 0 } };
     this.panning = null; // { fromX, fromY, camX, camY }
     this.cursorText = null;
+    this.initTokenId = null; // token whose turn it is in initiative
   }
 
   async init() {
@@ -342,6 +343,28 @@ export class Scene {
           .stroke({ width: 2, color: 0xf0a500, alpha: 0.5 });
       }
     }
+
+    // Initiative: whose turn is it
+    if (this.initTokenId) {
+      const t = this.tokens.find(t => t.id === this.initTokenId);
+      if (t && tokenVisibleToViewer(t, this.visibleSet, this.you)) {
+        const c = cellToWorld(t.x + 0.5, t.y + 0.5, this.room);
+        g.circle(c.x, c.y, this.room.grid_size * 0.56)
+          .stroke({ width: 3, color: 0xffffff, alpha: 0.9 });
+        g.circle(c.x, c.y, this.room.grid_size * 0.62)
+          .stroke({ width: 2, color: 0xf0a500, alpha: 0.9 });
+      }
+    }
+  }
+
+  setInitiativeToken(tokenId) {
+    this.initTokenId = tokenId;
+    this.drawCursorOverlay();
+  }
+
+  shouldShowHp(token) {
+    if (this.role === 'dm') return true;
+    return token.owner === this.you?.name || token.owner === this.you?.id;
   }
 
   // ---- Sync from React/store ----
@@ -414,7 +437,7 @@ export class Scene {
         v.update(t, this.room);
       }
       v.container.visible = visible;
-      v.draw({ selected: this.selectedId === t.id });
+      v.draw({ selected: this.selectedId === t.id, showHp: this.shouldShowHp(t) });
     }
     this.drawCursorOverlay();
   }
@@ -444,7 +467,10 @@ export class Scene {
   setSelected(id) {
     this.selectedId = id;
     // redraw token outlines
-    for (const [tid, v] of this.tokenViews) v.draw({ selected: tid === id });
+    for (const [tid, v] of this.tokenViews) {
+      const t = this.tokens.find(x => x.id === tid);
+      v.draw({ selected: tid === id, showHp: t ? this.shouldShowHp(t) : false });
+    }
     this.drawCursorOverlay();
   }
 

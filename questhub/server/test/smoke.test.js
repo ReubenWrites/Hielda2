@@ -144,6 +144,102 @@ describe('socket flow', () => {
     player.close();
   });
 
+  test('token hp/ac fields roundtrip', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'HP Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    const created = await emitAck(dm, 'token:create', {
+      name: 'Wolf', x: 1, y: 1, hp: 11, maxHp: 11, ac: 13,
+    });
+    expect(created.token.hp).toBe(11);
+    expect(created.token.maxHp).toBe(11);
+    expect(created.token.ac).toBe(13);
+    const updated = await emitAck(dm, 'token:update', { id: created.token.id, hp: 4 });
+    expect(updated.token.hp).toBe(4);
+    expect(updated.token.maxHp).toBe(11);
+    dm.close();
+  });
+
+  test('initiative: roll, next, end', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Init Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    const a = await emitAck(dm, 'token:create', { name: 'A', x: 0, y: 0 });
+    const b = await emitAck(dm, 'token:create', { name: 'B', x: 1, y: 0 });
+
+    const rolled = await emitAck(dm, 'init:roll', { tokenIds: [a.token.id, b.token.id] });
+    expect(rolled.ok).toBe(true);
+    expect(rolled.initiative.order).toHaveLength(2);
+    expect(rolled.initiative.turn).toBe(0);
+    // Sorted descending
+    expect(rolled.initiative.order[0].roll).toBeGreaterThanOrEqual(rolled.initiative.order[1].roll);
+
+    const nextUpdate = once(dm, 'init:updated');
+    await emitAck(dm, 'init:next', {});
+    const afterNext = await nextUpdate;
+    expect(afterNext.turn).toBe(1);
+
+    const endUpdate = once(dm, 'init:updated');
+    await emitAck(dm, 'init:end', {});
+    expect(await endUpdate).toBeNull();
+    dm.close();
+  });
+
+  test('asset create/delete broadcast', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Asset Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    const created = await emitAck(dm, 'asset:create', { kind: 'map', name: 'Death House', url: '/uploads/x.png' });
+    expect(created.asset.kind).toBe('map');
+    expect(created.asset.name).toBe('Death House');
+    const del = await emitAck(dm, 'asset:delete', { id: created.asset.id });
+    expect(del.ok).toBe(true);
+    dm.close();
+  });
+
+  test('quest export/import roundtrip', async () => {
+    const roomA = await call('POST', '/api/rooms', { name: 'Source' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId: roomA.id, name: 'GM', asDm: true, dmSecret: roomA.dmSecret });
+    await emitAck(dm, 'token:create', { name: 'Strahd', x: 3, y: 4, hp: 144, maxHp: 144, ac: 16 });
+    await emitAck(dm, 'wall:create', { x1: 0, y1: 0, x2: 5, y2: 0 });
+    dm.close();
+
+    const exportRes = await fetch(`${baseUrl}/api/rooms/${roomA.id}/export?secret=${roomA.dmSecret}`);
+    expect(exportRes.ok).toBe(true);
+    const quest = await exportRes.json();
+    expect(quest.kind).toBe('questhub-quest');
+    expect(quest.tokens).toHaveLength(1);
+    expect(quest.walls).toHaveLength(1);
+
+    // Wrong secret is rejected
+    const bad = await fetch(`${baseUrl}/api/rooms/${roomA.id}/export?secret=nope`);
+    expect(bad.status).toBe(403);
+
+    const roomB = await call('POST', '/api/rooms', { name: 'Target' });
+    const importRes = await fetch(`${baseUrl}/api/rooms/${roomB.id}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: roomB.dmSecret, data: quest }),
+    });
+    expect(importRes.ok).toBe(true);
+
+    const stateB = await call('GET', `/api/rooms/${roomB.id}`);
+    expect(stateB.room.id).toBe(roomB.id);
+    const dm2 = connect();
+    await once(dm2, 'connect');
+    const join = await emitAck(dm2, 'room:join', { roomId: roomB.id, name: 'GM', asDm: true, dmSecret: roomB.dmSecret });
+    expect(join.state.tokens).toHaveLength(1);
+    expect(join.state.tokens[0].name).toBe('Strahd');
+    expect(join.state.tokens[0].hp).toBe(144);
+    expect(join.state.walls).toHaveLength(1);
+    dm2.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Dice Test' });
 

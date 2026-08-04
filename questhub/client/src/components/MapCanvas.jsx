@@ -16,6 +16,7 @@ export default function MapCanvas({ onAction }) {
   const tool = useStore(s => s.tool);
   const spell = useStore(s => s.spell);
   const selectedTokenId = useStore(s => s.selectedTokenId);
+  const initiative = useStore(s => s.initiative);
 
   // Init scene once
   useEffect(() => {
@@ -73,6 +74,10 @@ export default function MapCanvas({ onAction }) {
     applyFog(sceneRef.current);
   }, [tokens]);
   useEffect(() => { sceneRef.current?.setProposalGhosts(proposals); }, [proposals]);
+  useEffect(() => {
+    const current = initiative ? initiative.order[initiative.turn]?.tokenId : null;
+    sceneRef.current?.setInitiativeToken(current ?? null);
+  }, [initiative]);
   useEffect(() => { sceneRef.current?.setTool(tool, { spell }); }, [tool, spell]);
   useEffect(() => { sceneRef.current?.setSelected(selectedTokenId); }, [selectedTokenId]);
 

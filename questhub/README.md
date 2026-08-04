@@ -29,6 +29,20 @@ invite link in a second tab/browser to join as a player.
   dotted ghost path with distance in feet). The DM gets an Approve / Reject /
   Stop-halfway banner. Approved moves animate cell by cell.
 - **Dice**: type `/r 1d20+5` in chat. Advantage: `/r 2d20kh1+3`.
+- **Bestiary**: DM tab → search a monster → click it → click the map repeatedly
+  to place auto-numbered tokens (Wolf, Wolf 2…) with SRD HP/AC/darkvision.
+- **Player tokens**: DM tab → "Add player token" → type the player's join name;
+  the token is owned by them with vision configured.
+- **HP**: bars over tokens (DM sees all; players see their own). Quick −5/−1/+1/+5
+  buttons in the token editor.
+- **Initiative**: DM tab → "Roll initiative"; order shows for everyone in the
+  Tokens tab, the active creature gets a ring on the map, DM clicks Next turn.
+- **Asset library**: Library tab → bulk-upload your battle maps and token art;
+  one click sets a map or stamps token art onto the board.
+- **Save/Load quest**: DM tab → Save downloads a `.questhub.json` with the map,
+  walls, tokens and library embedded; Load restores it. Use one file per
+  prepared scene ("Death House", "Castle Ravenloft") — this also survives
+  free-tier restarts.
 - **Spells**: pick an effect from the bar at the bottom (fireball, magic
   missile, slash, heal, lightning), then click a target on the map.
 - **D&D Beyond**: select a token → "Link to D&D Beyond character ID". The

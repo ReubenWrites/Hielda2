@@ -75,6 +75,10 @@ export default function Room() {
     const onSpellFx = (payload) => {
       window.dispatchEvent(new CustomEvent('questhub:spell-fx', { detail: payload }));
     };
+    const onAssetCreated = (a) => s.upsertAsset(a);
+    const onAssetDeleted = ({ id }) => s.removeAsset(id);
+    const onInitUpdated = (init) => s.setInitiative(init);
+    const onResync = (state) => s.resync(state);
 
     sock.on('map:updated', onMapUpdated);
     sock.on('token:created', onTokenCreated);
@@ -89,6 +93,10 @@ export default function Room() {
     sock.on('move:approved', onMoveApproved);
     sock.on('chat:message', onChat);
     sock.on('spell:effect', onSpellFx);
+    sock.on('asset:created', onAssetCreated);
+    sock.on('asset:deleted', onAssetDeleted);
+    sock.on('init:updated', onInitUpdated);
+    sock.on('room:resync', onResync);
 
     return () => {
       sock.off('connect', onConnect);
@@ -106,6 +114,10 @@ export default function Room() {
       sock.off('move:approved', onMoveApproved);
       sock.off('chat:message', onChat);
       sock.off('spell:effect', onSpellFx);
+      sock.off('asset:created', onAssetCreated);
+      sock.off('asset:deleted', onAssetDeleted);
+      sock.off('init:updated', onInitUpdated);
+      sock.off('room:resync', onResync);
     };
   }, [roomId]);
 
@@ -126,10 +138,26 @@ export default function Room() {
         case 'select-token':
           useStore.getState().setSelected(action.id);
           break;
-        case 'add-token':
-          await emit('token:create', { x: action.cell.x, y: action.cell.y, name: 'Token', color: randomColor() });
-          useStore.getState().setTool('select');
+        case 'add-token': {
+          const tpl = useStore.getState().spawnTemplate;
+          if (tpl) {
+            await emit('token:create', {
+              x: action.cell.x, y: action.cell.y,
+              name: numberedName(tpl.name, useStore.getState().tokens),
+              color: tpl.color,
+              owner: tpl.owner || 'dm',
+              imageUrl: tpl.imageUrl || null,
+              sightRadius: tpl.sightRadius ?? 6,
+              hp: tpl.hp ?? null, maxHp: tpl.maxHp ?? null, ac: tpl.ac ?? null,
+            });
+            // Single-shot templates (player tokens) disarm; bestiary stays armed
+            if (tpl.single) useStore.getState().setSpawnTemplate(null);
+          } else {
+            await emit('token:create', { x: action.cell.x, y: action.cell.y, name: 'Token', color: randomColor() });
+            useStore.getState().setTool('select');
+          }
           break;
+        }
         case 'dm-move-token':
           await emit('token:move', { id: action.id, x: action.x, y: action.y, animate: true });
           break;
@@ -204,6 +232,13 @@ function Hint() {
   else if (role === 'player') msg = 'Drag your token to propose a move';
   else msg = 'Drag tokens to move · Shift+drag to pan · Scroll to zoom';
   return <div className="hint">{msg}</div>;
+}
+
+// Wolf, Wolf 2, Wolf 3… for repeated placements of the same creature.
+function numberedName(base, tokens) {
+  const re = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\d+)?$`);
+  const count = tokens.filter(t => re.test(t.name)).length;
+  return count === 0 ? base : `${base} ${count + 1}`;
 }
 
 function randomColor() {

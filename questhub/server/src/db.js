@@ -54,7 +54,27 @@ function migrate(d) {
       door_open INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS walls_room_idx ON walls(room_id);
+
+    CREATE TABLE IF NOT EXISTS assets (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL DEFAULT 'token',
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS assets_room_idx ON assets(room_id);
   `);
+
+  // Additive migrations for databases created before these columns existed.
+  ensureColumn(d, 'tokens', 'hp', 'hp REAL');
+  ensureColumn(d, 'tokens', 'max_hp', 'max_hp REAL');
+  ensureColumn(d, 'tokens', 'ac', 'ac INTEGER');
+}
+
+function ensureColumn(d, table, col, ddl) {
+  const cols = d.pragma(`table_info(${table})`).map(c => c.name);
+  if (!cols.includes(col)) d.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
 }
 
 // Test/util only.

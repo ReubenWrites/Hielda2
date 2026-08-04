@@ -42,11 +42,13 @@ export function getRoomState(roomId) {
   if (!room) return null;
   const tokens = db.prepare('SELECT * FROM tokens WHERE room_id = ?').all(roomId);
   const walls = db.prepare('SELECT * FROM walls WHERE room_id = ?').all(roomId);
+  const assets = db.prepare('SELECT * FROM assets WHERE room_id = ? ORDER BY created_at').all(roomId);
   const { dm_secret, ...publicRoom } = room;
   return {
     room: publicRoom,
     tokens: tokens.map(serializeToken),
     walls: walls.map(serializeWall),
+    assets: assets.map(serializeAsset),
   };
 }
 
@@ -59,8 +61,8 @@ export function createToken(roomId, t) {
   const db = getDb();
   const id = nanoid(12);
   db.prepare(`
-    INSERT INTO tokens (id, room_id, name, image_url, color, owner, x, y, sight_radius, visible_to_players)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tokens (id, room_id, name, image_url, color, owner, x, y, sight_radius, visible_to_players, hp, max_hp, ac)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, roomId,
     t.name || 'Token',
@@ -70,6 +72,9 @@ export function createToken(roomId, t) {
     t.x ?? 0, t.y ?? 0,
     t.sightRadius ?? 6,
     t.visibleToPlayers === false ? 0 : 1,
+    t.hp ?? null,
+    t.maxHp ?? null,
+    t.ac ?? null,
   );
   return getToken(id);
 }
@@ -86,6 +91,7 @@ export function updateToken(id, fields) {
     name: 'name', imageUrl: 'image_url', color: 'color', owner: 'owner',
     x: 'x', y: 'y', sightRadius: 'sight_radius',
     visibleToPlayers: 'visible_to_players',
+    hp: 'hp', maxHp: 'max_hp', ac: 'ac',
     ddbCharacterId: 'ddb_character_id', ddbData: 'ddb_data',
   };
   const sets = [];
@@ -144,8 +150,49 @@ function serializeToken(row) {
     y: row.y,
     sightRadius: row.sight_radius,
     visibleToPlayers: !!row.visible_to_players,
+    hp: row.hp,
+    maxHp: row.max_hp,
+    ac: row.ac,
     ddbCharacterId: row.ddb_character_id,
     ddbData: row.ddb_data ? safeParse(row.ddb_data) : null,
+  };
+}
+
+export function createAsset(roomId, a) {
+  const db = getDb();
+  const id = nanoid(12);
+  db.prepare(`
+    INSERT INTO assets (id, room_id, kind, name, url, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, roomId, a.kind === 'map' ? 'map' : 'token', (a.name || 'Asset').slice(0, 60), a.url, Date.now());
+  return serializeAsset(db.prepare('SELECT * FROM assets WHERE id = ?').get(id));
+}
+
+export function deleteAsset(id) {
+  getDb().prepare('DELETE FROM assets WHERE id = ?').run(id);
+}
+
+// Wholesale replace of a room's contents — used by quest import.
+export function replaceRoomContents(roomId, { walls = [], tokens = [], assets = [] }) {
+  const db = getDb();
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM walls WHERE room_id = ?').run(roomId);
+    db.prepare('DELETE FROM tokens WHERE room_id = ?').run(roomId);
+    db.prepare('DELETE FROM assets WHERE room_id = ?').run(roomId);
+    for (const w of walls) createWall(roomId, w);
+    for (const t of tokens) createToken(roomId, t);
+    for (const a of assets) createAsset(roomId, a);
+  });
+  tx();
+}
+
+function serializeAsset(row) {
+  return {
+    id: row.id,
+    roomId: row.room_id,
+    kind: row.kind,
+    name: row.name,
+    url: row.url,
   };
 }
 

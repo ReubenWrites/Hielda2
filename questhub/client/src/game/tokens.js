@@ -37,7 +37,7 @@ export class TokenView {
     }
   }
 
-  draw({ selected = false, ghost = false } = {}) {
+  draw({ selected = false, ghost = false, showHp = false } = {}) {
     const g = this.body;
     g.clear();
     const r = this.room.grid_size * 0.4;
@@ -50,6 +50,19 @@ export class TokenView {
       color: selected ? 0xf0a500 : (ghost ? 0xaaaaaa : 0xffffff),
       alpha: ghost ? 0.6 : 1,
     });
+    // HP bar above the token (DM always; players only on their own tokens)
+    if (showHp && this.token.maxHp > 0 && this.token.hp != null) {
+      const w = this.room.grid_size * 0.8;
+      const h = 5;
+      const y = -this.room.grid_size * 0.55;
+      const frac = Math.max(0, Math.min(1, this.token.hp / this.token.maxHp));
+      g.rect(-w / 2, y, w, h).fill({ color: 0x511414, alpha: 0.9 });
+      if (frac > 0) {
+        g.rect(-w / 2, y, w * frac, h)
+          .fill({ color: frac > 0.5 ? 0x58c267 : (frac > 0.25 ? 0xf0a500 : 0xd2453a), alpha: 1 });
+      }
+      g.rect(-w / 2, y, w, h).stroke({ width: 1, color: 0x000000, alpha: 0.7 });
+    }
     this.container.alpha = ghost ? 0.55 : 1;
   }
 

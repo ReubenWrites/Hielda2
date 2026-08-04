@@ -10,13 +10,16 @@ export const useStore = create((set, get) => ({
   room: null,             // { id, name, map_image_url, grid_size, grid_w, grid_h, offset_x, offset_y }
   tokens: [],
   walls: [],
+  assets: [],
   proposals: [],
   chat: [],
+  initiative: null,       // { order: [{tokenId, name, roll}], turn } | null
 
   // Local UI state
   selectedTokenId: null,
   tool: 'select',         // 'select' | 'add-token' | 'draw-wall' | 'draw-door' | 'erase-wall' | 'toggle-door' | 'cast-spell'
   spell: null,            // when picking a target for a cast: { kind, color }
+  spawnTemplate: null,    // pending token blueprint while tool === 'add-token'
   status: null,           // transient banner message
 
   setStatus: (text, ttl = 3000) => {
@@ -26,14 +29,23 @@ export const useStore = create((set, get) => ({
     }, ttl);
   },
 
-  hydrate: ({ role, you, state, chat, proposals }) => set({
+  hydrate: ({ role, you, state, chat, proposals, initiative }) => set({
     role,
     you,
     room: state.room,
     tokens: state.tokens,
     walls: state.walls,
+    assets: state.assets || [],
     chat: chat || [],
     proposals: proposals || [],
+    initiative: initiative || null,
+  }),
+
+  resync: (state) => set({
+    room: state.room,
+    tokens: state.tokens,
+    walls: state.walls,
+    assets: state.assets || [],
   }),
 
   setRoom: (room) => set({ room }),
@@ -61,6 +73,18 @@ export const useStore = create((set, get) => ({
 
   removeWall: (id) => set((s) => ({ walls: s.walls.filter(w => w.id !== id) })),
 
+  upsertAsset: (a) => set((s) => {
+    const i = s.assets.findIndex(x => x.id === a.id);
+    if (i === -1) return { assets: [...s.assets, a] };
+    const next = s.assets.slice();
+    next[i] = { ...next[i], ...a };
+    return { assets: next };
+  }),
+
+  removeAsset: (id) => set((s) => ({ assets: s.assets.filter(a => a.id !== id) })),
+
+  setInitiative: (initiative) => set({ initiative }),
+
   addProposal: (p) => set((s) => ({
     proposals: [...s.proposals.filter(x => x.id !== p.id), p],
   })),
@@ -70,7 +94,8 @@ export const useStore = create((set, get) => ({
   appendChat: (msg) => set((s) => ({ chat: [...s.chat.slice(-199), msg] })),
 
   setSelected: (id) => set({ selectedTokenId: id }),
-  setTool: (tool) => set({ tool, spell: null }),
-  setSpell: (spell) => set({ spell, tool: spell ? 'cast-spell' : 'select' }),
+  setTool: (tool) => set({ tool, spell: null, spawnTemplate: null }),
+  setSpell: (spell) => set({ spell, tool: spell ? 'cast-spell' : 'select', spawnTemplate: null }),
+  setSpawnTemplate: (tpl) => set({ spawnTemplate: tpl, tool: tpl ? 'add-token' : 'select', spell: null }),
   setDmSecret: (s) => set({ dmSecret: s }),
 }));

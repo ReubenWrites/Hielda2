@@ -4,6 +4,7 @@ import {
   getRoom, getRoomState, verifyDm, updateRoomMap,
   createToken, updateToken, deleteToken, getToken,
   createWall, deleteWall, toggleDoor,
+  createAsset, deleteAsset,
 } from './rooms.js';
 import { fetchDdbCharacter } from './dndbeyond.js';
 
@@ -13,7 +14,7 @@ const sessions = new Map(); // roomId -> { proposals: Map(id -> proposal), chat:
 function getSession(roomId) {
   let s = sessions.get(roomId);
   if (!s) {
-    s = { proposals: new Map(), chat: [] };
+    s = { proposals: new Map(), chat: [], initiative: null };
     sessions.set(roomId, s);
   }
   return s;
@@ -51,6 +52,7 @@ export function attachSockets(io) {
           state,
           chat: session.chat.slice(-50),
           proposals: Array.from(session.proposals.values()),
+          initiative: session.initiative,
         });
         broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
       } catch (e) {
@@ -124,6 +126,54 @@ export function attachSockets(io) {
       const wall = toggleDoor(id);
       if (wall) io.to(socket.data.roomId).emit('wall:updated', wall);
       cb?.({ ok: true, wall });
+    }));
+
+    socket.on('asset:create', dmOnly((a, cb) => {
+      if (!a?.url || typeof a.url !== 'string') return cb?.({ error: 'Asset url required' });
+      const asset = createAsset(socket.data.roomId, a);
+      io.to(socket.data.roomId).emit('asset:created', asset);
+      cb?.({ ok: true, asset });
+    }));
+
+    socket.on('asset:delete', dmOnly(({ id }, cb) => {
+      deleteAsset(id);
+      io.to(socket.data.roomId).emit('asset:deleted', { id });
+      cb?.({ ok: true });
+    }));
+
+    // ---- Initiative ----
+
+    socket.on('init:roll', dmOnly(({ tokenIds }, cb) => {
+      const session = getSession(socket.data.roomId);
+      const entries = [];
+      for (const tid of tokenIds || []) {
+        const t = getToken(tid);
+        if (!t) continue;
+        entries.push({ tokenId: tid, name: t.name, roll: 1 + Math.floor(Math.random() * 20) });
+      }
+      if (entries.length === 0) return cb?.({ error: 'No tokens to roll for' });
+      entries.sort((a, b) => b.roll - a.roll);
+      session.initiative = { order: entries, turn: 0 };
+      io.to(socket.data.roomId).emit('init:updated', session.initiative);
+      broadcastSystem(io, socket.data.roomId,
+        `Initiative: ${entries.map(e => `${e.name} (${e.roll})`).join(', ')}`);
+      cb?.({ ok: true, initiative: session.initiative });
+    }));
+
+    socket.on('init:next', dmOnly((_payload, cb) => {
+      const session = getSession(socket.data.roomId);
+      if (!session.initiative) return cb?.({ error: 'No combat running' });
+      session.initiative.turn = (session.initiative.turn + 1) % session.initiative.order.length;
+      io.to(socket.data.roomId).emit('init:updated', session.initiative);
+      cb?.({ ok: true });
+    }));
+
+    socket.on('init:end', dmOnly((_payload, cb) => {
+      const session = getSession(socket.data.roomId);
+      session.initiative = null;
+      io.to(socket.data.roomId).emit('init:updated', null);
+      broadcastSystem(io, socket.data.roomId, 'Combat ended');
+      cb?.({ ok: true });
     }));
 
     socket.on('ddb:link', dmOnly(async ({ tokenId, characterId, manualData }, cb) => {
