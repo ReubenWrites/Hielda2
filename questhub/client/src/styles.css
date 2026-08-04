@@ -72,7 +72,13 @@ label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px
 .home .actions { display: flex; gap: 8px; }
 
 /* Room layout */
-.room { display: grid; grid-template-columns: 1fr 320px; height: 100%; }
+.room { display: grid; grid-template-columns: 1fr 6px 320px; height: 100%; }
+.side-resizer {
+  cursor: col-resize;
+  background: var(--border);
+  transition: background .15s;
+}
+.side-resizer:hover, .side-resizer:active { background: var(--accent); }
 .room .stage { position: relative; overflow: hidden; background: #060609; }
 .room .stage canvas { display: block; }
 .room .side {

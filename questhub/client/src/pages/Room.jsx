@@ -15,6 +15,28 @@ export default function Room() {
   const nav = useNavigate();
   const [connected, setConnected] = useState(false);
   const [joinError, setJoinError] = useState(null);
+  const [sideWidth, setSideWidth] = useState(() => {
+    const saved = parseInt(localStorage.getItem('questhub:sideWidth') || '', 10);
+    return Number.isFinite(saved) ? Math.min(720, Math.max(240, saved)) : 320;
+  });
+
+  function startResize(e) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sideWidth;
+    function onMove(ev) {
+      const w = Math.min(720, Math.max(240, startW + (startX - ev.clientX)));
+      setSideWidth(w);
+    }
+    function onUp(ev) {
+      const w = Math.min(720, Math.max(240, startW + (startX - ev.clientX)));
+      localStorage.setItem('questhub:sideWidth', String(w));
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
 
   const role = useStore(s => s.role);
   const status = useStore(s => s.status);
@@ -242,7 +264,7 @@ export default function Room() {
   }
 
   return (
-    <div className="room">
+    <div className="room" style={{ gridTemplateColumns: `1fr 6px ${sideWidth}px` }}>
       <div className="stage">
         <MapCanvas onAction={handleAction} />
         <Hint />
@@ -257,6 +279,7 @@ export default function Room() {
           </div>
         )}
       </div>
+      <div className="side-resizer" onPointerDown={startResize} title="Drag to resize the sidebar" />
       <Sidebar onCopyInvite={copyInvite} />
     </div>
   );

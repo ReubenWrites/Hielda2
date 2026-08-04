@@ -383,16 +383,14 @@ function LibraryTab() {
 
   return (
     <>
-      <div className="tool-section">
-        <h3>Handouts</h3>
+      <Collapsible title="Handouts" count={handouts.length}>
         <button disabled={busy} onClick={() => handRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
           {busy ? 'Uploading…' : '⬆ Upload handout images'}
         </button>
         <input ref={handRef} type="file" accept="image/*" multiple onChange={e => handleFiles(e, 'handout')} style={{ display: 'none' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 6 }}>
           {handouts.map(a => (
-            <AssetCard key={a.id} asset={a}
-              actionLabel="📣 Show everyone"
+            <AssetTile key={a.id} asset={a} title={`Show "${a.name}" to everyone`}
               onUse={() => showHandout(a)} />
           ))}
         </div>
@@ -402,14 +400,13 @@ function LibraryTab() {
             on every player's screen.
           </div>
         )}
-      </div>
-      <div className="tool-section">
-        <h3>Maps</h3>
+      </Collapsible>
+      <Collapsible title="Maps" count={maps.length}>
         <button disabled={busy} onClick={() => mapRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
           {busy ? 'Uploading…' : '⬆ Upload maps (multi-select ok)'}
         </button>
         <input ref={mapRef} type="file" accept="image/*" multiple onChange={e => handleFiles(e, 'map')} style={{ display: 'none' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
           {maps.map(a => (
             <AssetCard key={a.id} asset={a}
               onShow={() => showHandout(a)}
@@ -437,18 +434,22 @@ function LibraryTab() {
           ))}
         </div>
         {maps.length === 0 && <div style={{ color: 'var(--muted)', fontSize: 12 }}>Upload your battle maps once, then switch scenes with one click.</div>}
-      </div>
+      </Collapsible>
 
-      <div className="tool-section">
-        <h3>Token art</h3>
+      <Collapsible title="Token art" count={tokenArt.length}>
         <button disabled={busy} onClick={() => tokRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
           {busy ? 'Uploading…' : '⬆ Upload token images'}
         </button>
         <input ref={tokRef} type="file" accept="image/*" multiple onChange={e => handleFiles(e, 'token')} style={{ display: 'none' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {spawnTemplate?.assetId && (
+          <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 6 }}>
+            Placing {spawnTemplate.name} — click the map (Esc to stop)
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: 6 }}>
           {tokenArt.map(a => (
-            <AssetCard key={a.id} asset={a}
-              actionLabel={spawnTemplate?.assetId === a.id ? 'Placing… (Esc stops)' : 'Place on map'}
+            <AssetTile key={a.id} asset={a}
+              title={`Place "${a.name}" on the map`}
               active={spawnTemplate?.assetId === a.id}
               onUse={() => spawnTemplate?.assetId === a.id
                 ? setSpawnTemplate(null)
@@ -456,8 +457,44 @@ function LibraryTab() {
           ))}
         </div>
         {tokenArt.length === 0 && <div style={{ color: 'var(--muted)', fontSize: 12 }}>Upload character/monster art, then stamp them onto the board.</div>}
-      </div>
+      </Collapsible>
     </>
+  );
+}
+
+// Collapsible section: header click folds the content away. Count shown when collapsed.
+function Collapsible({ title, count, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="tool-section">
+      <h3 onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+        {open ? '▾' : '▸'} {title}{!open && count != null ? ` (${count})` : ''}
+      </h3>
+      {open && children}
+    </div>
+  );
+}
+
+// Small square tile for dense grids (token art): click = action, hover ✕ = delete.
+function AssetTile({ asset, onUse, active, title }) {
+  const setStatus = useStore(s => s.setStatus);
+  return (
+    <div style={{ position: 'relative' }}>
+      <img src={asset.url} alt={asset.name} title={title || asset.name}
+        onClick={onUse}
+        style={{
+          width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block',
+          borderRadius: 6, cursor: 'pointer',
+          border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+        }} />
+      <button title="Delete"
+        onClick={() => window.confirm(`Delete "${asset.name}" from library?`) &&
+          emit('asset:delete', { id: asset.id }).catch(e => setStatus(e.message, 4000))}
+        style={{
+          position: 'absolute', top: 2, right: 2, fontSize: 9, padding: '1px 4px',
+          background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: 4,
+        }}>✕</button>
+    </div>
   );
 }
 
