@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../state/store.js';
 import { uploadImage, emit } from '../net/socket.js';
 
@@ -11,7 +11,12 @@ export default function Sidebar({ onCopyInvite }) {
   const selectedTokenId = useStore(s => s.selectedTokenId);
   const setSelected = useStore(s => s.setSelected);
 
-  const [tab, setTab] = useState(role === 'dm' ? 'dm' : 'characters');
+  const [tab, setTab] = useState('characters');
+
+  // Role arrives async after the socket join; land DMs on their tools tab.
+  useEffect(() => {
+    if (role === 'dm') setTab('dm');
+  }, [role]);
 
   return (
     <div className="side">
