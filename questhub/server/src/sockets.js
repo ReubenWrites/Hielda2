@@ -7,6 +7,9 @@ import {
   createAsset, deleteAsset,
 } from './rooms.js';
 import { fetchDdbCharacter } from './dndbeyond.js';
+import { detectGrid } from './gridDetect.js';
+import { updateAssetGrid } from './rooms.js';
+import { uploadPath } from './uploads.js';
 
 // In-memory transient state, keyed by roomId.
 const sessions = new Map(); // roomId -> { proposals: Map(id -> proposal), chat: [] }
@@ -24,6 +27,15 @@ function pushChat(roomId, msg) {
   const s = getSession(roomId);
   s.chat.push(msg);
   if (s.chat.length > 200) s.chat.splice(0, s.chat.length - 200);
+}
+
+function roomPresence(io, roomId, { excludeId } = {}) {
+  const list = [];
+  for (const [id, s] of io.sockets.sockets) {
+    if (s.data?.roomId !== roomId || id === excludeId) continue;
+    list.push({ socketId: id, name: s.data.name, role: s.data.role });
+  }
+  return list;
 }
 
 export function attachSockets(io) {
@@ -53,8 +65,10 @@ export function attachSockets(io) {
           chat: session.chat.slice(-50),
           proposals: Array.from(session.proposals.values()),
           initiative: session.initiative,
+          presence: roomPresence(io, roomId),
         });
         broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
+        io.to(roomId).emit('presence:updated', roomPresence(io, roomId));
       } catch (e) {
         cb?.({ error: e.message });
       }
@@ -63,6 +77,8 @@ export function attachSockets(io) {
     socket.on('disconnect', () => {
       if (socket.data.roomId) {
         broadcastSystem(io, socket.data.roomId, `${socket.data.name} left`);
+        io.to(socket.data.roomId).emit('presence:updated',
+          roomPresence(io, socket.data.roomId, { excludeId: socket.id }));
       }
     });
 
@@ -81,9 +97,39 @@ export function attachSockets(io) {
       if (cfg.gridH !== undefined) fields.grid_h = cfg.gridH;
       if (cfg.offsetX !== undefined) fields.offset_x = cfg.offsetX;
       if (cfg.offsetY !== undefined) fields.offset_y = cfg.offsetY;
+      if (cfg.feetPerCell !== undefined) fields.feet_per_cell = cfg.feetPerCell;
       updateRoomMap(socket.data.roomId, fields);
-      io.to(socket.data.roomId).emit('map:updated', getRoomState(socket.data.roomId).room);
+      const state = getRoomState(socket.data.roomId);
+      io.to(socket.data.roomId).emit('map:updated', state.room);
+      // Remember grid calibration on the matching library asset so it
+      // reapplies automatically next time this map is used.
+      const gridTouched = ['grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell']
+        .some(k => k in fields);
+      if (gridTouched && state.room.map_image_url) {
+        const asset = state.assets.find(a => a.kind === 'map' && a.url === state.room.map_image_url);
+        if (asset) {
+          const updated = updateAssetGrid(asset.id, {
+            gridSize: state.room.grid_size,
+            gridW: state.room.grid_w,
+            gridH: state.room.grid_h,
+            offsetX: state.room.offset_x,
+            offsetY: state.room.offset_y,
+            feetPerCell: state.room.feet_per_cell,
+          });
+          io.to(socket.data.roomId).emit('asset:updated', updated);
+        }
+      }
       cb?.({ ok: true });
+    }));
+
+    socket.on('map:detect-grid', dmOnly(async ({ url }, cb) => {
+      try {
+        if (!url?.startsWith('/uploads/')) return cb?.({ error: 'Not an uploaded image' });
+        const result = await detectGrid(uploadPath(url.slice('/uploads/'.length)));
+        cb?.({ ok: true, grid: result });
+      } catch (e) {
+        cb?.({ error: e.message });
+      }
     }));
 
     socket.on('token:create', dmOnly((t, cb) => {

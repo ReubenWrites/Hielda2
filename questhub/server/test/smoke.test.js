@@ -240,6 +240,39 @@ describe('socket flow', () => {
     dm2.close();
   });
 
+  test('presence: players listed to the room', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Presence Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    const dmJoin = await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    expect(dmJoin.presence.some(p => p.name === 'GM' && p.role === 'dm')).toBe(true);
+
+    const presenceUpdate = once(dm, 'presence:updated');
+    const player = connect();
+    await once(player, 'connect');
+    await emitAck(player, 'room:join', { roomId, name: 'Seren' });
+    const list = await presenceUpdate;
+    expect(list.some(p => p.name === 'Seren' && p.role === 'player')).toBe(true);
+
+    const afterLeave = once(dm, 'presence:updated');
+    player.close();
+    const list2 = await afterLeave;
+    expect(list2.some(p => p.name === 'Seren')).toBe(false);
+    dm.close();
+  });
+
+  test('feet per cell config roundtrips', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Scale Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    const updated = once(dm, 'map:updated');
+    await emitAck(dm, 'map:config', { feetPerCell: 1320 }); // Barovia overland: 1 sq = 1/4 mile
+    const room = await updated;
+    expect(room.feet_per_cell).toBe(1320);
+    dm.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Dice Test' });
 

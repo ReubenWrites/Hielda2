@@ -146,6 +146,21 @@ label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px
 .spell-btn:hover { border-color: var(--accent); }
 .spell-btn.active { border-color: var(--accent); background: rgba(240,165,0,0.2); }
 
+.stage-toolbar {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 4px;
+  background: rgba(20,20,30,0.92); border: 1px solid var(--border);
+  border-radius: 24px; padding: 6px; z-index: 8;
+}
+.stage-tool {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid transparent; background: var(--panel-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; cursor: pointer; padding: 0;
+}
+.stage-tool:hover { border-color: var(--accent); }
+.stage-tool.active { border-color: var(--accent); background: rgba(240,165,0,0.22); }
+
 .hint {
   position: absolute; top: 12px; left: 12px;
   background: rgba(20,20,30,0.85); border: 1px solid var(--border);

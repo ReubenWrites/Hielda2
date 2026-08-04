@@ -6,6 +6,8 @@ import MapCanvas from '../components/MapCanvas.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 import SpellBar from '../components/SpellBar.jsx';
 import ProposalBanner from '../components/ProposalBanner.jsx';
+import StageToolbar from '../components/StageToolbar.jsx';
+import { computeGridFromSquare } from '@questhub/shared/gridcalib';
 
 export default function Room() {
   const { roomId } = useParams();
@@ -79,6 +81,8 @@ export default function Room() {
     const onAssetDeleted = ({ id }) => s.removeAsset(id);
     const onInitUpdated = (init) => s.setInitiative(init);
     const onResync = (state) => s.resync(state);
+    const onPresence = (list) => s.setPresence(list);
+    const onAssetUpdated = (a) => s.upsertAsset(a);
 
     sock.on('map:updated', onMapUpdated);
     sock.on('token:created', onTokenCreated);
@@ -97,6 +101,8 @@ export default function Room() {
     sock.on('asset:deleted', onAssetDeleted);
     sock.on('init:updated', onInitUpdated);
     sock.on('room:resync', onResync);
+    sock.on('presence:updated', onPresence);
+    sock.on('asset:updated', onAssetUpdated);
 
     return () => {
       sock.off('connect', onConnect);
@@ -118,6 +124,8 @@ export default function Room() {
       sock.off('asset:deleted', onAssetDeleted);
       sock.off('init:updated', onInitUpdated);
       sock.off('room:resync', onResync);
+      sock.off('presence:updated', onPresence);
+      sock.off('asset:updated', onAssetUpdated);
     };
   }, [roomId]);
 
@@ -178,6 +186,20 @@ export default function Room() {
           await emit('spell:cast', { kind: action.kind, from: action.from, to: action.to });
           useStore.getState().setSpell(null);
           break;
+        case 'align-grid': {
+          const g = computeGridFromSquare(action.p1, action.p2, action.mapW, action.mapH);
+          if (!g) {
+            useStore.getState().setStatus('Too small — click two opposite corners of ONE map square', 5000);
+            break;
+          }
+          await emit('map:config', {
+            gridSize: g.gridSize, gridW: g.gridW, gridH: g.gridH,
+            offsetX: g.offsetX, offsetY: g.offsetY,
+          });
+          useStore.getState().setStatus(`Grid aligned: ${g.gridSize}px squares (${g.gridW}×${g.gridH})`);
+          useStore.getState().setTool('select');
+          break;
+        }
       }
     } catch (e) {
       useStore.getState().setStatus(e.message, 4000);
@@ -207,6 +229,8 @@ export default function Room() {
         <MapCanvas onAction={handleAction} />
         <Hint />
         {role === 'dm' && <ProposalBanner />}
+        {role === 'dm' && <StageToolbar />}
+        {role === 'dm' && <ViewAsBanner />}
         <SpellBar />
         {status && (
           <div className="hint" style={{ left: '50%', transform: 'translateX(-50%)', top: 64, color: 'var(--text)' }}>
@@ -219,11 +243,32 @@ export default function Room() {
   );
 }
 
+function ViewAsBanner() {
+  const viewAs = useStore(s => s.viewAs);
+  const setViewAs = useStore(s => s.setViewAs);
+  if (!viewAs) return null;
+  return (
+    <div style={{
+      position: 'absolute', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(91,155,213,0.95)', color: '#0a0a14', borderRadius: 20,
+      padding: '8px 16px', display: 'flex', gap: 10, alignItems: 'center',
+      fontWeight: 600, zIndex: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+    }}>
+      👁 Viewing as {viewAs}
+      <button onClick={() => setViewAs(null)}
+        style={{ padding: '2px 10px', fontSize: 12, background: '#0a0a14', color: 'white', border: 'none' }}>
+        Back to DM view
+      </button>
+    </div>
+  );
+}
+
 function Hint() {
   const tool = useStore(s => s.tool);
   const role = useStore(s => s.role);
   let msg = '';
-  if (tool === 'add-token') msg = 'Click a cell to place a token';
+  if (tool === 'align-grid') msg = 'Click one corner of a map square, then the OPPOSITE corner of the SAME square';
+  else if (tool === 'add-token') msg = 'Click a cell to place a token';
   else if (tool === 'draw-wall') msg = 'Click two corners to draw a wall';
   else if (tool === 'draw-door') msg = 'Click two corners to draw a door';
   else if (tool === 'erase-wall') msg = 'Click a wall to remove it';

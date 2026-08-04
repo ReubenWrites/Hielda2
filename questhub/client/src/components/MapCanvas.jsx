@@ -17,6 +17,7 @@ export default function MapCanvas({ onAction }) {
   const spell = useStore(s => s.spell);
   const selectedTokenId = useStore(s => s.selectedTokenId);
   const initiative = useStore(s => s.initiative);
+  const viewAs = useStore(s => s.viewAs);
 
   // Init scene once
   useEffect(() => {
@@ -78,6 +79,12 @@ export default function MapCanvas({ onAction }) {
     const current = initiative ? initiative.order[initiative.turn]?.tokenId : null;
     sceneRef.current?.setInitiativeToken(current ?? null);
   }, [initiative]);
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    sceneRef.current.setViewAs(viewAs);
+    sceneRef.current.setTokens(useStore.getState().tokens);
+    applyFog(sceneRef.current);
+  }, [viewAs]);
   useEffect(() => { sceneRef.current?.setTool(tool, { spell }); }, [tool, spell]);
   useEffect(() => { sceneRef.current?.setSelected(selectedTokenId); }, [selectedTokenId]);
 
@@ -87,6 +94,9 @@ export default function MapCanvas({ onAction }) {
 function applyFog(scene) {
   if (!scene) return;
   const s = useStore.getState();
-  const set = computeFog({ role: s.role, you: s.you, tokens: s.tokens, walls: s.walls, room: s.room });
+  // DM previewing a player's view computes fog exactly as that player would.
+  const role = s.viewAs ? 'player' : s.role;
+  const you = s.viewAs ? { name: s.viewAs } : s.you;
+  const set = computeFog({ role, you, tokens: s.tokens, walls: s.walls, room: s.room });
   scene.setFog(set);
 }

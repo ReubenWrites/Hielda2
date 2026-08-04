@@ -70,6 +70,8 @@ function migrate(d) {
   ensureColumn(d, 'tokens', 'hp', 'hp REAL');
   ensureColumn(d, 'tokens', 'max_hp', 'max_hp REAL');
   ensureColumn(d, 'tokens', 'ac', 'ac INTEGER');
+  ensureColumn(d, 'rooms', 'feet_per_cell', 'feet_per_cell REAL NOT NULL DEFAULT 5');
+  ensureColumn(d, 'assets', 'grid_json', 'grid_json TEXT');
 }
 
 function ensureColumn(d, table, col, ddl) {

@@ -20,7 +20,7 @@ export function computeFog({ role, you, tokens, walls, room }) {
   return unionVisible(sets);
 }
 
-export function drawFog(graphics, visibleSet, room) {
+export function drawFog(graphics, visibleSet, room, extent = null) {
   graphics.clear();
   if (!visibleSet || !room) return; // DM: no fog
   const { grid_size, grid_w, grid_h, offset_x = 0, offset_y = 0 } = room;
@@ -30,6 +30,16 @@ export function drawFog(graphics, visibleSet, room) {
       if (visibleSet.has(`${x},${y}`)) continue;
       graphics.rect(offset_x + x * grid_size, offset_y + y * grid_size, grid_size, grid_size);
     }
+  }
+  // Cover any map area outside the grid bounds (maps render at native size,
+  // which can exceed the configured grid).
+  if (extent) {
+    const gx0 = offset_x, gy0 = offset_y;
+    const gx1 = offset_x + grid_w * grid_size, gy1 = offset_y + grid_h * grid_size;
+    if (gy0 > 0) graphics.rect(0, 0, extent.w, gy0);
+    if (gy1 < extent.h) graphics.rect(0, gy1, extent.w, extent.h - gy1);
+    if (gx0 > 0) graphics.rect(0, gy0, gx0, gy1 - gy0);
+    if (gx1 < extent.w) graphics.rect(gx1, gy0, extent.w - gx1, gy1 - gy0);
   }
   graphics.fill({ color: 0x000000, alpha: 0.92 });
 }

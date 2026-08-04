@@ -8,7 +8,8 @@
     ".": "./index.js",
     "./vision": "./vision.js",
     "./dice": "./dice.js",
-    "./bestiary": "./bestiary.js"
+    "./bestiary": "./bestiary.js",
+    "./gridcalib": "./gridcalib.js"
   },
   "scripts": {
     "test": "vitest run"

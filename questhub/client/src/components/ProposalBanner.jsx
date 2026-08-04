@@ -6,6 +6,7 @@ export default function ProposalBanner() {
   const proposals = useStore(s => s.proposals);
   const tokens = useStore(s => s.tokens);
   const setStatus = useStore(s => s.setStatus);
+  const feetPerCell = useStore(s => s.room?.feet_per_cell || 5);
 
   if (role !== 'dm' || proposals.length === 0) return null;
 
@@ -17,7 +18,7 @@ export default function ProposalBanner() {
         return (
           <div key={p.id} className="proposal-banner" style={{ top: 12 + proposals.indexOf(p) * 60 }}>
             <span className="text">
-              <strong>{p.proposedBy}</strong> wants to move <strong>{token?.name ?? '?'}</strong> {cells * 5} ft
+              <strong>{p.proposedBy}</strong> wants to move <strong>{token?.name ?? '?'}</strong> {cells * feetPerCell} ft
             </span>
             <button className="primary" onClick={() => emit('move:approve', { proposalId: p.id }).catch(e => setStatus(e.message))}>
               Approve

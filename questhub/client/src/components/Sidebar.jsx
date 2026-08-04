@@ -59,6 +59,26 @@ export default function Sidebar({ onCopyInvite }) {
   );
 }
 
+// Try automatic grid detection on a freshly-set map; report what happened.
+export async function autoDetectGrid(url, setStatus) {
+  try {
+    const r = await emit('map:detect-grid', { url });
+    if (r.grid && r.grid.confidence > 0.2) {
+      await emit('map:config', {
+        gridSize: r.grid.gridSize, gridW: r.grid.gridW, gridH: r.grid.gridH,
+        offsetX: r.grid.offsetX, offsetY: r.grid.offsetY,
+      });
+      setStatus(`Grid detected: ${r.grid.gridSize}px squares (${r.grid.gridW}×${r.grid.gridH})`, 5000);
+      return true;
+    }
+    setStatus('No grid detected on this map — use the 📐 Align Grid tool (click 2 corners of one square)', 8000);
+    return false;
+  } catch (e) {
+    setStatus(`Grid detection failed: ${e.message}`, 5000);
+    return false;
+  }
+}
+
 function DmTab({ tool, setTool }) {
   const room = useStore(s => s.room);
   const tokens = useStore(s => s.tokens);
@@ -77,7 +97,8 @@ function DmTab({ tool, setTool }) {
     try {
       const { url } = await uploadImage(file);
       await emit('map:config', { mapImageUrl: url });
-      setStatus('Map uploaded');
+      setStatus('Map uploaded — detecting grid…');
+      await autoDetectGrid(url, setStatus);
     } catch (err) {
       setStatus(`Upload failed: ${err.message}`, 5000);
     } finally {
@@ -144,6 +165,7 @@ function DmTab({ tool, setTool }) {
 
   return (
     <>
+      <PlayersSection />
       <div className="tool-section">
         <h3>Quest file</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -160,10 +182,14 @@ function DmTab({ tool, setTool }) {
         </button>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-          <NumberField label="Cell px" value={room?.grid_size ?? 64} onChange={v => setGrid({ gridSize: v })} min={16} max={256} />
-          <div />
-          <NumberField label="Cells wide" value={room?.grid_w ?? 30} onChange={v => setGrid({ gridW: v })} min={4} max={120} />
-          <NumberField label="Cells tall" value={room?.grid_h ?? 20} onChange={v => setGrid({ gridH: v })} min={4} max={120} />
+          <NumberField label="Square px" value={room?.grid_size ?? 64} onChange={v => setGrid({ gridSize: v })} min={16} max={512} />
+          <NumberField label="Ft per square" value={room?.feet_per_cell ?? 5} onChange={v => setGrid({ feetPerCell: v })} min={1} max={10000} />
+          <NumberField label="Squares wide" value={room?.grid_w ?? 30} onChange={v => setGrid({ gridW: v })} min={4} max={400} />
+          <NumberField label="Squares tall" value={room?.grid_h ?? 20} onChange={v => setGrid({ gridH: v })} min={4} max={400} />
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+          Wrong size tokens = grid mismatch. Use 📐 Align Grid: click two opposite
+          corners of ONE printed square on the map.
         </div>
       </div>
 
@@ -176,6 +202,7 @@ function DmTab({ tool, setTool }) {
           <ToolButton t="draw-door" tool={tool} setTool={setTool}>Draw Door</ToolButton>
           <ToolButton t="toggle-door" tool={tool} setTool={setTool}>Open/Close Door</ToolButton>
           <ToolButton t="erase-wall" tool={tool} setTool={setTool}>Erase Wall</ToolButton>
+          <ToolButton t="align-grid" tool={tool} setTool={setTool}>📐 Align Grid</ToolButton>
         </div>
         <button onClick={addPlayerToken} style={{ width: '100%', marginTop: 6 }}>
           ⭐ Add player token
@@ -236,6 +263,59 @@ function DmTab({ tool, setTool }) {
   );
 }
 
+function PlayersSection() {
+  const presence = useStore(s => s.presence);
+  const tokens = useStore(s => s.tokens);
+  const viewAs = useStore(s => s.viewAs);
+  const setViewAs = useStore(s => s.setViewAs);
+  const setSpawnTemplate = useStore(s => s.setSpawnTemplate);
+
+  const players = presence.filter(p => p.role === 'player');
+  // De-dupe by name (same player in two tabs)
+  const seen = new Set();
+  const unique = players.filter(p => !seen.has(p.name) && seen.add(p.name));
+
+  return (
+    <div className="tool-section">
+      <h3>Players online</h3>
+      {unique.length === 0 && (
+        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+          Nobody yet — share the invite code (top right). Players appear here
+          when they join, with one-click token setup.
+        </div>
+      )}
+      {unique.map(p => {
+        const hasToken = tokens.some(t => t.owner === p.name);
+        return (
+          <div key={p.name} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 8px', background: 'var(--panel-2)', borderRadius: 6, marginBottom: 4,
+          }}>
+            <span style={{ flex: 1, fontSize: 13 }}>
+              🟢 <strong>{p.name}</strong>
+              {!hasToken && <span style={{ color: 'var(--accent)', fontSize: 11 }}> · no token yet!</span>}
+            </span>
+            <button style={{ fontSize: 11, padding: '3px 8px' }}
+              title={`Create a token owned by ${p.name} — then click the map to place it`}
+              onClick={() => setSpawnTemplate({
+                name: p.name, owner: p.name, color: '#f0c040',
+                sightRadius: 6, hp: 10, maxHp: 10, single: true,
+              })}>
+              ⭐ Token
+            </button>
+            <button style={{ fontSize: 11, padding: '3px 8px' }}
+              className={viewAs === p.name ? 'primary' : ''}
+              title={`See exactly what ${p.name} sees`}
+              onClick={() => setViewAs(viewAs === p.name ? null : p.name)}>
+              👁 View
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function LibraryTab() {
   const assets = useStore(s => s.assets);
   const setStatus = useStore(s => s.setStatus);
@@ -279,10 +359,26 @@ function LibraryTab() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           {maps.map(a => (
             <AssetCard key={a.id} asset={a}
-              actionLabel="Use as map"
-              onUse={() => emit('map:config', { mapImageUrl: a.url })
-                .then(() => setStatus(`Map: ${a.name}`))
-                .catch(e => setStatus(e.message, 4000))} />
+              actionLabel={a.grid ? 'Use as map ✓' : 'Use as map'}
+              onUse={async () => {
+                try {
+                  await emit('map:config', { mapImageUrl: a.url });
+                  if (a.grid) {
+                    // Reapply the calibration saved with this map
+                    await emit('map:config', {
+                      gridSize: a.grid.gridSize, gridW: a.grid.gridW, gridH: a.grid.gridH,
+                      offsetX: a.grid.offsetX, offsetY: a.grid.offsetY,
+                      feetPerCell: a.grid.feetPerCell ?? 5,
+                    });
+                    setStatus(`Map: ${a.name} (saved alignment applied)`);
+                  } else {
+                    setStatus(`Map: ${a.name} — detecting grid…`);
+                    await autoDetectGrid(a.url, setStatus);
+                  }
+                } catch (e) {
+                  setStatus(e.message, 4000);
+                }
+              }} />
           ))}
         </div>
         {maps.length === 0 && <div style={{ color: 'var(--muted)', fontSize: 12 }}>Upload your battle maps once, then switch scenes with one click.</div>}

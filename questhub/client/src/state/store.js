@@ -14,6 +14,8 @@ export const useStore = create((set, get) => ({
   proposals: [],
   chat: [],
   initiative: null,       // { order: [{tokenId, name, roll}], turn } | null
+  presence: [],           // [{ socketId, name, role }]
+  viewAs: null,           // DM only: player name whose view is being previewed
 
   // Local UI state
   selectedTokenId: null,
@@ -29,7 +31,8 @@ export const useStore = create((set, get) => ({
     }, ttl);
   },
 
-  hydrate: ({ role, you, state, chat, proposals, initiative }) => set({
+  hydrate: ({ role, you, state, chat, proposals, initiative, presence }) => set({
+    presence: presence || [],
     role,
     you,
     room: state.room,
@@ -84,6 +87,8 @@ export const useStore = create((set, get) => ({
   removeAsset: (id) => set((s) => ({ assets: s.assets.filter(a => a.id !== id) })),
 
   setInitiative: (initiative) => set({ initiative }),
+  setPresence: (presence) => set({ presence }),
+  setViewAs: (viewAs) => set({ viewAs }),
 
   addProposal: (p) => set((s) => ({
     proposals: [...s.proposals.filter(x => x.id !== p.id), p],

@@ -31,6 +31,19 @@ export class Scene {
     this.panning = null; // { fromX, fromY, camX, camY }
     this.cursorText = null;
     this.initTokenId = null; // token whose turn it is in initiative
+    this.viewAsYou = null;   // DM previewing a player's view: { name }
+    this.mapNatural = null;  // { w, h } of the loaded map image
+    this.draftAlign = null;  // first corner clicked with the align-grid tool
+  }
+
+  // Identity used for VISIBILITY (fog, hidden tokens). The DM can temporarily
+  // borrow a player's identity via "view as" without losing DM controls.
+  get visYou() {
+    return this.viewAsYou ?? this.you;
+  }
+
+  get feetPerCell() {
+    return this.room?.feet_per_cell || 5;
   }
 
   async init() {
@@ -135,6 +148,21 @@ export class Scene {
 
     if (this.tool === 'add-token' && this.role === 'dm') {
       this.onAction({ type: 'add-token', cell: cellSnap });
+      return;
+    }
+    if (this.tool === 'align-grid' && this.role === 'dm') {
+      if (!this.draftAlign) {
+        this.draftAlign = { x: world.x, y: world.y };
+      } else {
+        this.onAction({
+          type: 'align-grid',
+          p1: this.draftAlign,
+          p2: { x: world.x, y: world.y },
+          mapW: this.mapNatural?.w,
+          mapH: this.mapNatural?.h,
+        });
+        this.draftAlign = null;
+      }
       return;
     }
     if ((this.tool === 'draw-wall' || this.tool === 'draw-door') && this.role === 'dm') {
@@ -257,7 +285,7 @@ export class Scene {
     const r = this.room.grid_size * 0.42;
     for (let i = this.tokens.length - 1; i >= 0; i--) {
       const t = this.tokens[i];
-      if (!tokenVisibleToViewer(t, this.visibleSet, this.you)) continue;
+      if (!tokenVisibleToViewer(t, this.visibleSet, this.visYou)) continue;
       const c = cellToWorld(t.x + 0.5, t.y + 0.5, this.room);
       const dx = world.x - c.x, dy = world.y - c.y;
       if (dx * dx + dy * dy <= r * r) return t;
@@ -302,7 +330,7 @@ export class Scene {
         .stroke({ width: 2, color: 0xf0a500, alpha: 0.8 });
       // Cell count
       const cells = path.length - 1; // exclude start
-      const ft = cells * 5;
+      const ft = cells * this.feetPerCell;
       if (!this.cursorText) {
         this.cursorText = new Text({
           text: '', style: { fontSize: 14, fill: 0xf0a500, fontFamily: 'Inter', fontWeight: '600',
@@ -317,6 +345,20 @@ export class Scene {
       this.cursorText.visible = true;
     } else if (this.cursorText) {
       this.cursorText.visible = false;
+    }
+
+    // Align-grid first corner marker + preview square
+    if (this.tool === 'align-grid') {
+      if (this.draftAlign) {
+        g.circle(this.draftAlign.x, this.draftAlign.y, 5).fill({ color: 0xf0a500 });
+        const dx = this.pointer.world.x - this.draftAlign.x;
+        const dy = this.pointer.world.y - this.draftAlign.y;
+        g.rect(this.draftAlign.x, this.draftAlign.y, dx, dy)
+          .stroke({ width: 2, color: 0xf0a500, alpha: 0.9 });
+      } else {
+        g.circle(this.pointer.world.x, this.pointer.world.y, 5)
+          .stroke({ width: 2, color: 0xf0a500, alpha: 0.8 });
+      }
     }
 
     // Wall draft second-click preview
@@ -347,7 +389,7 @@ export class Scene {
     // Initiative: whose turn is it
     if (this.initTokenId) {
       const t = this.tokens.find(t => t.id === this.initTokenId);
-      if (t && tokenVisibleToViewer(t, this.visibleSet, this.you)) {
+      if (t && tokenVisibleToViewer(t, this.visibleSet, this.visYou)) {
         const c = cellToWorld(t.x + 0.5, t.y + 0.5, this.room);
         g.circle(c.x, c.y, this.room.grid_size * 0.56)
           .stroke({ width: 3, color: 0xffffff, alpha: 0.9 });
@@ -363,6 +405,7 @@ export class Scene {
   }
 
   shouldShowHp(token) {
+    if (this.viewAsYou) return token.owner === this.viewAsYou.name; // faithful player preview
     if (this.role === 'dm') return true;
     return token.owner === this.you?.name || token.owner === this.you?.id;
   }
@@ -380,17 +423,20 @@ export class Scene {
 
   async rebuildMap() {
     this.mapLayer.removeChildren();
+    this.mapNatural = null;
     if (!this.room) return;
     if (this.room.map_image_url) {
       try {
         const tex = await Assets.load(this.room.map_image_url);
         const sprite = new Sprite(tex);
-        const { grid_size, grid_w, grid_h, offset_x = 0, offset_y = 0 } = this.room;
-        sprite.x = offset_x;
-        sprite.y = offset_y;
-        sprite.width = grid_w * grid_size;
-        sprite.height = grid_h * grid_size;
+        // Maps render at NATIVE resolution; the grid is calibrated to match
+        // the map's own printed squares rather than stretching the image.
+        sprite.x = 0;
+        sprite.y = 0;
+        this.mapNatural = { w: tex.width, h: tex.height };
         this.mapLayer.addChild(sprite);
+        // Refresh fog so the out-of-grid area is covered for players.
+        drawFog(this.fogLayer, this.visibleSet, this.room, this.fogExtent());
         return;
       } catch (e) {
         // fall through to checkerboard
@@ -404,6 +450,16 @@ export class Scene {
       g.fill({ color: (x + y) % 2 ? 0x1a1a26 : 0x161620 });
     }
     this.mapLayer.addChild(g);
+  }
+
+  fogExtent() {
+    if (!this.room) return null;
+    const gw = (this.room.offset_x || 0) + this.room.grid_w * this.room.grid_size;
+    const gh = (this.room.offset_y || 0) + this.room.grid_h * this.room.grid_size;
+    return {
+      w: Math.max(gw, this.mapNatural?.w || 0),
+      h: Math.max(gh, this.mapNatural?.h || 0),
+    };
   }
 
   rebuildGrid() {
@@ -427,7 +483,7 @@ export class Scene {
     }
     // Add/update
     for (const t of tokens) {
-      const visible = tokenVisibleToViewer(t, this.visibleSet, this.you);
+      const visible = tokenVisibleToViewer(t, this.visibleSet, this.visYou);
       let v = this.tokenViews.get(t.id);
       if (!v) {
         v = new TokenView(t, this.room);
@@ -449,18 +505,23 @@ export class Scene {
 
   setFog(visibleSet) {
     this.visibleSet = visibleSet;
-    drawFog(this.fogLayer, visibleSet, this.room);
+    drawFog(this.fogLayer, visibleSet, this.room, this.fogExtent());
     // Update token visibility
     for (const [id, v] of this.tokenViews) {
       const t = this.tokens.find(x => x.id === id);
-      if (t) v.container.visible = tokenVisibleToViewer(t, visibleSet, this.you);
+      if (t) v.container.visible = tokenVisibleToViewer(t, visibleSet, this.visYou);
     }
+  }
+
+  setViewAs(name) {
+    this.viewAsYou = name ? { name } : null;
   }
 
   setTool(tool, ctx = {}) {
     this.tool = tool;
     this.spell = ctx.spell || null;
     this.draftWall = null;
+    this.draftAlign = null;
     this.drawCursorOverlay();
   }
 

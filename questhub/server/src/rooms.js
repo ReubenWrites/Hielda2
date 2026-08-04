@@ -22,7 +22,7 @@ export function getRoom(id) {
 
 export function updateRoomMap(roomId, fields) {
   const db = getDb();
-  const allowed = ['map_image_url', 'grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y'];
+  const allowed = ['map_image_url', 'grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell'];
   const sets = [];
   const vals = [];
   for (const k of allowed) {
@@ -162,14 +162,23 @@ export function createAsset(roomId, a) {
   const db = getDb();
   const id = nanoid(12);
   db.prepare(`
-    INSERT INTO assets (id, room_id, kind, name, url, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, roomId, a.kind === 'map' ? 'map' : 'token', (a.name || 'Asset').slice(0, 60), a.url, Date.now());
+    INSERT INTO assets (id, room_id, kind, name, url, created_at, grid_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, roomId, a.kind === 'map' ? 'map' : 'token', (a.name || 'Asset').slice(0, 60), a.url, Date.now(),
+    a.grid ? JSON.stringify(a.grid) : null);
   return serializeAsset(db.prepare('SELECT * FROM assets WHERE id = ?').get(id));
 }
 
 export function deleteAsset(id) {
   getDb().prepare('DELETE FROM assets WHERE id = ?').run(id);
+}
+
+// Remember a map's calibrated grid on its library asset so "Use as map"
+// restores the alignment instantly next time.
+export function updateAssetGrid(id, grid) {
+  const db = getDb();
+  db.prepare('UPDATE assets SET grid_json = ? WHERE id = ?').run(JSON.stringify(grid), id);
+  return serializeAsset(db.prepare('SELECT * FROM assets WHERE id = ?').get(id));
 }
 
 // Wholesale replace of a room's contents — used by quest import.
@@ -193,6 +202,7 @@ function serializeAsset(row) {
     kind: row.kind,
     name: row.name,
     url: row.url,
+    grid: row.grid_json ? safeParse(row.grid_json) : null,
   };
 }
 
