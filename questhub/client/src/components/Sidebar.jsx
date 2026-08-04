@@ -348,7 +348,14 @@ function LibraryTab() {
   const spawnTemplate = useStore(s => s.spawnTemplate);
   const mapRef = useRef(null);
   const tokRef = useRef(null);
+  const handRef = useRef(null);
   const [busy, setBusy] = useState(false);
+
+  function showHandout(a) {
+    emit('handout:show', { url: a.url, title: a.name })
+      .then(() => setStatus(`Showing "${a.name}" to everyone`))
+      .catch(e => setStatus(e.message, 4000));
+  }
 
   async function handleFiles(e, kind) {
     const files = Array.from(e.target.files || []);
@@ -372,9 +379,30 @@ function LibraryTab() {
 
   const maps = assets.filter(a => a.kind === 'map');
   const tokenArt = assets.filter(a => a.kind === 'token');
+  const handouts = assets.filter(a => a.kind === 'handout');
 
   return (
     <>
+      <div className="tool-section">
+        <h3>Handouts</h3>
+        <button disabled={busy} onClick={() => handRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
+          {busy ? 'Uploading…' : '⬆ Upload handout images'}
+        </button>
+        <input ref={handRef} type="file" accept="image/*" multiple onChange={e => handleFiles(e, 'handout')} style={{ display: 'none' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          {handouts.map(a => (
+            <AssetCard key={a.id} asset={a}
+              actionLabel="📣 Show everyone"
+              onUse={() => showHandout(a)} />
+          ))}
+        </div>
+        {handouts.length === 0 && (
+          <div style={{ color: 'var(--muted)', fontSize: 12 }}>
+            Scene art, villain portraits, letters… click one mid-game to flash it
+            on every player's screen.
+          </div>
+        )}
+      </div>
       <div className="tool-section">
         <h3>Maps</h3>
         <button disabled={busy} onClick={() => mapRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
@@ -384,6 +412,7 @@ function LibraryTab() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           {maps.map(a => (
             <AssetCard key={a.id} asset={a}
+              onShow={() => showHandout(a)}
               actionLabel={a.grid ? 'Use as map ✓' : 'Use as map'}
               onUse={async () => {
                 try {
@@ -432,7 +461,7 @@ function LibraryTab() {
   );
 }
 
-function AssetCard({ asset, actionLabel, onUse, active }) {
+function AssetCard({ asset, actionLabel, onUse, active, onShow }) {
   const setStatus = useStore(s => s.setStatus);
   return (
     <div style={{
@@ -446,6 +475,10 @@ function AssetCard({ asset, actionLabel, onUse, active }) {
         <div style={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
         <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
           <button onClick={onUse} style={{ fontSize: 10, padding: '2px 6px', flex: 1 }}>{actionLabel}</button>
+          {onShow && (
+            <button title="Flash on every player's screen" onClick={onShow}
+              style={{ fontSize: 10, padding: '2px 6px' }}>📣</button>
+          )}
           <button title="Delete"
             onClick={() => window.confirm(`Delete "${asset.name}" from library?`) &&
               emit('asset:delete', { id: asset.id }).catch(e => setStatus(e.message, 4000))}

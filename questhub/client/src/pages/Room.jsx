@@ -83,6 +83,8 @@ export default function Room() {
     const onResync = (state) => s.resync(state);
     const onPresence = (list) => s.setPresence(list);
     const onAssetUpdated = (a) => s.upsertAsset(a);
+    const onHandoutShow = (h) => s.setHandout(h);
+    const onHandoutHide = () => s.setHandout(null);
 
     sock.on('map:updated', onMapUpdated);
     sock.on('token:created', onTokenCreated);
@@ -103,6 +105,8 @@ export default function Room() {
     sock.on('room:resync', onResync);
     sock.on('presence:updated', onPresence);
     sock.on('asset:updated', onAssetUpdated);
+    sock.on('handout:show', onHandoutShow);
+    sock.on('handout:hide', onHandoutHide);
 
     return () => {
       sock.off('connect', onConnect);
@@ -126,6 +130,8 @@ export default function Room() {
       sock.off('room:resync', onResync);
       sock.off('presence:updated', onPresence);
       sock.off('asset:updated', onAssetUpdated);
+      sock.off('handout:show', onHandoutShow);
+      sock.off('handout:hide', onHandoutHide);
     };
   }, [roomId]);
 
@@ -243,6 +249,7 @@ export default function Room() {
         {role === 'dm' && <ProposalBanner />}
         {role === 'dm' && <StageToolbar />}
         {role === 'dm' && <ViewAsBanner />}
+        <HandoutOverlay />
         <SpellBar />
         {status && (
           <div className="hint" style={{ left: '50%', transform: 'translateX(-50%)', top: 64, color: 'var(--text)' }}>
@@ -251,6 +258,40 @@ export default function Room() {
         )}
       </div>
       <Sidebar onCopyInvite={copyInvite} />
+    </div>
+  );
+}
+
+function HandoutOverlay() {
+  const handout = useStore(s => s.handout);
+  const role = useStore(s => s.role);
+  const setHandout = useStore(s => s.setHandout);
+  if (!handout) return null;
+  function close() {
+    if (role === 'dm') {
+      emit('handout:hide').catch(() => {});
+    }
+    setHandout(null); // players dismiss locally; DM hides it for everyone
+  }
+  return (
+    <div onClick={close} style={{
+      position: 'absolute', inset: 0, zIndex: 30,
+      background: 'rgba(0,0,0,0.85)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 12,
+      cursor: 'pointer',
+    }}>
+      <img src={handout.url} alt={handout.title || 'Handout'}
+        style={{ maxWidth: '88%', maxHeight: '80%', borderRadius: 8,
+          boxShadow: '0 12px 60px rgba(0,0,0,0.9)' }} />
+      {handout.title && (
+        <div style={{ fontFamily: 'Cinzel, serif', fontSize: 20, color: 'var(--accent)' }}>
+          {handout.title}
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+        {role === 'dm' ? 'Click anywhere to close it for everyone' : 'Click to dismiss'}
+      </div>
     </div>
   );
 }

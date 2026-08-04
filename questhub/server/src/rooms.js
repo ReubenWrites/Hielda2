@@ -166,7 +166,8 @@ export function createAsset(roomId, a) {
   db.prepare(`
     INSERT INTO assets (id, room_id, kind, name, url, created_at, grid_json)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, roomId, a.kind === 'map' ? 'map' : 'token', (a.name || 'Asset').slice(0, 60), a.url, Date.now(),
+  `).run(id, roomId, ['map', 'token', 'handout'].includes(a.kind) ? a.kind : 'token',
+    (a.name || 'Asset').slice(0, 60), a.url, Date.now(),
     a.grid ? JSON.stringify(a.grid) : null);
   return serializeAsset(db.prepare('SELECT * FROM assets WHERE id = ?').get(id));
 }

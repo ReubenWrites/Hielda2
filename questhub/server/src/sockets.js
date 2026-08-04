@@ -363,6 +363,22 @@ export function attachSockets(io) {
       }
     });
 
+    // ---- Handouts: flash an image on every screen ----
+
+    socket.on('handout:show', dmOnly(({ url, title }, cb) => {
+      if (!url || typeof url !== 'string') return cb?.({ error: 'Image url required' });
+      io.to(socket.data.roomId).emit('handout:show', {
+        url,
+        title: (title || '').slice(0, 80),
+      });
+      cb?.({ ok: true });
+    }));
+
+    socket.on('handout:hide', dmOnly((_payload, cb) => {
+      io.to(socket.data.roomId).emit('handout:hide');
+      cb?.({ ok: true });
+    }));
+
     // ---- Spells / animations ----
     socket.on('spell:cast', ({ kind, from, to, color }, cb) => {
       if (!socket.data.roomId) return cb?.({ error: 'Not in a room' });

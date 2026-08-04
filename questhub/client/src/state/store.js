@@ -89,6 +89,8 @@ export const useStore = create((set, get) => ({
   setInitiative: (initiative) => set({ initiative }),
   setPresence: (presence) => set({ presence }),
   setViewAs: (viewAs) => set({ viewAs }),
+  handout: null,          // { url, title } currently splashed on screen
+  setHandout: (handout) => set({ handout }),
 
   addProposal: (p) => set((s) => ({
     proposals: [...s.proposals.filter(x => x.id !== p.id), p],

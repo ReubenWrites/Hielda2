@@ -288,6 +288,31 @@ describe('socket flow', () => {
     dm.close();
   });
 
+  test('handout broadcast to players, DM-only to send', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Handout Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    const player = connect();
+    await once(player, 'connect');
+    await emitAck(player, 'room:join', { roomId, name: 'Seren' });
+
+    const denied = await emitAck(player, 'handout:show', { url: '/uploads/x.png' });
+    expect(denied.error).toMatch(/DM only/i);
+
+    const seen = once(player, 'handout:show');
+    await emitAck(dm, 'handout:show', { url: '/uploads/gates.jpg', title: 'The Gates of Barovia' });
+    const h = await seen;
+    expect(h.url).toBe('/uploads/gates.jpg');
+    expect(h.title).toBe('The Gates of Barovia');
+
+    const hidden = once(player, 'handout:hide');
+    await emitAck(dm, 'handout:hide', {});
+    await hidden;
+    dm.close();
+    player.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Dice Test' });
 
