@@ -95,12 +95,12 @@ function DmTab({ tool, setTool }) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { url } = await uploadImage(file);
+      const { url } = await uploadImage(file, (pct) => setStatus(`Uploading map — ${pct}%`, 10000));
       await emit('map:config', { mapImageUrl: url });
       setStatus('Map uploaded — detecting grid…');
       await autoDetectGrid(url, setStatus);
     } catch (err) {
-      setStatus(`Upload failed: ${err.message}`, 5000);
+      setStatus(`Upload failed: ${err.message}`, 8000);
     } finally {
       e.target.value = '';
     }
@@ -364,13 +364,14 @@ function LibraryTab() {
     let done = 0;
     try {
       for (const file of files) {
-        const { url } = await uploadImage(file);
+        const { url } = await uploadImage(file, (pct) =>
+          setStatus(`Uploading ${file.name} — ${pct}% (${done + 1}/${files.length})`, 10000));
         await emit('asset:create', { kind, name: file.name.replace(/\.[^.]+$/, ''), url });
         done++;
       }
-      setStatus(`Uploaded ${done} ${kind}${done === 1 ? '' : 's'}`);
+      setStatus(`Uploaded ${done} ${kind}${done === 1 ? '' : 's'} ✓`);
     } catch (err) {
-      setStatus(`Upload failed after ${done}: ${err.message}`, 6000);
+      setStatus(`Upload failed after ${done} of ${files.length}: ${err.message}`, 8000);
     } finally {
       setBusy(false);
       e.target.value = '';

@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 40 * 1024 * 1024 }, // 40MB — client compresses first; this is a backstop
   fileFilter: (_req, file, cb) => {
     if (/^image\/(png|jpe?g|webp|gif|svg\+xml)$/.test(file.mimetype)) cb(null, true);
     else cb(new Error('Only image uploads are allowed'));

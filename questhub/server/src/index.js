@@ -52,9 +52,17 @@ export function createApp() {
     res.json({ room: publicRoom });
   });
 
-  app.post('/api/upload', upload.single('image'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file' });
-    res.json({ url: uploadUrl(req.file.filename), filename: req.file.filename });
+  app.post('/api/upload', (req, res) => {
+    upload.single('image')(req, res, (err) => {
+      if (err) {
+        const msg = err.code === 'LIMIT_FILE_SIZE'
+          ? 'Image too large (max 40MB) — export a smaller version'
+          : err.message;
+        return res.status(400).json({ error: msg });
+      }
+      if (!req.file) return res.status(400).json({ error: 'No file received' });
+      res.json({ url: uploadUrl(req.file.filename), filename: req.file.filename });
+    });
   });
 
   // ---- Quest save/load ----
