@@ -22,7 +22,7 @@ export function getRoom(id) {
 
 export function updateRoomMap(roomId, fields) {
   const db = getDb();
-  const allowed = ['map_image_url', 'grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell'];
+  const allowed = ['map_image_url', 'grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell', 'grid_type'];
   const sets = [];
   const vals = [];
   for (const k of allowed) {
@@ -61,8 +61,8 @@ export function createToken(roomId, t) {
   const db = getDb();
   const id = nanoid(12);
   db.prepare(`
-    INSERT INTO tokens (id, room_id, name, image_url, color, owner, x, y, sight_radius, visible_to_players, hp, max_hp, ac)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tokens (id, room_id, name, image_url, color, owner, x, y, sight_radius, visible_to_players, hp, max_hp, ac, emoji)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, roomId,
     t.name || 'Token',
@@ -75,6 +75,7 @@ export function createToken(roomId, t) {
     t.hp ?? null,
     t.maxHp ?? null,
     t.ac ?? null,
+    t.emoji || null,
   );
   return getToken(id);
 }
@@ -91,7 +92,7 @@ export function updateToken(id, fields) {
     name: 'name', imageUrl: 'image_url', color: 'color', owner: 'owner',
     x: 'x', y: 'y', sightRadius: 'sight_radius',
     visibleToPlayers: 'visible_to_players',
-    hp: 'hp', maxHp: 'max_hp', ac: 'ac',
+    hp: 'hp', maxHp: 'max_hp', ac: 'ac', emoji: 'emoji',
     ddbCharacterId: 'ddb_character_id', ddbData: 'ddb_data',
   };
   const sets = [];
@@ -153,6 +154,7 @@ function serializeToken(row) {
     hp: row.hp,
     maxHp: row.max_hp,
     ac: row.ac,
+    emoji: row.emoji,
     ddbCharacterId: row.ddb_character_id,
     ddbData: row.ddb_data ? safeParse(row.ddb_data) : null,
   };

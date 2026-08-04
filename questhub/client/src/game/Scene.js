@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Sprite, Assets, Text } from 'pixi.js';
 import { buildGrid, worldToCell, cellToWorld, lineCells } from './grid.js';
+import { formatFeet } from '@questhub/shared/measure';
 import { TokenView } from './tokens.js';
 import { drawWalls } from './walls.js';
 import { drawFog, tokenVisibleToViewer } from './fog.js';
@@ -44,6 +45,10 @@ export class Scene {
 
   get feetPerCell() {
     return this.room?.feet_per_cell || 5;
+  }
+
+  get isFree() {
+    return this.room?.grid_type === 'free';
   }
 
   async init() {
@@ -147,7 +152,8 @@ export class Scene {
     const cellSnap = { x: Math.floor(cell.x), y: Math.floor(cell.y) };
 
     if (this.tool === 'add-token' && this.role === 'dm') {
-      this.onAction({ type: 'add-token', cell: cellSnap });
+      const cellPos = this.isFree ? { x: cell.x - 0.5, y: cell.y - 0.5 } : cellSnap;
+      this.onAction({ type: 'add-token', cell: cellPos });
       return;
     }
     if (this.tool === 'align-grid' && this.role === 'dm') {
@@ -204,12 +210,11 @@ export class Scene {
       this.selectedId = hit.id;
       this.onAction({ type: 'select-token', id: hit.id });
       if (this.canMoveToken(hit)) {
-        // Start drag
-        this.dragging = {
-          tokenId: hit.id,
-          startCell: { x: Math.floor(hit.x), y: Math.floor(hit.y) },
-          path: [{ x: Math.floor(hit.x), y: Math.floor(hit.y) }],
-        };
+        // Start drag. Free maps track exact positions; square grids track cells.
+        const start = this.isFree
+          ? { x: hit.x, y: hit.y }
+          : { x: Math.floor(hit.x), y: Math.floor(hit.y) };
+        this.dragging = { tokenId: hit.id, startCell: start, path: [start] };
       }
     } else {
       this.selectedId = null;
@@ -235,13 +240,21 @@ export class Scene {
     this.pointer.cell = worldToCell(world.x, world.y, this.room);
 
     if (this.dragging) {
-      const targetCell = { x: Math.floor(this.pointer.cell.x), y: Math.floor(this.pointer.cell.y) };
-      const last = this.dragging.path[this.dragging.path.length - 1];
-      if (last.x !== targetCell.x || last.y !== targetCell.y) {
-        const segment = lineCells(last, targetCell);
-        // skip first (it's `last`); cap total path
-        for (let i = 1; i < segment.length && this.dragging.path.length < 40; i++) {
-          this.dragging.path.push(segment[i]);
+      if (this.isFree) {
+        // Straight-line drag: start point + live endpoint.
+        this.dragging.path = [
+          this.dragging.startCell,
+          { x: this.pointer.cell.x - 0.5, y: this.pointer.cell.y - 0.5 },
+        ];
+      } else {
+        const targetCell = { x: Math.floor(this.pointer.cell.x), y: Math.floor(this.pointer.cell.y) };
+        const last = this.dragging.path[this.dragging.path.length - 1];
+        if (last.x !== targetCell.x || last.y !== targetCell.y) {
+          const segment = lineCells(last, targetCell);
+          // skip first (it's `last`); cap total path
+          for (let i = 1; i < segment.length && this.dragging.path.length < 40; i++) {
+            this.dragging.path.push(segment[i]);
+          }
         }
       }
     }
@@ -255,7 +268,10 @@ export class Scene {
       const d = this.dragging;
       this.dragging = null;
       const endCell = d.path[d.path.length - 1];
-      if (endCell.x === d.startCell.x && endCell.y === d.startCell.y) {
+      const moved = this.isFree
+        ? Math.hypot(endCell.x - d.startCell.x, endCell.y - d.startCell.y) > 0.15
+        : (endCell.x !== d.startCell.x || endCell.y !== d.startCell.y);
+      if (!moved) {
         // Click without dragging — nothing to do
         this.drawCursorOverlay();
         return;
@@ -328,9 +344,10 @@ export class Scene {
       const w = cellToWorld(end.x + 0.5, end.y + 0.5, this.room);
       g.circle(w.x, w.y, this.room.grid_size * 0.4)
         .stroke({ width: 2, color: 0xf0a500, alpha: 0.8 });
-      // Cell count
-      const cells = path.length - 1; // exclude start
-      const ft = cells * this.feetPerCell;
+      // Distance label
+      const ft = this.isFree
+        ? Math.hypot(path[path.length - 1].x - path[0].x, path[path.length - 1].y - path[0].y) * this.feetPerCell
+        : (path.length - 1) * this.feetPerCell;
       if (!this.cursorText) {
         this.cursorText = new Text({
           text: '', style: { fontSize: 14, fill: 0xf0a500, fontFamily: 'Inter', fontWeight: '600',
@@ -339,7 +356,7 @@ export class Scene {
         this.world.addChild(this.cursorText);
         this.cursorText.zIndex = 11;
       }
-      this.cursorText.text = `${ft} ft`;
+      this.cursorText.text = formatFeet(ft);
       this.cursorText.x = w.x + this.room.grid_size * 0.5;
       this.cursorText.y = w.y - this.room.grid_size * 0.5;
       this.cursorText.visible = true;
@@ -464,7 +481,7 @@ export class Scene {
 
   rebuildGrid() {
     this.gridLayer.removeChildren();
-    if (!this.room) return;
+    if (!this.room || this.isFree) return; // overland maps draw no square overlay
     this.gridLayer.addChild(buildGrid(this.room));
   }
 

@@ -157,6 +157,7 @@ export default function Room() {
               imageUrl: tpl.imageUrl || null,
               sightRadius: tpl.sightRadius ?? 6,
               hp: tpl.hp ?? null, maxHp: tpl.maxHp ?? null, ac: tpl.ac ?? null,
+              emoji: tpl.emoji ?? null,
             });
             // Single-shot templates (player tokens) disarm; bestiary stays armed
             if (tpl.single) useStore.getState().setSpawnTemplate(null);

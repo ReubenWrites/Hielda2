@@ -9,7 +9,8 @@
     "./vision": "./vision.js",
     "./dice": "./dice.js",
     "./bestiary": "./bestiary.js",
-    "./gridcalib": "./gridcalib.js"
+    "./gridcalib": "./gridcalib.js",
+    "./measure": "./measure.js"
   },
   "scripts": {
     "test": "vitest run"

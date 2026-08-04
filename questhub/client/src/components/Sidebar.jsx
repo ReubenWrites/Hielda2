@@ -181,6 +181,25 @@ function DmTab({ tool, setTool }) {
           Upload map image
         </button>
         <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
+        <div className="field">
+          <label>Grid style</label>
+          <select value={room?.grid_type || 'square'}
+            onChange={e => setGrid({ gridType: e.target.value })}>
+            <option value="square">Squares — battle maps (fog of war on)</option>
+            <option value="free">Free — overland / hex maps (no fog, smooth movement)</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>Map scale — quick presets</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+            <button onClick={() => setGrid({ feetPerCell: 5 })}
+              style={room?.feet_per_cell === 5 ? { borderColor: 'var(--accent)' } : {}}>5 ft</button>
+            <button onClick={() => setGrid({ feetPerCell: 10 })}
+              style={room?.feet_per_cell === 10 ? { borderColor: 'var(--accent)' } : {}}>10 ft</button>
+            <button onClick={() => setGrid({ feetPerCell: 1320 })}
+              style={room?.feet_per_cell === 1320 ? { borderColor: 'var(--accent)' } : {}}>¼ mile</button>
+          </div>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           <NumberField label="Square px" value={room?.grid_size ?? 64} onChange={v => setGrid({ gridSize: v })} min={16} max={512} />
           <NumberField label="Ft per square" value={room?.feet_per_cell ?? 5} onChange={v => setGrid({ feetPerCell: v })} min={1} max={10000} />
@@ -189,7 +208,8 @@ function DmTab({ tool, setTool }) {
         </div>
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
           Wrong size tokens = grid mismatch. Use 📐 Align Grid: click two opposite
-          corners of ONE printed square on the map.
+          corners of ONE printed square (on hex/overland maps, drag across one hex
+          or the scale bar — it just sets the reference size).
         </div>
       </div>
 
@@ -240,7 +260,7 @@ function DmTab({ tool, setTool }) {
               onClick={() => spawnTemplate?.key === m.key
                 ? setSpawnTemplate(null)
                 : setSpawnTemplate({
-                    key: m.key, name: m.name, color: m.color,
+                    key: m.key, name: m.name, color: m.color, emoji: m.emoji,
                     sightRadius: m.sight, hp: m.hp, maxHp: m.hp, ac: m.ac,
                   })}
               style={{
@@ -369,6 +389,7 @@ function LibraryTab() {
                       gridSize: a.grid.gridSize, gridW: a.grid.gridW, gridH: a.grid.gridH,
                       offsetX: a.grid.offsetX, offsetY: a.grid.offsetY,
                       feetPerCell: a.grid.feetPerCell ?? 5,
+                      gridType: a.grid.gridType ?? 'square',
                     });
                     setStatus(`Map: ${a.name} (saved alignment applied)`);
                   } else {

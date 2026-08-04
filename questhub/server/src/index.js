@@ -84,6 +84,8 @@ export function createApp() {
         grid_h: state.room.grid_h,
         offset_x: state.room.offset_x,
         offset_y: state.room.offset_y,
+        feet_per_cell: state.room.feet_per_cell,
+        grid_type: state.room.grid_type,
       },
       mapImageDataUrl: embed(state.room.map_image_url),
       walls: state.walls.map(({ id: _i, roomId: _r, ...w }) => w),
@@ -115,6 +117,8 @@ export function createApp() {
         grid_h: data.grid?.grid_h ?? 20,
         offset_x: data.grid?.offset_x ?? 0,
         offset_y: data.grid?.offset_y ?? 0,
+        feet_per_cell: data.grid?.feet_per_cell ?? 5,
+        grid_type: data.grid?.grid_type === 'free' ? 'free' : 'square',
       });
       const assets = (data.assets || []).map(a => ({
         kind: a.kind, name: a.name, url: dataUrlToFile(a.dataUrl),

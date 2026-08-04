@@ -16,10 +16,35 @@ export class TokenView {
     this.label.anchor.set(0.5, 0);
     this.container.addChild(this.body);
     this.container.addChild(this.label);
+    // Face glyph: monster emoji, or a monogram initial when there's no art.
+    this.glyph = new Text({
+      text: '',
+      style: { fontFamily: 'Inter, sans-serif', fontSize: 20, fill: 0xffffff, fontWeight: '700',
+        stroke: { color: 0x000000, width: 2 } },
+    });
+    this.glyph.anchor.set(0.5);
+    this.container.addChild(this.glyph);
     this.sprite = null;
+    this.updateGlyph();
     this.draw();
     this.position();
     if (token.imageUrl) this.loadImage(token.imageUrl);
+  }
+
+  updateGlyph() {
+    if (this.sprite) {
+      this.glyph.visible = false;
+      return;
+    }
+    const size = this.room.grid_size;
+    if (this.token.emoji) {
+      this.glyph.text = this.token.emoji;
+      this.glyph.style.fontSize = Math.max(12, size * 0.42);
+    } else {
+      this.glyph.text = (this.token.name || '?').trim().charAt(0).toUpperCase();
+      this.glyph.style.fontSize = Math.max(11, size * 0.34);
+    }
+    this.glyph.visible = true;
   }
 
   async loadImage(url) {
@@ -31,6 +56,7 @@ export class TokenView {
       this.sprite.width = s; this.sprite.height = s;
       this.sprite.anchor.set(0.5);
       this.container.addChildAt(this.sprite, 0);
+      this.updateGlyph();
       this.position();
     } catch (e) {
       // Fallback to colored circle
@@ -82,6 +108,7 @@ export class TokenView {
       this.loadImage(nextToken.imageUrl);
     }
     this.label.text = nextToken.name;
+    this.updateGlyph();
     this.draw();
     this.position();
   }

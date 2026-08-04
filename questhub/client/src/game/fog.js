@@ -7,6 +7,9 @@ import { blockingWalls } from './walls.js';
 // For a player: union of visible cells across every token they own.
 export function computeFog({ role, you, tokens, walls, room }) {
   if (role === 'dm' || !room) return null;
+  // Free/overland maps have no fog — sight radius is meaningless at
+  // miles-per-square scale. 'all' still hides DM-hidden tokens (unlike null).
+  if (room.grid_type === 'free') return 'all';
   const myTokens = tokens.filter(t => t.owner === you?.name || t.owner === you?.id);
   if (myTokens.length === 0) return new Set(); // player with no tokens sees nothing
   const bw = blockingWalls(walls);
@@ -22,7 +25,7 @@ export function computeFog({ role, you, tokens, walls, room }) {
 
 export function drawFog(graphics, visibleSet, room, extent = null) {
   graphics.clear();
-  if (!visibleSet || !room) return; // DM: no fog
+  if (!visibleSet || visibleSet === 'all' || !room) return; // DM or overland: no fog
   const { grid_size, grid_w, grid_h, offset_x = 0, offset_y = 0 } = room;
   // Draw the non-visible cells as near-opaque black.
   for (let y = 0; y < grid_h; y++) {
@@ -48,5 +51,6 @@ export function tokenVisibleToViewer(token, visibleSet, you) {
   if (!visibleSet) return true; // DM sees everything
   if (token.owner === you?.name || token.owner === you?.id) return true; // own token
   if (token.visibleToPlayers === false) return false; // DM hid it
+  if (visibleSet === 'all') return true; // overland: no fog, but hidden stays hidden
   return visibleSet.has(`${Math.floor(token.x)},${Math.floor(token.y)}`);
 }

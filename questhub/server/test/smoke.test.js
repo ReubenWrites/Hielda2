@@ -273,6 +273,21 @@ describe('socket flow', () => {
     dm.close();
   });
 
+  test('grid type + emoji roundtrip', async () => {
+    const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Overland Test' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret });
+    const updated = once(dm, 'map:updated');
+    await emitAck(dm, 'map:config', { gridType: 'free', feetPerCell: 1320 });
+    const room = await updated;
+    expect(room.grid_type).toBe('free');
+    const t = await emitAck(dm, 'token:create', { name: 'Wolf', x: 1.25, y: 2.75, emoji: '🐺' });
+    expect(t.token.emoji).toBe('🐺');
+    expect(t.token.x).toBe(1.25); // fractional positions survive for free maps
+    dm.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Dice Test' });
 

@@ -98,12 +98,13 @@ export function attachSockets(io) {
       if (cfg.offsetX !== undefined) fields.offset_x = cfg.offsetX;
       if (cfg.offsetY !== undefined) fields.offset_y = cfg.offsetY;
       if (cfg.feetPerCell !== undefined) fields.feet_per_cell = cfg.feetPerCell;
+      if (cfg.gridType !== undefined) fields.grid_type = cfg.gridType === 'free' ? 'free' : 'square';
       updateRoomMap(socket.data.roomId, fields);
       const state = getRoomState(socket.data.roomId);
       io.to(socket.data.roomId).emit('map:updated', state.room);
       // Remember grid calibration on the matching library asset so it
       // reapplies automatically next time this map is used.
-      const gridTouched = ['grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell']
+      const gridTouched = ['grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell', 'grid_type']
         .some(k => k in fields);
       if (gridTouched && state.room.map_image_url) {
         const asset = state.assets.find(a => a.kind === 'map' && a.url === state.room.map_image_url);
@@ -115,6 +116,7 @@ export function attachSockets(io) {
             offsetX: state.room.offset_x,
             offsetY: state.room.offset_y,
             feetPerCell: state.room.feet_per_cell,
+            gridType: state.room.grid_type,
           });
           io.to(socket.data.roomId).emit('asset:updated', updated);
         }
