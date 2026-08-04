@@ -1,0 +1,19 @@
+# Render Blueprint for the QuestHub VTT.
+#
+# This file only exists on the claude/dnd-vtt-tool-SMIRv branch. It deploys
+# the questhub/ subfolder (a standalone D&D virtual tabletop) — NOT the
+# Hielda invoice app. Do not merge this branch into main.
+services:
+  - type: web
+    name: questhub
+    runtime: node
+    rootDir: questhub
+    plan: free
+    branch: claude/dnd-vtt-tool-SMIRv
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.0.0
+      - key: NODE_ENV
+        value: production
