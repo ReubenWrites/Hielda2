@@ -290,14 +290,18 @@ function PlayersSection() {
   const setViewAs = useStore(s => s.setViewAs);
   const setSpawnTemplate = useStore(s => s.setSpawnTemplate);
 
-  const players = presence.filter(p => p.role === 'player');
-  // De-dupe by name (same player in two tabs)
-  const seen = new Set();
-  const unique = players.filter(p => !seen.has(p.name) && seen.add(p.name));
+  const onlineNames = new Set(presence.filter(p => p.role === 'player').map(p => p.name));
+  // Players = everyone online now + every token owner (so the DM can preview
+  // a player's view even while they're offline).
+  const names = new Set(onlineNames);
+  for (const t of tokens) {
+    if (t.owner && t.owner !== 'dm') names.add(t.owner);
+  }
+  const unique = [...names].map(name => ({ name, online: onlineNames.has(name) }));
 
   return (
     <div className="tool-section">
-      <h3>Players online</h3>
+      <h3>Players</h3>
       {unique.length === 0 && (
         <div style={{ fontSize: 12, color: 'var(--muted)' }}>
           Nobody yet — share the invite code (top right). Players appear here
@@ -312,7 +316,8 @@ function PlayersSection() {
             padding: '6px 8px', background: 'var(--panel-2)', borderRadius: 6, marginBottom: 4,
           }}>
             <span style={{ flex: 1, fontSize: 13 }}>
-              🟢 <strong>{p.name}</strong>
+              {p.online ? '🟢' : '⚪'} <strong>{p.name}</strong>
+              {!p.online && <span style={{ color: 'var(--muted)', fontSize: 11 }}> · offline</span>}
               {!hasToken && <span style={{ color: 'var(--accent)', fontSize: 11 }}> · no token yet!</span>}
             </span>
             <button style={{ fontSize: 11, padding: '3px 8px' }}

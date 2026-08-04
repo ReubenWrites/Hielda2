@@ -129,11 +129,22 @@ export default function Room() {
     };
   }, [roomId]);
 
-  // Esc key returns to Select tool
+  // Keyboard shortcuts: Esc returns to Select, Delete removes the selected token (DM)
   useEffect(() => {
     function onKey(e) {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) || e.target?.isContentEditable;
       if (e.key === 'Escape') {
         useStore.getState().setTool('select');
+        return;
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
+        const s = useStore.getState();
+        if (s.role !== 'dm' || !s.selectedTokenId) return;
+        e.preventDefault();
+        const token = s.tokens.find(t => t.id === s.selectedTokenId);
+        emit('token:delete', { id: s.selectedTokenId })
+          .then(() => s.setStatus(`Deleted ${token?.name ?? 'token'}`))
+          .catch(err => s.setStatus(err.message, 4000));
       }
     }
     window.addEventListener('keydown', onKey);

@@ -123,7 +123,9 @@ export class Scene {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
     const prev = this.camera.scale;
-    const next = Math.min(3, Math.max(0.2, prev * factor));
+    // Wide range: native-resolution maps want deep zoom-in for detail and
+    // far zoom-out for the whole overland at once.
+    const next = Math.min(10, Math.max(0.05, prev * factor));
     const rect = this.app.canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
