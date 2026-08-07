@@ -665,6 +665,17 @@
   margin-top: 2px;
 }
 
+/* Overdue invoice with fines deliberately off — say so instead of
+   showing an unexplained empty Extra column. */
+.waivedTag {
+  font-size: 10px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--td);
+  font-family: var(--font);
+  margin-left: 6px;
+}
+
 .tdDue {
   composes: td;
   color: var(--tm);

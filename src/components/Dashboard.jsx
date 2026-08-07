@@ -558,6 +558,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                             <div>
                               <span className={s.mobileAmount}>{fmt(owed + ex)}</span>
                               {ex > 0 && <span className={s.mobileExtra}>+{fmt(ex)}</span>}
+                              {ex === 0 && i.status === "overdue" && (i.no_fines || i.client_type === "consumer") && (
+                                <span className={s.waivedTag}>fines waived</span>
+                              )}
                               {i.status !== "paid" && (Number(i.amount_paid) || 0) > 0 && (
                                 <span className={s.partPaidTag}>{fmt(Number(i.amount_paid))} paid</span>
                               )}
@@ -631,7 +634,10 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                             {partPaid && <span className={s.partPaidTag}>{fmt(Number(i.amount_paid))} paid</span>}
                           </td>
                           <td className={s.tdMonoBold} style={{ color: ex > 0 ? c.go : c.td }}>
-                            {ex > 0 ? `+${fmt(ex)}` : "—"}
+                            {/* "waived" beats a silent dash: an overdue invoice
+                                with fines switched off looked like a broken
+                                Extra column rather than a choice. */}
+                            {ex > 0 ? `+${fmt(ex)}` : i.status === "overdue" && (i.no_fines || i.client_type === "consumer") ? <span className={s.waivedTag}>waived</span> : "—"}
                           </td>
                           <td className={s.tdMonoBold}>{fmt(owed + ex)}</td>
                           <td className={s.tdDue}>{formatDate(i.due_date)}</td>
