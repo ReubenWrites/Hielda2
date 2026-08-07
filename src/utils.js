@@ -65,5 +65,10 @@ export const chargeableExtras = (inv) => {
   if (inv.no_fines || inv.client_type === "consumer") return 0
   const owed = outstanding(inv)
   if (owed <= 0) return 0
-  return round2(calcInterest(owed, daysLate(inv.due_date)) + penalty(Number(inv.amount)))
+  // The fixed sum tiers on the debt that actually went overdue: payments
+  // dated before the due date reduce it (a £1,600 invoice paid down to
+  // £390 pre-due earns the £40 tier, not £70).
+  const debtAtDue = round2(Math.max(0, Number(inv.amount) - (Number(inv.paid_before_due) || 0)))
+  const pen = debtAtDue > 0 ? penalty(debtAtDue) : 0
+  return round2(calcInterest(owed, daysLate(inv.due_date)) + pen)
 }

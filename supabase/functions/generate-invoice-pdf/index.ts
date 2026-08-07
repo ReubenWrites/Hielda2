@@ -149,10 +149,13 @@ serve(async (req) => {
     // the chase emails or the client has grounds to dispute the lot.
     const amountPaid = Number(invoice.amount_paid) || 0
     const netOutstanding = Math.max(0, netAmount - amountPaid)
+    // Fixed fee tiers on the debt that went overdue — pre-due payments
+    // (paid_before_due) reduce it.
+    const debtAtDue = Math.max(0, netAmount - (Number(invoice.paid_before_due) || 0))
     // Interest requires fines enabled for B2B; consumer invoices keep their
     // contractual interest (they always have no_fines set at creation).
     const interest = isOverdue && (finesEnabled || isConsumer) ? netOutstanding * DAILY_RATE * daysOverdue : 0
-    const pen = isOverdue && !isConsumer && finesEnabled && netOutstanding > 0 ? penalty(netAmount) : 0
+    const pen = isOverdue && !isConsumer && finesEnabled && netOutstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const total = Math.max(0, invoiceTotal - amountPaid) + interest + pen
 
     const lineItems = coerceLineItems(invoice.line_items)

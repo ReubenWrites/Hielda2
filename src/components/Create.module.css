@@ -347,6 +347,11 @@
   border-left-color: rgba(30, 95, 160, 0.25);
 }
 
+/* Terms-agreement check for sub-30-day terms. */
+.termsAgreedBlock {
+  margin: 2px 0 10px;
+}
+
 /* ── PDF purchase-order import ── */
 .poImportZone {
   display: flex;
