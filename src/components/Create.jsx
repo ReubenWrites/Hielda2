@@ -42,6 +42,10 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   })
   const [clientType, setClientType] = useState("business")
   const [noFines, setNoFines] = useState(false)
+  // Whether the client has actually agreed to terms shorter than the
+  // Act's 30-day default (contract, PO, or email). Off by default — an
+  // unagreed short deadline can't legally trigger charges.
+  const [termsAgreed, setTermsAgreed] = useState(false)
   // Whether Hielda chases this invoice automatically (check-ins + chase
   // emails). Surfaced as a first-class switch on step 1.
   const [autoChase, setAutoChase] = useState(true)
@@ -206,7 +210,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     if (!userId || step === 3 || isEditing || !hasContent) return
     if (draftBanner) setDraftBanner(false)
     try {
-      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
+      localStorage.setItem(DRAFT_KEY(userId), JSON.stringify({ cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, termsAgreed, clientType, clientRef, cc, bcc, notes, savedAt: Date.now() }))
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, clientType, clientRef, cc, bcc, notes, userId, step])
@@ -222,6 +226,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     if (d.noFines !== undefined) setNoFines(d.noFines)
     if (d.autoChase !== undefined) setAutoChase(d.autoChase)
     if (d.sendIntro !== undefined) setSendIntro(d.sendIntro)
+    if (d.termsAgreed !== undefined) setTermsAgreed(d.termsAgreed)
     if (d.clientType !== undefined) setClientType(d.clientType)
     if (d.clientRef !== undefined) setClientRef(d.clientRef)
     if (d.cc !== undefined) setCc(d.cc)
@@ -305,7 +310,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     // was a single invisible slot that users couldn't find again.
     if (savingDraft) return
     setSavingDraft(true)
-    const payload = { cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, clientType, clientRef, cc, bcc, notes }
+    const payload = { cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, termsAgreed, clientType, clientRef, cc, bcc, notes }
     const display = {
       client_name: cn.trim() || null,
       amount: parsedTotal > 0 ? parsedTotal : null,
@@ -370,7 +375,15 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const removeLineItem = (index) => setLineItems(prev => prev.filter((_, i) => i !== index))
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
-  const due = addDays(date, effectiveDays)
+  // Statutory interest only runs from the end of an AGREED credit period —
+  // without agreement the Act defaults to 30 days. Short terms the client
+  // hasn't agreed to become a polite request in the intro email, while the
+  // enforceable due date (and all charges) anchor at 30 days.
+  const shortTerms = effectiveDays > 0 && effectiveDays < 30
+  const termsUnagreed = shortTerms && !termsAgreed
+  const enforceableDays = termsUnagreed ? 30 : effectiveDays
+  const due = addDays(date, enforceableDays)
+  const requestedDue = addDays(date, effectiveDays)
   const parsedTotal = round2(lineItems.reduce((sum, li) => sum + (parseFloat(li.amount) || 0), 0))
   const isVatRegistered = profile?.vat_registered
 
@@ -402,15 +415,16 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const hasValidLineItems = lineItems.some(li => li.description.trim() && parseFloat(li.amount) > 0) && !lineItemErrors.some(Boolean)
   const canProceed = cn && ce && !emailError && hasValidLineItems && !customDaysError && effectiveDays > 0
 
-  const buildIntroText = () => buildIntroTextLib(profile, cn)
+  const buildIntroText = () => buildIntroTextLib(profile, cn, termsUnagreed ? effectiveDays : null)
 
   // Pre-fill the intro textarea so users see what'll be sent to the client
   // by default, instead of an empty box. Re-fills as cn / profile change,
   // but stops once the user manually edits the textarea.
   useEffect(() => {
     if (!sendIntro || introTextEdited) return
-    setIntroText(buildIntroTextLib(profile, cn))
-  }, [sendIntro, cn, profile, introTextEdited])
+    setIntroText(buildIntroTextLib(profile, cn, termsUnagreed ? effectiveDays : null))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendIntro, cn, profile, introTextEdited, termsUnagreed, effectiveDays])
 
   const resetForm = () => {
     clearDraft()
@@ -453,8 +467,10 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         total_with_vat: totalWithVat,
         line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount), vatRate: li.vatRate || "0" })),
         issue_date: date,
-        payment_term_days: effectiveDays,
+        payment_term_days: enforceableDays,
         due_date: dueStr,
+        terms_agreed: shortTerms ? termsAgreed : true,
+        requested_term_days: termsUnagreed ? effectiveDays : null,
         status: isOverdue ? "overdue" : "pending",
         chase_stage: isOverdue ? "reminder_1" : null,
         send_method: meth,
@@ -1055,6 +1071,24 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               {terms === "-1" && (
                 <Inp label="Custom Days" value={customDays} onChange={setCustomDays} ph="e.g. 21" type="text" inputMode="numeric" mono error={customDaysError} />
               )}
+              {/* Terms shorter than the Act's 30-day default only carry
+                  legal weight if the client agreed to them. Unagreed short
+                  terms become a polite ask; charges anchor at 30 days. */}
+              {shortTerms && (
+                <div className={s.termsAgreedBlock}>
+                  <div className={s.noFinesRow}>
+                    <input type="checkbox" id="termsAgreed" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} className={s.checkbox} />
+                    <label htmlFor="termsAgreed" className={s.checkboxLabel}>
+                      {cn.trim() || "The client"} has agreed to {effectiveDays}-day terms (contract, PO, or email)
+                    </label>
+                  </div>
+                  {!termsAgreed && (
+                    <div className={s.infoBox}>
+                      Without the client's agreement, the law only lets charges start 30 days after the invoice — so Hielda will set the due date to <strong>{formatDate(due)}</strong> and instead <strong>ask politely</strong> for payment by {formatDate(requestedDue)} in the intro email. If they've agreed the shorter terms, tick the box and the {effectiveDays}-day deadline applies in full.
+                    </div>
+                  )}
+                </div>
+              )}
               <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
 
               <div className={clientType === "consumer" ? s.noFinesRowHidden : s.noFinesRow}>
@@ -1187,7 +1221,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 <div className={s.invoiceMeta}>
                   <div>Issue: {formatDate(date)}</div>
                   <div>Due: {formatDate(due)}</div>
-                  <div>Terms: {effectiveDays} days</div>
+                  <div>Terms: {enforceableDays} days{termsUnagreed ? ` (you'll ask for ${effectiveDays})` : ""}</div>
                 </div>
               </div>
               <div className={s.lineItemsTable}>

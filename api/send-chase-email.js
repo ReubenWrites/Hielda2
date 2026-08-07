@@ -298,8 +298,11 @@ export default async function handler(req, res) {
     const finesEnabled = !invoice.no_fines
     const amountPaid = Number(invoice.amount_paid) || 0
     const outstanding = Math.max(0, Math.round((Number(invoice.amount) - amountPaid) * 100) / 100)
+    // Fixed fee tiers on the debt that went overdue — pre-due payments
+    // (paid_before_due) reduce it.
+    const debtAtDue = Math.max(0, Math.round((Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)) * 100) / 100)
     const interest = finesEnabled ? Math.round(outstanding * DAILY_RATE * dl * 100) / 100 : 0
-    const pen = finesEnabled && outstanding > 0 ? penalty(Number(invoice.amount)) : 0
+    const pen = finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const total = Math.round((outstanding + interest + pen) * 100) / 100
 
     // Build email (use profile's chase_tone, default to 'firm')

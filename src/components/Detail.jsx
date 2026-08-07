@@ -6,7 +6,7 @@ import {
 } from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
-import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2 } from "../utils"
+import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
 import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { buildIntroText } from "../lib/introText"
@@ -292,6 +292,22 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const [resending, setResending] = useState(false)
   const [showPartialPayment, setShowPartialPayment] = useState(false)
   const [partialAmount, setPartialAmount] = useState("")
+  // When the payment actually landed — backdatable, because nobody logs a
+  // payment the day it arrives. Payments dated before the due date reduce
+  // the debt that goes overdue, which lowers the fixed-fee tier.
+  const [partialDate, setPartialDate] = useState(todayStr())
+  const [payments, setPayments] = useState([])
+  useEffect(() => {
+    if (!inv?.id) return
+    ;(async () => {
+      const { data } = await supabase
+        .from("invoice_payments")
+        .select("id, amount, paid_on")
+        .eq("invoice_id", inv.id)
+        .order("paid_on", { ascending: true })
+      setPayments(data || [])
+    })()
+  }, [inv?.id, inv?.amount_paid])
   const [savingPartial, setSavingPartial] = useState(false)
   const [disputing, setDisputing] = useState(false)
   const [showDisputeModal, setShowDisputeModal] = useState(false)
@@ -344,10 +360,13 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const paidSoFar = Number(inv.amount_paid) || 0
   const netOutstanding = Math.max(0, round2(netAmount - paidSoFar))
   // Interest accrues on what's still owed — a partial payment stops the
-  // meter on the part that's been paid. The fixed sum stays tiered on the
-  // original invoice amount (the size of the debt that arose).
+  // meter on the part that's been paid. The fixed sum tiers on the debt
+  // as it stood when the invoice went overdue: payments dated before the
+  // due date (paid_before_due) reduce that debt, so a mostly-pre-paid
+  // invoice earns the £40 tier, not the £70 one.
+  const debtAtDue = Math.max(0, round2(netAmount - (Number(inv.paid_before_due) || 0)))
   const interest = ov && finesEnabled ? calcInterest(netOutstanding, dl) : 0
-  const pen = ov && finesEnabled && netOutstanding > 0 ? penalty(netAmount) : 0
+  const pen = ov && finesEnabled && netOutstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const ex = round2(interest + pen)
   const tot = round2(invoiceTotal - paidSoFar + ex)
   const si = CHASE_STAGES.findIndex((s) => s.id === inv.chase_stage)
@@ -792,22 +811,42 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const recordPartialPayment = async () => {
     const amount = parseFloat(partialAmount)
     if (!amount || amount <= 0) return
+    const paidOn = partialDate || todayStr()
+    if (paidOn > todayStr()) {
+      setError("The payment date can't be in the future.")
+      return
+    }
     setSavingPartial(true)
     setError("")
     try {
+      // Ledger first — the dated record is the source of truth. Timing
+      // matters legally: payments dated on/before the due date reduce the
+      // debt that went overdue, which sets the fixed-fee tier.
+      const { error: ledgerErr } = await supabase.from("invoice_payments").insert({
+        invoice_id: inv.id,
+        user_id: profile.id,
+        amount,
+        paid_on: paidOn,
+      })
+      if (ledgerErr) throw ledgerErr
+
       const newPaid = Math.round(((Number(inv.amount_paid) || 0) + amount) * 100) / 100
       const fullyPaid = newPaid >= Number(inv.amount)
       const updates = { amount_paid: newPaid }
+      if (paidOn <= inv.due_date) {
+        updates.paid_before_due = Math.round(((Number(inv.paid_before_due) || 0) + amount) * 100) / 100
+      }
       if (fullyPaid) {
         updates.status = "paid"
-        updates.paid_date = new Date().toISOString().split("T")[0]
+        updates.paid_date = paidOn
         updates.chase_stage = null
       }
       const { error: err } = await supabase.from("invoices").update(updates).eq("id", inv.id)
       if (err) throw err
       setShowPartialPayment(false)
       setPartialAmount("")
-      toast.success(fullyPaid ? "Invoice fully paid!" : `Recorded ${fmt(amount)} partial payment`)
+      setPartialDate(todayStr())
+      toast.success(fullyPaid ? "Invoice fully paid!" : `Recorded ${fmt(amount)} paid on ${formatDate(paidOn)}`)
       onUpdate()
     } catch (e) {
       setError("Failed to record payment: " + e.message)
@@ -1138,6 +1177,24 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             </Btn>
             <button onClick={() => setShowPartialPayment(false)} className={s.cancelBtn}>Cancel</button>
           </div>
+          {/* When the money actually arrived — backdatable, because most
+              people record a payment days after it lands. If it arrived
+              before the due date it reduces the debt that went overdue,
+              which can lower the fixed recovery fee tier. */}
+          <div className={s.partialDateRow}>
+            <label className={s.partialDateLabel} htmlFor="partialPaidOn">When was it paid?</label>
+            <input
+              id="partialPaidOn"
+              type="date"
+              value={partialDate}
+              onChange={e => setPartialDate(e.target.value)}
+              max={todayStr()}
+              className={s.partialDateInput}
+            />
+            {partialDate && partialDate <= inv.due_date && (
+              <span className={s.partialDateHint}>Before the due date — this reduces the late charges your client owes.</span>
+            )}
+          </div>
           {parseFloat(partialAmount) >= amountRemaining && partialAmount && (
             <div className={s.partialFullNote}>This will mark the invoice as fully paid.</div>
           )}
@@ -1155,6 +1212,18 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.partialProgressFill} style={{ width: `${Math.min(100, (amountPaid / Number(inv.amount)) * 100)}%` }} />
           </div>
           <div className={s.partialProgressRemaining}>{fmt(amountRemaining)} still outstanding</div>
+          {payments.length > 0 && (
+            <div className={s.paymentHistory}>
+              {payments.map((p) => (
+                <div key={p.id} className={s.paymentHistoryRow}>
+                  <span>{fmt(p.amount)}</span>
+                  <span className={s.paymentHistoryDate}>
+                    {formatDate(p.paid_on)}{p.paid_on <= inv.due_date ? " · before due date" : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1205,6 +1274,17 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
               Don't charge these
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Unagreed short terms: the user asked for faster payment but the
+          client never agreed shorter terms, so the enforceable due date is
+          the 30-day statutory default and the early date was a polite ask. */}
+      {inv.status !== "paid" && inv.terms_agreed === false && inv.requested_term_days && (
+        <div className={s.finesOffBar}>
+          <span className={s.finesOffText}>
+            You asked for payment in {inv.requested_term_days} days (a polite request in the intro email) — the enforceable due date is {formatDate(inv.due_date)}, the legal 30-day default, since shorter terms weren't agreed with the client.
+          </span>
         </div>
       )}
 

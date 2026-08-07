@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { penalty, calcInterest, fmt, formatDate, addDays, generateRef, daysLate, todayStr, isValidEmail } from '../utils'
+import { penalty, calcInterest, fmt, formatDate, addDays, generateRef, daysLate, todayStr, isValidEmail, outstanding, chargeableExtras } from '../utils'
 
 describe('penalty', () => {
   it('returns £40 for invoices under £1,000', () => {
@@ -116,5 +116,48 @@ describe('isValidEmail', () => {
     expect(isValidEmail('')).toBe(false)
     expect(isValidEmail('not-an-email')).toBe(false)
     expect(isValidEmail('@domain.com')).toBe(false)
+  })
+})
+
+describe('outstanding', () => {
+  it('subtracts partial payments from the amount', () => {
+    expect(outstanding({ amount: 1639.55, amount_paid: 1250 })).toBe(389.55)
+  })
+  it('never goes negative and treats missing amount_paid as zero', () => {
+    expect(outstanding({ amount: 100, amount_paid: 150 })).toBe(0)
+    expect(outstanding({ amount: 100 })).toBe(100)
+  })
+})
+
+describe('chargeableExtras', () => {
+  const yesterday = () => addDays(new Date(), -30).toISOString().split('T')[0]
+  const base = () => ({ status: 'overdue', due_date: yesterday(), amount: 1639.55, amount_paid: 0, paid_before_due: 0 })
+
+  it('is zero unless overdue', () => {
+    expect(chargeableExtras({ ...base(), status: 'pending' })).toBe(0)
+  })
+  it('is zero when fines are waived or client is a consumer', () => {
+    expect(chargeableExtras({ ...base(), no_fines: true })).toBe(0)
+    expect(chargeableExtras({ ...base(), client_type: 'consumer' })).toBe(0)
+  })
+  it('charges interest on the outstanding balance', () => {
+    const withPayment = { ...base(), amount_paid: 1250 }
+    const full = chargeableExtras(base())
+    const reduced = chargeableExtras(withPayment)
+    expect(reduced).toBeLessThan(full)
+    expect(reduced).toBeGreaterThan(0)
+  })
+  it('tiers the fixed fee on the debt at the due date, not the invoice amount', () => {
+    // Paid down to £389.55 BEFORE the due date: £40 tier applies.
+    const preDue = { ...base(), amount_paid: 1250, paid_before_due: 1250 }
+    const expected = calcInterest(389.55, daysLate(preDue.due_date)) + 40
+    expect(chargeableExtras(preDue)).toBeCloseTo(expected, 2)
+    // Same payment AFTER the due date: the £70 tier crystallised.
+    const postDue = { ...base(), amount_paid: 1250, paid_before_due: 0 }
+    const expectedPost = calcInterest(389.55, daysLate(postDue.due_date)) + 70
+    expect(chargeableExtras(postDue)).toBeCloseTo(expectedPost, 2)
+  })
+  it('charges nothing once fully paid', () => {
+    expect(chargeableExtras({ ...base(), amount_paid: 1639.55 })).toBe(0)
   })
 })
