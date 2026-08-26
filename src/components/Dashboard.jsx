@@ -199,36 +199,65 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     return d === 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`
   }
 
-  const sendStatement = async (group) => {
-    const lines = group.invoices
-      .map((i) => `${i.ref} — ${fmt(round2(outstanding(i) + chargeableExtras(i)))}${i.status === "overdue" ? ` (${daysLate(i.due_date)}d late)` : ""}`)
-      .join("\n")
-    if (!(await confirm({
-      title: `Send a consolidated statement to ${group.name}?`,
-      message: `One email to ${group.email} itemising every outstanding invoice:\n\n${lines}\n\nTotal owed: ${fmt(group.total)}\n\nYou'll be BCC'd a copy.`,
-      confirmLabel: "Send statement",
-      cancelLabel: "Cancel",
-    }))) return
+  // Statement flow: preview first, send second. The server builds the
+  // exact email (preview: true returns it without sending), the modal
+  // shows it in an iframe, and only "Send now" commits.
+  const [stmtPreview, setStmtPreview] = useState(null)
+
+  const fetchStatement = async (group, includePayments, preview) => {
+    const session = await supabase.auth.getSession()
+    const res = await fetch("/api/send-chase-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invoice_ids: group.invoices.map((i) => i.id),
+        include_payments: includePayments,
+        preview,
+        user_token: session.data.session?.access_token,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Request failed")
+    return data
+  }
+
+  const openStatement = async (group) => {
     setSendingStatement(group.email)
     try {
-      const session = await supabase.auth.getSession()
-      const res = await fetch("/api/send-chase-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoice_ids: group.invoices.map((i) => i.id),
-          user_token: session.data.session?.access_token,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to send")
+      const data = await fetchStatement(group, true, true)
+      setStmtPreview({ group, includePayments: true, ...data })
+    } catch (e) {
+      toast.error("Failed to build statement: " + e.message)
+    }
+    setSendingStatement("")
+  }
+
+  const toggleStatementPayments = async () => {
+    if (!stmtPreview || stmtPreview.loading || stmtPreview.sending) return
+    const next = !stmtPreview.includePayments
+    setStmtPreview((p) => ({ ...p, loading: true }))
+    try {
+      const data = await fetchStatement(stmtPreview.group, next, true)
+      setStmtPreview((p) => ({ ...p, ...data, includePayments: next, loading: false }))
+    } catch (e) {
+      toast.error("Failed to rebuild preview: " + e.message)
+      setStmtPreview((p) => (p ? { ...p, loading: false } : p))
+    }
+  }
+
+  const confirmSendStatement = async () => {
+    if (!stmtPreview || stmtPreview.sending) return
+    setStmtPreview((p) => ({ ...p, sending: true }))
+    try {
+      const data = await fetchStatement(stmtPreview.group, stmtPreview.includePayments, false)
       trackEvent("statement_sent", { invoice_count: data.invoice_count, total: data.total })
       toast.success(`Statement sent to ${data.email_to} — ${fmt(data.total)} across ${data.invoice_count} invoices`)
+      setStmtPreview(null)
       onUpdate()
     } catch (e) {
       toast.error("Failed to send statement: " + e.message)
+      setStmtPreview((p) => (p ? { ...p, sending: false } : p))
     }
-    setSendingStatement("")
   }
 
   const filtered = useMemo(() => {
@@ -540,8 +569,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                     {g.extras > 0 && <div className={s.clientExtras}>incl. +{fmt(g.extras)} by Hielda</div>}
                   </div>
                   {g.email ? (
-                    <Btn sz="sm" v={lastStatement ? "ghost" : "primary"} onClick={() => sendStatement(g)} dis={sendingStatement === g.email}>
-                      {sendingStatement === g.email ? "Sending…" : lastStatement ? "Send again" : "Send statement"}
+                    <Btn sz="sm" v={lastStatement ? "ghost" : "primary"} onClick={() => openStatement(g)} dis={sendingStatement === g.email}>
+                      {sendingStatement === g.email ? "Preparing…" : lastStatement ? "Send again" : "Send statement"}
                     </Btn>
                   ) : (
                     <span className={s.clientNoEmail}>No email on file</span>
@@ -550,6 +579,58 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               </Card>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Statement preview — the exact email, checked before it goes */}
+      {stmtPreview && (
+        <div className={s.stmtOverlay} role="presentation" onClick={() => !stmtPreview.sending && setStmtPreview(null)}>
+          <div
+            className={s.stmtBox}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stmt-preview-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={s.stmtHead}>
+              <div className={s.stmtHeadText}>
+                <div className={s.stmtTitle} id="stmt-preview-title">Statement to {stmtPreview.group.name}</div>
+                <div className={s.stmtMeta}>To: {stmtPreview.email_to} (you're BCC'd) · {stmtPreview.subject}</div>
+              </div>
+              <button
+                className={s.dismissBtn}
+                onClick={() => setStmtPreview(null)}
+                aria-label="Close preview"
+                disabled={stmtPreview.sending}
+              >
+                ✕
+              </button>
+            </div>
+            <iframe
+              title="Statement preview"
+              className={s.stmtFrame}
+              sandbox=""
+              srcDoc={stmtPreview.html}
+              style={{ opacity: stmtPreview.loading ? 0.4 : 1 }}
+            />
+            <div className={s.stmtFoot}>
+              <label className={s.stmtCheck}>
+                <input
+                  type="checkbox"
+                  checked={stmtPreview.includePayments}
+                  onChange={toggleStatementPayments}
+                  disabled={stmtPreview.loading || stmtPreview.sending}
+                />
+                <span>Include payments received (with dates)</span>
+              </label>
+              <div className={s.stmtFootBtns}>
+                <Btn v="ghost" sz="sm" onClick={() => setStmtPreview(null)} dis={stmtPreview.sending}>Cancel</Btn>
+                <Btn sz="sm" onClick={confirmSendStatement} dis={stmtPreview.loading || stmtPreview.sending}>
+                  {stmtPreview.sending ? "Sending…" : "Send now"}
+                </Btn>
+              </div>
+            </div>
           </div>
         </div>
       )}

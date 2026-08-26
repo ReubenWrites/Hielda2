@@ -242,6 +242,86 @@
 .clientStatementSent {
   color: var(--gn);
 }
+
+/* Statement preview modal */
+.stmtOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.stmtBox {
+  background: var(--sf);
+  border-radius: 14px;
+  border: 1px solid var(--bdl);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+  overflow: hidden;
+}
+.stmtHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--bdl);
+}
+.stmtHeadText {
+  min-width: 0;
+  flex: 1;
+}
+.stmtTitle {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tx);
+}
+.stmtMeta {
+  font-size: 11px;
+  color: var(--tm);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stmtFrame {
+  border: none;
+  width: 100%;
+  flex: 1;
+  min-height: 340px;
+  background: #f1f3f6;
+  transition: opacity 0.15s ease;
+}
+.stmtFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-top: 1px solid var(--bdl);
+}
+.stmtCheck {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--tm);
+  cursor: pointer;
+}
+.stmtCheck input {
+  accent-color: var(--ac);
+}
+.stmtFootBtns {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
 .clientName {
   font-weight: 600;
   font-size: 14px;

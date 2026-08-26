@@ -1,10 +1,12 @@
-// Send a consolidated statement via Resend. One email to one client
-// itemising every outstanding invoice — refs, dates, days late, what's
-// been paid, late charges, and a single total.
+// Consolidated statement via Resend. One email to one client itemising
+// every outstanding invoice — issued/due dates, payment history, late
+// charge breakdowns, and a single settle-everything total.
 //
 // Not a standalone endpoint: the Hobby plan caps deployments at 12
 // serverless functions, so this is dispatched from send-chase-email.js
 // when the request body carries invoice_ids instead of a chase_stage.
+// `preview: true` returns the built email without sending or logging,
+// so the dashboard can show exactly what the client will receive.
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -51,6 +53,11 @@ function daysLate(due) {
   return d > 0 ? d : 0
 }
 
+function daysUntil(due) {
+  const d = Math.ceil((new Date(due).getTime() - Date.now()) / 864e5)
+  return d > 0 ? d : 0
+}
+
 function round2(n) {
   return Math.round(n * 100) / 100
 }
@@ -71,7 +78,53 @@ function invoiceFigures(invoice) {
   return { dl, amountPaid, outstanding, interest, pen, total }
 }
 
-function buildStatementEmail(invoices, profile) {
+const CELL_L = 'padding:5px 14px 5px 0;color:#64748b;font-size:12.5px;white-space:nowrap;vertical-align:top;'
+const CELL_R = 'padding:5px 0;font-size:12.5px;color:#0f172a;text-align:right;vertical-align:top;'
+
+function invoiceBlock(invoice, f, payments) {
+  const dl = f.dl
+  const chip = dl > 0
+    ? `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;">${dl} day${dl === 1 ? '' : 's'} overdue</span>`
+    : `<span style="display:inline-block;background:#f1f5f9;color:#64748b;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;">due in ${daysUntil(invoice.due_date)} day${daysUntil(invoice.due_date) === 1 ? '' : 's'}</span>`
+
+  // Payment rows: the dated ledger when provided, otherwise one
+  // aggregate credit line so the block always reconciles.
+  let paymentRows = ''
+  if (payments && payments.length > 0) {
+    paymentRows = payments.map((p) =>
+      `<tr><td style="${CELL_L}">Payment received ${formatDate(p.paid_on)}</td><td style="${CELL_R}color:#15803d;font-family:monospace;">−${fmt(p.amount)}</td></tr>`
+    ).join('')
+  } else if (f.amountPaid > 0) {
+    paymentRows = `<tr><td style="${CELL_L}">Payments received — thank you</td><td style="${CELL_R}color:#15803d;font-family:monospace;">−${fmt(f.amountPaid)}</td></tr>`
+  }
+
+  const chargeRows = f.pen + f.interest > 0
+    ? `<tr><td style="${CELL_L}">Fixed debt recovery cost</td><td style="${CELL_R}color:#a16207;font-family:monospace;">+${fmt(f.pen)}</td></tr>
+       <tr><td style="${CELL_L}">Interest (${dl} days at ${RATE}% p.a. on the balance)</td><td style="${CELL_R}color:#a16207;font-family:monospace;">+${fmt(f.interest)}</td></tr>`
+    : ''
+
+  return `
+    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 12px;">
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="vertical-align:top;">
+          <div style="font-weight:700;font-size:14px;color:#0f172a;">${esc(invoice.ref)}${invoice.client_ref ? ` <span style="color:#94a3b8;font-weight:400;font-size:12px;">(your ref ${esc(invoice.client_ref)})</span>` : ''}</div>
+          ${invoice.description ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${esc(invoice.description)}</div>` : ''}
+        </td>
+        <td style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:12px;">${chip}</td>
+      </tr></table>
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+        ${invoice.issue_date ? `<tr><td style="${CELL_L}">Issued</td><td style="${CELL_R}">${formatDate(invoice.issue_date)}</td></tr>` : ''}
+        <tr><td style="${CELL_L}">Due</td><td style="${CELL_R}">${formatDate(invoice.due_date)}${dl > 0 ? ` <span style="color:#b91c1c;">(${dl} days ago)</span>` : ''}</td></tr>
+        <tr><td style="${CELL_L}">Invoice amount</td><td style="${CELL_R}font-family:monospace;">${fmt(invoice.amount)}</td></tr>
+        ${paymentRows}
+        ${chargeRows}
+        <tr><td style="padding:8px 14px 0 0;font-weight:700;font-size:13px;color:#0f172a;border-top:1px solid #e2e8f0;">Amount due</td>
+            <td style="padding:8px 0 0;font-weight:700;font-size:14px;color:#1e5fa0;text-align:right;font-family:monospace;border-top:1px solid #e2e8f0;">${fmt(f.total)}</td></tr>
+      </table>
+    </div>`
+}
+
+function buildStatementEmail(invoices, profile, paymentsByInvoice) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const clientName = esc(invoices[0].client_name || 'there')
 
@@ -79,34 +132,12 @@ function buildStatementEmail(invoices, profile) {
   let grandExtras = 0
   let grandTotal = 0
 
-  const rows = invoices.map((invoice) => {
+  const blocks = invoices.map((invoice) => {
     const f = invoiceFigures(invoice)
     grandOutstanding = round2(grandOutstanding + f.outstanding)
     grandExtras = round2(grandExtras + f.interest + f.pen)
     grandTotal = round2(grandTotal + f.total)
-    const lateNote = f.dl > 0
-      ? `<span style="color:#b91c1c;font-weight:600;">${f.dl} day${f.dl === 1 ? '' : 's'} overdue</span>`
-      : `<span style="color:#64748b;">due ${formatDate(invoice.due_date)}</span>`
-    const paidNote = f.amountPaid > 0
-      ? `<div style="font-size:11px;color:#15803d;">−${fmt(f.amountPaid)} received — thank you</div>`
-      : ''
-    const extrasNote = f.interest + f.pen > 0
-      ? `<div style="font-size:11px;color:#a16207;">+${fmt(round2(f.interest + f.pen))} late charges (fixed fee ${fmt(f.pen)} + ${f.dl}d interest at ${RATE}% p.a.)</div>`
-      : ''
-    return `
-      <tr style="border-bottom:1px solid #e8ecf0;">
-        <td style="padding:10px 12px 10px 0;vertical-align:top;">
-          <div style="font-weight:600;font-size:13px;color:#0f172a;">${esc(invoice.ref)}${invoice.client_ref ? ` <span style="color:#94a3b8;font-weight:400;">(your ref ${esc(invoice.client_ref)})</span>` : ''}</div>
-          ${invoice.description ? `<div style="font-size:12px;color:#64748b;">${esc(invoice.description)}</div>` : ''}
-          <div style="font-size:11px;color:#94a3b8;">${invoice.issue_date ? `Issued ${formatDate(invoice.issue_date)} · ` : ''}${lateNote}</div>
-        </td>
-        <td style="padding:10px 0;text-align:right;vertical-align:top;white-space:nowrap;">
-          <div style="font-family:monospace;font-size:13px;color:#0f172a;">${fmt(invoice.amount)}</div>
-          ${paidNote}
-          ${extrasNote}
-          <div style="font-family:monospace;font-size:13px;font-weight:700;color:#1e5fa0;margin-top:2px;">${fmt(f.total)}</div>
-        </td>
-      </tr>`
+    return invoiceBlock(invoice, f, paymentsByInvoice ? paymentsByInvoice[invoice.id] : null)
   }).join('')
 
   const payBlock = `
@@ -126,16 +157,8 @@ function buildStatementEmail(invoices, profile) {
 
   const body = `
     <p>Dear ${clientName},</p>
-    <p>Please find below a statement of the invoices from ${fromName} that remain outstanding, so everything is in one place.</p>
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-      <thead>
-        <tr>
-          <th style="padding:4px 12px 6px 0;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Invoice</th>
-          <th style="padding:4px 0 6px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;text-align:right;">Amount due</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <p>Please find below a statement of the invoices from ${fromName} that remain outstanding, with each invoice itemised so everything is in one place.</p>
+    ${blocks}
     <div style="background:#eff6ff;border-left:4px solid #1e5fa0;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
       <div style="font-size:12px;color:#1e5fa0;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
       <div style="font-size:24px;font-weight:700;color:#1e5fa0;">${fmt(grandTotal)}</div>
@@ -177,7 +200,7 @@ export async function sendStatement(req, res) {
   await loadLiveRate()
 
   try {
-    const { invoice_ids, user_token } = req.body
+    const { invoice_ids, user_token, include_payments, preview } = req.body
 
     if (!Array.isArray(invoice_ids) || invoice_ids.length === 0 || invoice_ids.length > 50) {
       return res.status(400).json({ error: 'invoice_ids (1–50) required' })
@@ -246,7 +269,39 @@ export async function sendStatement(req, res) {
       }
     }
 
-    // Rate limiting: max 3 statements per user per hour
+    // Oldest debt first — the natural reading order for a statement
+    open.sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
+
+    // Dated payment history, when the sender chose to include it
+    let paymentsByInvoice = null
+    if (include_payments) {
+      const { data: payRows } = await supabase
+        .from('invoice_payments')
+        .select('invoice_id, amount, paid_on')
+        .in('invoice_id', open.map((i) => i.id))
+        .order('paid_on', { ascending: true })
+      paymentsByInvoice = {}
+      for (const p of payRows || []) {
+        if (!paymentsByInvoice[p.invoice_id]) paymentsByInvoice[p.invoice_id] = []
+        paymentsByInvoice[p.invoice_id].push(p)
+      }
+    }
+
+    const email = buildStatementEmail(open, profile, paymentsByInvoice)
+
+    // Preview mode: hand back exactly what would be sent, and stop.
+    if (preview) {
+      return res.status(200).json({
+        preview: true,
+        subject: email.subject,
+        html: email.html,
+        email_to: clientEmail,
+        invoice_count: open.length,
+        total: email.grandTotal,
+      })
+    }
+
+    // Rate limiting: max 3 statements per user per hour (sends only)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const { count: recentStatements } = await supabase
       .from('chase_log')
@@ -258,11 +313,6 @@ export async function sendStatement(req, res) {
     if (recentStatements >= 3) {
       return res.status(429).json({ error: 'Too many statements sent recently. Please wait before sending more.' })
     }
-
-    // Oldest debt first — the natural reading order for a statement
-    open.sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
-
-    const email = buildStatementEmail(open, profile)
 
     const resendPayload = {
       from: `${email.fromName} via Hielda <chase@hielda.com>`,

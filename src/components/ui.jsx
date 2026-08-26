@@ -7,14 +7,18 @@ import s from "./ui.module.css"
 // and async-safe. The promise-based API mirrors window.confirm so
 // existing call sites can be replaced with a one-line swap:
 //   if (!window.confirm("X?")) return  →  if (!(await confirm({ title: "X?" }))) return
-function ConfirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger, onConfirm, onCancel }) {
+function ConfirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger, checkbox, onConfirm, onCancel }) {
+  // Optional checkbox ({label, initial}) — its state is passed to
+  // onConfirm so call sites can offer a send-time option without
+  // building a bespoke modal.
+  const [checked, setChecked] = useState(checkbox?.initial ?? false)
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "Escape") onCancel()
       // Enter only confirms if it's not in a textarea/input (user might be typing)
       if (e.key === "Enter" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
         e.preventDefault()
-        onConfirm()
+        onConfirm(checked)
       }
     }
     window.addEventListener("keydown", handler)
@@ -25,7 +29,7 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel =
       window.removeEventListener("keydown", handler)
       document.body.style.overflow = original
     }
-  }, [onConfirm, onCancel])
+  }, [onConfirm, onCancel, checked])
 
   return (
     <div className={s.confirmOverlay} onClick={onCancel} role="presentation">
@@ -38,10 +42,20 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel =
       >
         <h3 className={s.confirmTitle} id="hielda-confirm-title">{title}</h3>
         {message && <p className={s.confirmMessage}>{message}</p>}
+        {checkbox && (
+          <label className={s.confirmCheckbox}>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+            />
+            <span>{checkbox.label}</span>
+          </label>
+        )}
         <div className={s.confirmActions}>
           <button onClick={onCancel} className={s.confirmCancelBtn} type="button">{cancelLabel}</button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(checked)}
             className={danger ? s.confirmDangerBtn : s.confirmActionBtn}
             type="button"
             autoFocus
@@ -67,12 +81,15 @@ export function ConfirmProvider({ children }) {
     })
   }, [])
 
-  const handleConfirm = () => {
-    state?.resolve(true)
+  // With a checkbox configured the promise resolves {confirmed, checked};
+  // without one it stays a plain boolean, so existing call sites are
+  // untouched.
+  const handleConfirm = (checked) => {
+    state?.resolve(state?.checkbox ? { confirmed: true, checked: !!checked } : true)
     setState(null)
   }
   const handleCancel = () => {
-    state?.resolve(false)
+    state?.resolve(state?.checkbox ? { confirmed: false, checked: false } : false)
     setState(null)
   }
 
@@ -86,6 +103,7 @@ export function ConfirmProvider({ children }) {
           confirmLabel={state.confirmLabel}
           cancelLabel={state.cancelLabel}
           danger={state.danger}
+          checkbox={state.checkbox}
           onConfirm={handleConfirm}
           onCancel={handleCancel}
         />
