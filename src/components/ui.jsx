@@ -311,7 +311,11 @@ export const Sel = ({ label, value, onChange, opts }) => (
 )
 
 // ── Stat Card ──
-export const StatCard = ({ label, value, sub, color, borderColor }) => (
+// `footer` nests a mini-card inside the parent ({label, value, sub?,
+// color?, muted?}). Every card in a row carrying a footer keeps the row's
+// heights equal — the minis are pushed flush to the bottom edge, so they
+// align across the row regardless of how much text sits above them.
+export const StatCard = ({ label, value, sub, color, borderColor, footer }) => (
   <div
     className={s.statCard}
     style={{
@@ -326,6 +330,21 @@ export const StatCard = ({ label, value, sub, color, borderColor }) => (
     </div>
     <div className={s.statValue} style={{ color }}>{value}</div>
     {sub && <div className={s.statSub}>{sub}</div>}
+    {footer && (
+      <div
+        className={s.statFooter}
+        style={{ borderLeft: `2px solid ${footer.muted ? "var(--bdl)" : footer.color || "var(--bdl)"}` }}
+      >
+        <span className={s.statFooterLabel}>{footer.label}</span>
+        {footer.sub && <span className={s.statFooterSub}>{footer.sub}</span>}
+        <span
+          className={s.statFooterValue}
+          style={{ color: footer.muted ? "var(--td)" : footer.color }}
+        >
+          {footer.value}
+        </span>
+      </div>
+    )}
   </div>
 )
 

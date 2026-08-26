@@ -266,6 +266,52 @@
   margin-top: 3px;
 }
 
+/* Nested footer mini-card. The parent is a column flexbox filling the
+   grid cell's full height, and margin-top:auto pins every footer to the
+   bottom edge — that's what keeps the minis aligned across the row.
+   .statSub's bottom margin guarantees breathing room on the tallest
+   card, where the auto margin collapses to zero. */
+.statCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.statSub {
+  margin-bottom: 10px;
+}
+.statFooter {
+  margin-top: auto;
+  border: 1px solid var(--bdl);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.65);
+}
+.statFooterLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm);
+  white-space: nowrap;
+}
+.statFooterSub {
+  font-size: 9px;
+  color: var(--td);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statFooterValue {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* ── Error Banner ── */
 .errorBanner {
   padding: 10px 14px;

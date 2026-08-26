@@ -394,28 +394,63 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       )}
 
       <div className={s.statsGrid}>
-        {/* Three cards, not four: "Extra by Hielda" is a slice of the other
-            two numbers (claimed extras live inside Being chased, collected
-            extras inside Paid), so it reads as a sub-line on each rather
-            than a card double-counting them. "Being chased" keeps the warm
-            accent — it's the actionable one. */}
-        <StatCard
-          label="Being chased"
-          value={fmt(totOwed)}
-          sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}${totExtra > 0 ? ` · incl. +${fmt(totExtra)} by Hielda` : ""}`}
-          color="var(--or)"
-          borderColor="var(--or)"
-        />
-        {/* outstanding() so a part-paid pending invoice isn't double
-            counted — its paid slice lives in the Paid card. */}
-        <StatCard label="Pending" value={fmt(round2(pending.reduce((s, i) => s + outstanding(i), 0)))} sub={`${pending.length} not yet due`} color="var(--acl)" borderColor="var(--acl)" />
-        <StatCard
-          label="Paid (90 days)"
-          value={fmt(totPaid)}
-          sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}${totExtraWon > 0 ? ` · incl. +${fmt(totExtraWon)} won by Hielda` : ""}`}
-          color="var(--ac)"
-          borderColor="var(--ac)"
-        />
+        {/* Pending leads as the quiet card; the two money-in-motion cards
+            sit together. Every card carries a nested footer mini-card so
+            the row stays flush: Pending shows the next due date, the other
+            two carry the "Extra by Hielda" split — charges being claimed
+            under Being chased, charges actually collected under Paid. */}
+        {(() => {
+          const nextDue = pending.length > 0
+            ? [...pending].sort((a, b) => (a.due_date < b.due_date ? -1 : 1))[0]
+            : null
+          return (
+            <>
+              {/* outstanding() so a part-paid pending invoice isn't double
+                  counted — its paid slice lives in the Paid card. */}
+              <StatCard
+                label="Pending"
+                value={fmt(round2(pending.reduce((s, i) => s + outstanding(i), 0)))}
+                sub={`${pending.length} not yet due`}
+                color="var(--acl)"
+                borderColor="var(--acl)"
+                footer={{
+                  label: "Next due",
+                  value: nextDue ? `${formatDate(nextDue.due_date)} · ${fmt(round2(outstanding(nextDue)))}` : "none scheduled",
+                  color: "var(--acl)",
+                  muted: !nextDue,
+                }}
+              />
+              <StatCard
+                label="Being chased"
+                value={fmt(totOwed)}
+                sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`}
+                color="var(--or)"
+                borderColor="var(--or)"
+                footer={{
+                  label: "Extra by Hielda",
+                  sub: "penalties + interest",
+                  value: totExtra > 0 ? `+${fmt(totExtra)}` : "none accruing",
+                  color: "var(--go)",
+                  muted: totExtra === 0,
+                }}
+              />
+              <StatCard
+                label="Paid (90 days)"
+                value={fmt(totPaid)}
+                sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}`}
+                color="var(--ac)"
+                borderColor="var(--ac)"
+                footer={{
+                  label: "Won by Hielda",
+                  sub: "late charges collected",
+                  value: totExtraWon > 0 ? `+${fmt(totExtraWon)}` : "none yet",
+                  color: "var(--gn)",
+                  muted: totExtraWon === 0,
+                }}
+              />
+            </>
+          )
+        })()}
       </div>
 
       {overdue.length > 0 && (
