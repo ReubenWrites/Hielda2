@@ -8,10 +8,11 @@
   --sfh: #fafbfc;
 
   /* ── Borders ────────────────────────────────────────────────────────
-     Toned down. Premium UIs prefer shadow over border for depth — these
-     borders are now subtle enough to disappear when a shadow is added. */
-  --bd: #e3e7ec;
-  --bdl: #eef0f4;
+     One notch bolder than the original whisper-light values: white cards
+     on the grey page were reading as low-contrast mush. Cool slate-tinted
+     greys keep it elegant — definition without thick dark lines. */
+  --bd: #d3dae3;
+  --bdl: #e2e7ee;
 
   /* ── Text colours ───────────────────────────────────────────────────
      Slightly lower-contrast body (was #0f172a near-black) for a softer,

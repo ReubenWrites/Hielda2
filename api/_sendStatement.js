@@ -58,6 +58,11 @@ function daysUntil(due) {
   return d > 0 ? d : 0
 }
 
+function daysBetween(from, to) {
+  const d = Math.floor((new Date(to).getTime() - new Date(from).getTime()) / 864e5)
+  return d > 0 ? d : 0
+}
+
 function round2(n) {
   return Math.round(n * 100) / 100
 }
@@ -124,7 +129,60 @@ function invoiceBlock(invoice, f, payments) {
     </div>`
 }
 
-function buildStatementEmail(invoices, profile, paymentsByInvoice) {
+// A recently settled invoice, shown so the client sees their payment
+// acknowledged — and, where they were let off part of the debt, that
+// the write-off was a courtesy, not an oversight. Charges are frozen
+// at the settlement date: interest on the balance outstanding when it
+// was settled, fixed fee tiered on the debt that went overdue.
+function settledBlock(invoice, payments) {
+  const face = Number(invoice.amount)
+  const cash = Number(invoice.amount_paid) || 0
+  const settledOn = invoice.paid_date
+  const dlSettle = settledOn ? daysBetween(invoice.due_date, settledOn) : 0
+  const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
+  const paidBefore = (payments || [])
+    .filter((p) => settledOn && p.paid_on < settledOn)
+    .reduce((s, p) => s + Number(p.amount), 0)
+  const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
+  const debtAtDue = Math.max(0, round2(face - (Number(invoice.paid_before_due) || 0)))
+  const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+  const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
+  const chargesCollected = Math.max(0, round2(cash - face))
+  const writtenOff = Math.max(0, round2(face + interest + pen - cash))
+
+  const paymentRows = (payments && payments.length > 0
+    ? payments.map((p) =>
+        `<tr><td style="${CELL_L}">Payment received ${formatDate(p.paid_on)}</td><td style="${CELL_R}color:#15803d;font-family:monospace;">−${fmt(p.amount)}</td></tr>`)
+    : cash > 0
+      ? [`<tr><td style="${CELL_L}">Payments received</td><td style="${CELL_R}color:#15803d;font-family:monospace;">−${fmt(cash)}</td></tr>`]
+      : []
+  ).join('')
+
+  return `
+    <div style="border:1px solid #bbe3cb;background:#f4fbf7;border-radius:10px;padding:16px 18px;margin:0 0 12px;">
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="vertical-align:top;">
+          <div style="font-weight:700;font-size:14px;color:#0f172a;">${esc(invoice.ref)}${invoice.client_ref ? ` <span style="color:#94a3b8;font-weight:400;font-size:12px;">(your ref ${esc(invoice.client_ref)})</span>` : ''}</div>
+          ${invoice.description ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${esc(invoice.description)}</div>` : ''}
+        </td>
+        <td style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:12px;">
+          <span style="display:inline-block;background:#dcf3e6;color:#15803d;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;">settled ${settledOn ? formatDate(settledOn) : ''}</span>
+        </td>
+      </tr></table>
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+        ${invoice.issue_date ? `<tr><td style="${CELL_L}">Issued</td><td style="${CELL_R}">${formatDate(invoice.issue_date)}</td></tr>` : ''}
+        <tr><td style="${CELL_L}">Due</td><td style="${CELL_R}">${formatDate(invoice.due_date)}</td></tr>
+        <tr><td style="${CELL_L}">Invoice amount</td><td style="${CELL_R}font-family:monospace;">${fmt(face)}</td></tr>
+        ${paymentRows}
+        ${chargesCollected > 0 ? `<tr><td style="${CELL_L}">Of which late charges — thank you</td><td style="${CELL_R}color:#15803d;font-family:monospace;">${fmt(chargesCollected)}</td></tr>` : ''}
+        ${writtenOff > 0 ? `<tr><td style="${CELL_L}">Written off as a gesture of goodwill</td><td style="${CELL_R}color:#64748b;font-family:monospace;">${fmt(writtenOff)}</td></tr>` : ''}
+        <tr><td style="padding:8px 14px 0 0;font-weight:700;font-size:13px;color:#15803d;border-top:1px solid #bbe3cb;">Nothing further due — account settled</td>
+            <td style="padding:8px 0 0;font-weight:700;font-size:14px;color:#15803d;text-align:right;font-family:monospace;border-top:1px solid #bbe3cb;">${fmt(0)}</td></tr>
+      </table>
+    </div>`
+}
+
+function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, settledPayments) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const clientName = esc(invoices[0].client_name || 'there')
 
@@ -155,6 +213,13 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice) {
   const anyOverdue = invoices.some((i) => daysLate(i.due_date) > 0)
   const subject = `Statement of account — ${fmt(grandTotal)} outstanding across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'} — ${fromName}`
 
+  const settledBlocks = (settled || []).map((inv) =>
+    settledBlock(inv, settledPayments ? settledPayments[inv.id] : null)
+  ).join('')
+  const settledSection = settledBlocks
+    ? `<div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#15803d;margin:20px 0 8px;">Recently settled — thank you</div>${settledBlocks}`
+    : ''
+
   const body = `
     <p>Dear ${clientName},</p>
     <p>Please find below a statement of the invoices from ${fromName} that remain outstanding, with each invoice itemised so everything is in one place.</p>
@@ -164,6 +229,7 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice) {
       <div style="font-size:24px;font-weight:700;color:#1e5fa0;">${fmt(grandTotal)}</div>
       <div style="font-size:12px;color:#64748b;margin-top:4px;">Outstanding invoices: ${fmt(grandOutstanding)}${grandExtras > 0 ? ` + Late charges: ${fmt(grandExtras)}` : ''}</div>
     </div>
+    ${settledSection}
     ${anyOverdue ? `<p style="font-size:12px;color:#64748b;">Late charges are applied under the Late Payment of Commercial Debts (Interest) Act 1998 and continue to accrue daily until payment is received.</p>` : ''}
     ${payBlock}
     <p>A single payment of ${fmt(grandTotal)} settles everything above. If any of these invoices have already been paid, or you'd like to discuss them, just reply to this email.</p>
@@ -200,7 +266,7 @@ export async function sendStatement(req, res) {
   await loadLiveRate()
 
   try {
-    const { invoice_ids, user_token, include_payments, preview } = req.body
+    const { invoice_ids, user_token, include_payments, include_settled, preview } = req.body
 
     if (!Array.isArray(invoice_ids) || invoice_ids.length === 0 || invoice_ids.length > 50) {
       return res.status(400).json({ error: 'invoice_ids (1–50) required' })
@@ -287,7 +353,42 @@ export async function sendStatement(req, res) {
       }
     }
 
-    const email = buildStatementEmail(open, profile, paymentsByInvoice)
+    // Recently settled invoices for the same client (last 60 days) —
+    // acknowledged on the statement so the client sees their payment
+    // landed, and any write-off reads as a courtesy, not an oversight.
+    // Their ledger is always fetched: the settlement maths needs it.
+    let settled = []
+    let settledPayments = null
+    if (include_settled) {
+      const cutoff = new Date(Date.now() - 60 * 864e5).toISOString().split('T')[0]
+      // ilike with no wildcards = case-insensitive equality, so the
+      // client filter happens in the query and limit() can't push this
+      // client's settlements out.
+      const { data: settledRows } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'paid')
+        .ilike('client_email', clientEmail)
+        .gte('paid_date', cutoff)
+        .order('paid_date', { ascending: false })
+        .limit(10)
+      settled = settledRows || []
+      if (settled.length > 0) {
+        const { data: payRows } = await supabase
+          .from('invoice_payments')
+          .select('invoice_id, amount, paid_on')
+          .in('invoice_id', settled.map((i) => i.id))
+          .order('paid_on', { ascending: true })
+        settledPayments = {}
+        for (const p of payRows || []) {
+          if (!settledPayments[p.invoice_id]) settledPayments[p.invoice_id] = []
+          settledPayments[p.invoice_id].push(p)
+        }
+      }
+    }
+
+    const email = buildStatementEmail(open, profile, paymentsByInvoice, settled, settledPayments)
 
     // Preview mode: hand back exactly what would be sent, and stop.
     if (preview) {

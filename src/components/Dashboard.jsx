@@ -222,14 +222,15 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   // shows it in an iframe, and only "Send now" commits.
   const [stmtPreview, setStmtPreview] = useState(null)
 
-  const fetchStatement = async (group, includePayments, preview) => {
+  const fetchStatement = async (group, opts, preview) => {
     const session = await supabase.auth.getSession()
     const res = await fetch("/api/send-chase-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         invoice_ids: group.invoices.map((i) => i.id),
-        include_payments: includePayments,
+        include_payments: opts.includePayments,
+        include_settled: opts.includeSettled,
         preview,
         user_token: session.data.session?.access_token,
       }),
@@ -242,21 +243,28 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const openStatement = async (group) => {
     setSendingStatement(group.email)
     try {
-      const data = await fetchStatement(group, true, true)
-      setStmtPreview({ group, includePayments: true, ...data })
+      const opts = { includePayments: true, includeSettled: true }
+      const data = await fetchStatement(group, opts, true)
+      setStmtPreview({ group, ...opts, ...data })
     } catch (e) {
       toast.error("Failed to build statement: " + e.message)
     }
     setSendingStatement("")
   }
 
-  const toggleStatementPayments = async () => {
+  // Flip one preview option and rebuild the preview from the server so
+  // what's on screen is always exactly what would be sent.
+  const toggleStatementOpt = async (key) => {
     if (!stmtPreview || stmtPreview.loading || stmtPreview.sending) return
-    const next = !stmtPreview.includePayments
+    const opts = {
+      includePayments: stmtPreview.includePayments,
+      includeSettled: stmtPreview.includeSettled,
+      [key]: !stmtPreview[key],
+    }
     setStmtPreview((p) => ({ ...p, loading: true }))
     try {
-      const data = await fetchStatement(stmtPreview.group, next, true)
-      setStmtPreview((p) => ({ ...p, ...data, includePayments: next, loading: false }))
+      const data = await fetchStatement(stmtPreview.group, opts, true)
+      setStmtPreview((p) => ({ ...p, ...data, ...opts, loading: false }))
     } catch (e) {
       toast.error("Failed to rebuild preview: " + e.message)
       setStmtPreview((p) => (p ? { ...p, loading: false } : p))
@@ -267,7 +275,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     if (!stmtPreview || stmtPreview.sending) return
     setStmtPreview((p) => ({ ...p, sending: true }))
     try {
-      const data = await fetchStatement(stmtPreview.group, stmtPreview.includePayments, false)
+      const data = await fetchStatement(
+        stmtPreview.group,
+        { includePayments: stmtPreview.includePayments, includeSettled: stmtPreview.includeSettled },
+        false
+      )
       trackEvent("statement_sent", { invoice_count: data.invoice_count, total: data.total })
       toast.success(`Statement sent to ${data.email_to} — ${fmt(data.total)} across ${data.invoice_count} invoices`)
       setStmtPreview(null)
@@ -587,6 +599,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   {/* Clicking the client filters the invoice table below to
                       them — the breakdown lives where invoices already live
                       instead of being repeated here. */}
+                  {/* Name as the block headline; the stats sit centred in
+                      the middle of the row rather than tucked under it. */}
                   <div
                     className={s.clientInfo}
                     role="button"
@@ -596,11 +610,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                     title="Show this client's invoices below"
                   >
                     <div className={s.clientName}>{g.name}</div>
-                    <div className={s.clientMeta}>
-                      {g.invoices.length} open invoice{g.invoices.length !== 1 ? "s" : ""}
-                      {g.overdueCount > 0 && <span className={s.clientOverdue}> · oldest {g.oldestLate}d overdue</span>}
-                      {lastStatement && <span className={s.clientStatementSent}> · statement sent {daysAgo(lastStatement)}</span>}
-                    </div>
+                  </div>
+                  <div className={s.clientMeta}>
+                    {g.invoices.length} open invoice{g.invoices.length !== 1 ? "s" : ""}
+                    {g.overdueCount > 0 && <span className={s.clientOverdue}> · oldest {g.oldestLate}d overdue</span>}
+                    {lastStatement && <span className={s.clientStatementSent}> · statement sent {daysAgo(lastStatement)}</span>}
                   </div>
                   <div
                     className={s.clientAmounts}
@@ -660,15 +674,26 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               style={{ opacity: stmtPreview.loading ? 0.4 : 1 }}
             />
             <div className={s.stmtFoot}>
-              <label className={s.stmtCheck}>
-                <input
-                  type="checkbox"
-                  checked={stmtPreview.includePayments}
-                  onChange={toggleStatementPayments}
-                  disabled={stmtPreview.loading || stmtPreview.sending}
-                />
-                <span>Include payments received (with dates)</span>
-              </label>
+              <div className={s.stmtChecks}>
+                <label className={s.stmtCheck}>
+                  <input
+                    type="checkbox"
+                    checked={stmtPreview.includePayments}
+                    onChange={() => toggleStatementOpt("includePayments")}
+                    disabled={stmtPreview.loading || stmtPreview.sending}
+                  />
+                  <span>Include payments received (with dates)</span>
+                </label>
+                <label className={s.stmtCheck}>
+                  <input
+                    type="checkbox"
+                    checked={stmtPreview.includeSettled}
+                    onChange={() => toggleStatementOpt("includeSettled")}
+                    disabled={stmtPreview.loading || stmtPreview.sending}
+                  />
+                  <span>Include recently settled invoices (last 60 days)</span>
+                </label>
+              </div>
               <div className={s.stmtFootBtns}>
                 <Btn v="ghost" sz="sm" onClick={() => setStmtPreview(null)} dis={stmtPreview.sending}>Cancel</Btn>
                 <Btn sz="sm" onClick={confirmSendStatement} dis={stmtPreview.loading || stmtPreview.sending}>
@@ -759,7 +784,10 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             { id: "all", label: "All", count: invs.length },
             { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
             { id: "pending", label: "Pending", count: pending.length, color: c.am },
-            { id: "paid", label: "Paid", count: paid.length, color: c.gn },
+            // Count ALL paid invoices, not the stat card's 90-day window —
+            // a pill that says 3 while clicking it shows 4 reads as rows
+            // appearing and disappearing.
+            { id: "paid", label: "Paid", count: invs.filter((i) => i.status === "paid").length, color: c.gn },
             ...(drafts.length > 0 ? [{ id: "drafts", label: "Drafts", count: drafts.length, color: c.td }] : []),
           ].map(f => (
             <button

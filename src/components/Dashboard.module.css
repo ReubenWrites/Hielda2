@@ -292,7 +292,6 @@
   flex-wrap: wrap;
 }
 .clientInfo {
-  flex: 1;
   min-width: 140px;
   cursor: pointer;
   border-radius: 8px;
@@ -302,6 +301,11 @@
 }
 .clientStatementSent {
   color: var(--gn);
+}
+.clientMeta {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
 }
 
 /* Statement preview modal */
@@ -367,6 +371,11 @@
   padding: 12px 20px;
   border-top: 1px solid var(--bdl);
 }
+.stmtChecks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .stmtCheck {
   display: flex;
   align-items: center;
@@ -384,8 +393,9 @@
   gap: 8px;
 }
 .clientName {
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
   color: var(--tx);
 }
 .clientMeta {
