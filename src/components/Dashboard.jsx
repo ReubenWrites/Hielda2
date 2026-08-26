@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
 import { colors as c, CHASE_STAGES } from "../constants"
-import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras } from "../utils"
+import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras, todayStr } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm, useToast } from "./ui"
 import { supabase } from "../supabase"
 import { trackEvent } from "../posthog"
@@ -216,6 +216,123 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const daysAgo = (ts) => {
     const d = Math.floor((Date.now() - new Date(ts).getTime()) / 864e5)
     return d === 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`
+  }
+
+  // Split-payment flow: one lump sum from a client, allocated across
+  // their open invoices. Hielda suggests the fee-optimal split — fill
+  // invoices that aren't yet due first (a pre-due settlement never
+  // attracts charges), then oldest debt — and every line stays editable.
+  const [splitModal, setSplitModal] = useState(null)
+
+  const invoiceOwed = (i, paidOn) => {
+    // What would fully close this invoice: face remaining, plus accrued
+    // charges when it's already overdue relative to the payment date.
+    const faceRem = Math.max(0, round2(Number(i.amount) - (Number(i.amount_paid) || 0)))
+    return paidOn <= i.due_date ? faceRem : round2(outstanding(i) + chargeableExtras(i))
+  }
+
+  const suggestSplit = (group, total, paidOn) => {
+    let left = round2(total)
+    const alloc = {}
+    const faceRemOf = (i) => Math.max(0, round2(Number(i.amount) - (Number(i.amount_paid) || 0)))
+    // Pre-due invoices smallest-first: every one fully settled before its
+    // due date kills its entire penalty, so the greedy that settles the
+    // most invoices saves the most fees. (Ted's £1,000 proves it: by due
+    // date it all lands on the big invoice; smallest-first settles
+    // INV-0010 clean and still keeps INV-0008 in the £40 tier.)
+    const preDue = group.invoices.filter((i) => paidOn <= i.due_date).sort((a, b) => faceRemOf(a) - faceRemOf(b))
+    const overdue = group.invoices.filter((i) => paidOn > i.due_date).sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
+    for (const i of [...preDue, ...overdue]) {
+      if (left <= 0) break
+      const owedFull = invoiceOwed(i, paidOn)
+      const faceRem = Math.max(0, round2(Number(i.amount) - (Number(i.amount_paid) || 0)))
+      // Take the whole debt when the money stretches to it; otherwise cap
+      // at the face remaining so a partial never strands an invoice in
+      // the odd state of "face covered, charges dangling".
+      const a = left >= owedFull ? owedFull : Math.min(left, faceRem)
+      if (a > 0) {
+        alloc[i.id] = String(a)
+        left = round2(left - a)
+      }
+    }
+    return alloc
+  }
+
+  const openSplit = (group) => {
+    setSplitModal({ group, amount: "", date: todayStr(), alloc: {}, saving: false })
+  }
+
+  const updateSplitAmount = (field, value) => {
+    setSplitModal((m) => {
+      if (!m) return m
+      const next = { ...m, [field]: value }
+      const total = parseFloat(next.amount)
+      // Re-suggest whenever the headline amount or date changes — manual
+      // per-invoice edits persist until then.
+      if (total > 0 && next.date) next.alloc = suggestSplit(next.group, total, next.date)
+      return next
+    })
+  }
+
+  const splitAllocated = (m) => round2(m.group.invoices.reduce((s, i) => s + (parseFloat(m.alloc[i.id]) || 0), 0))
+
+  const commitSplit = async () => {
+    const m = splitModal
+    if (!m || m.saving) return
+    const total = parseFloat(m.amount)
+    if (!total || total <= 0) return
+    if (m.date > todayStr()) {
+      toast.error("The payment date can't be in the future.")
+      return
+    }
+    const entries = m.group.invoices
+      .map((i) => ({ i, a: round2(parseFloat(m.alloc[i.id]) || 0) }))
+      .filter((e) => e.a > 0)
+    const sum = round2(entries.reduce((s, e) => s + e.a, 0))
+    if (Math.abs(sum - total) > 0.005) {
+      toast.error(`The split (${fmt(sum)}) doesn't add up to the payment (${fmt(total)}) — ${fmt(round2(total - sum))} unallocated.`)
+      return
+    }
+    for (const { i, a } of entries) {
+      if (a > invoiceOwed(i, m.date) + 0.005) {
+        toast.error(`${i.ref}: ${fmt(a)} is more than the ${fmt(invoiceOwed(i, m.date))} owed on it.`)
+        return
+      }
+    }
+    setSplitModal((p) => ({ ...p, saving: true }))
+    try {
+      for (const { i, a } of entries) {
+        const { error: ledgerErr } = await supabase.from("invoice_payments").insert({
+          invoice_id: i.id,
+          user_id: profile.id,
+          amount: a,
+          paid_on: m.date,
+        })
+        if (ledgerErr) throw ledgerErr
+        const newPaid = round2((Number(i.amount_paid) || 0) + a)
+        const updates = { amount_paid: newPaid }
+        if (m.date <= i.due_date) {
+          updates.paid_before_due = round2((Number(i.paid_before_due) || 0) + a)
+        }
+        if (a >= invoiceOwed(i, m.date) - 0.005) {
+          updates.status = "paid"
+          updates.paid_date = m.date
+          updates.chase_stage = null
+        }
+        const { error: invErr } = await supabase.from("invoices").update(updates).eq("id", i.id)
+        if (invErr) throw invErr
+      }
+      trackEvent("payment_split_recorded", { invoices: entries.length, total })
+      toast.success(`Recorded ${fmt(total)} across ${entries.length} invoice${entries.length !== 1 ? "s" : ""}`)
+      setSplitModal(null)
+      onUpdate()
+    } catch (e) {
+      // Writes are sequential, so a failure can land part-way — refresh
+      // and say so plainly rather than pretending it's all-or-nothing.
+      toast.error("Failed part-way through recording: " + e.message + ". Check the payment history before retrying.")
+      setSplitModal(null)
+      onUpdate()
+    }
   }
 
   // Statement flow: preview first, send second. The server builds the
@@ -635,6 +752,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                     <div className={s.clientTotal}>{fmt(g.total)}</div>
                     {g.extras > 0 && <div className={s.clientExtras}>incl. +{fmt(g.extras)} by Hielda</div>}
                   </div>
+                  <Btn sz="sm" v="ghost" onClick={() => openSplit(g)}>Record payment</Btn>
                   {g.email ? (
                     <Btn sz="sm" v={lastStatement ? "ghost" : "primary"} onClick={() => openStatement(g)} dis={sendingStatement === g.email}>
                       {sendingStatement === g.email ? "Preparing…" : lastStatement ? "Send again" : "Send statement"}
@@ -649,6 +767,82 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           </div>
         </div>
       )}
+
+      {/* Split a lump payment across a client's open invoices */}
+      {splitModal && (() => {
+        const m = splitModal
+        const total = parseFloat(m.amount) || 0
+        const allocated = splitAllocated(m)
+        const unallocated = round2(total - allocated)
+        return (
+        <div className={s.stmtOverlay} role="presentation" onClick={() => !m.saving && setSplitModal(null)}>
+          <div className={s.stmtBox} role="dialog" aria-modal="true" aria-labelledby="split-title" onClick={(e) => e.stopPropagation()}>
+            <div className={s.stmtHead}>
+              <div className={s.stmtHeadText}>
+                <div className={s.stmtTitle} id="split-title">Record a payment from {m.group.name}</div>
+                <div className={s.stmtMeta}>Hielda suggests the split that costs them least — not-yet-due invoices first, then the oldest debt. Every line is editable.</div>
+              </div>
+              <button className={s.dismissBtn} onClick={() => setSplitModal(null)} aria-label="Close" disabled={m.saving}>✕</button>
+            </div>
+            <div className={s.splitBody}>
+              <div className={s.splitInputs}>
+                <label className={s.splitField}>
+                  <span>Amount received</span>
+                  <input type="number" step="0.01" value={m.amount} placeholder="0.00"
+                    onChange={(e) => updateSplitAmount("amount", e.target.value)} className={s.splitAmount} />
+                </label>
+                <label className={s.splitField}>
+                  <span>When was it paid?</span>
+                  <input type="date" value={m.date} max={todayStr()}
+                    onChange={(e) => updateSplitAmount("date", e.target.value)} className={s.splitDate} />
+                </label>
+              </div>
+              <div className={s.splitRows}>
+                {m.group.invoices.map((i) => {
+                  const owedFull = invoiceOwed(i, m.date)
+                  const preDue = m.date <= i.due_date
+                  const val = parseFloat(m.alloc[i.id]) || 0
+                  const closes = val >= owedFull - 0.005 && val > 0
+                  return (
+                    <div key={i.id} className={s.splitRow}>
+                      <span className={s.splitRef}>{i.ref}</span>
+                      <span className={s.splitDue}>
+                        {preDue
+                          ? <span className={s.splitPreDue}>due {formatDate(i.due_date)} — no charges if settled now</span>
+                          : <>owes <strong>{fmt(owedFull)}</strong> incl. charges · {daysLate(i.due_date)}d late</>}
+                      </span>
+                      <span className={s.splitCloses}>{closes ? (preDue ? "✓ settles early" : "✓ closes it") : ""}</span>
+                      <input
+                        type="number" step="0.01" min="0" max={owedFull}
+                        value={m.alloc[i.id] ?? ""}
+                        placeholder="0.00"
+                        onChange={(e) => setSplitModal((p) => ({ ...p, alloc: { ...p.alloc, [i.id]: e.target.value } }))}
+                        className={s.splitAllocInput}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div className={s.stmtFoot}>
+              <span className={s.splitRemainder} style={{ color: Math.abs(unallocated) > 0.005 ? "var(--or)" : "var(--gn)" }}>
+                {total > 0
+                  ? Math.abs(unallocated) > 0.005
+                    ? `${fmt(Math.abs(unallocated))} ${unallocated > 0 ? "still to allocate" : "over-allocated"}`
+                    : "Fully allocated ✓"
+                  : "Enter the amount received"}
+              </span>
+              <div className={s.stmtFootBtns}>
+                <Btn v="ghost" sz="sm" onClick={() => setSplitModal(null)} dis={m.saving}>Cancel</Btn>
+                <Btn sz="sm" onClick={commitSplit} dis={m.saving || total <= 0 || Math.abs(unallocated) > 0.005}>
+                  {m.saving ? "Recording…" : "Record payment"}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+        )
+      })()}
 
       {/* Statement preview — the exact email, checked before it goes */}
       {stmtPreview && (
