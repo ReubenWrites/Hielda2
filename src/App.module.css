@@ -400,11 +400,6 @@
 
 .contentInner {
   position: relative;
-  /* Ultrawide screens stretched every card to the horizon — cap the
-     working area. 1400px: wide enough to not feel corseted on a big
-     monitor, narrow enough that a table row still reads as one line. */
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 /* ── Data error banner ── */

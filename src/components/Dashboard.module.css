@@ -894,8 +894,24 @@
     margin-bottom: 18px;
   }
 
+  /* Three cards on a two-column grid strands the last one half-width —
+     let Paid span the second row instead. */
+  .statsGrid > *:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
   .chasingSection {
     margin-bottom: 18px;
+  }
+
+  /* Compact chase rows: on a phone the ref + client + amount is the
+     story — the extra figure lives on the invoice page. */
+  .chaseCompactRow {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .chaseCompactExtra {
+    display: none;
   }
 
   .invoicesHeader {

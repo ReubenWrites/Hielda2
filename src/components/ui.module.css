@@ -303,6 +303,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 .statFooterValue {
   font-family: var(--mono);
