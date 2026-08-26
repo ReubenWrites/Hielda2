@@ -428,6 +428,21 @@ export default function App() {
           </div>
 
           <div className={s.headerStats}>
+            {/* Lifetime late charges actually collected — cash received
+                above face value across every invoice, ever. The product's
+                proudest number, so it lives in the header on every page. */}
+            {(() => {
+              const lifetimeWon = Math.round(invs.reduce((sum, i) => {
+                const face = Number(i.total_with_vat) || Number(i.amount)
+                return sum + Math.max(0, (Number(i.amount_paid) || 0) - face)
+              }, 0) * 100) / 100
+              return lifetimeWon > 0 && !isMobile ? (
+                <div className={s.badgeWon} title="Late charges Hielda has collected for you, all time">
+                  <span className={s.wonStar} aria-hidden="true">★</span>
+                  {fmt(lifetimeWon)} won by Hielda
+                </div>
+              ) : null
+            })()}
             {overdueInvs.length > 0 && (
               <div className={s.badgeOverdue}>
                 <span className={s.pulseWrap}>

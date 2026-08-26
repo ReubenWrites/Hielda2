@@ -111,8 +111,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
     // Late charges actually COLLECTED, not just claimed: any cash received
     // above an invoice's face total is money Hielda's fines and interest
-    // brought in. The strongest number in the product — show it off.
-    const totExtraWon = round2(invs.reduce((s, i) => {
+    // brought in. Windowed to the same 90 days as the Paid card it sits
+    // under — the lifetime figure lives in the app header.
+    const totExtraWon = round2(paid.reduce((s, i) => {
       const face = Number(i.total_with_vat) || Number(i.amount)
       return s + Math.max(0, (Number(i.amount_paid) || 0) - face)
     }, 0))
