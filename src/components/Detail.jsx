@@ -1656,7 +1656,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         {ov && (
           <Card>
             <h3 className={s.oweHeading}>What they now owe you</h3>
-            <div className={s.oweLaw}>Late Payment of Commercial Debts (Interest) Act 1998</div>
+            <div className={s.oweLaw}>Statement · Late Payment of Commercial Debts (Interest) Act 1998</div>
             {[
               [hasVat ? "Invoice (inc. VAT)" : "Original invoice", fmt(invoiceTotal), c.tx],
               ...(paidSoFar > 0 ? [["Payments received", `−${fmt(paidSoFar)}`, c.gn]] : []),
@@ -1678,8 +1678,12 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
         {inv.status === "paid" && (
           <Card style={{ background: c.gnd }} className={s.paidCard}>
-            <div className={s.paidIcon} aria-hidden="true">✓</div>
-            <div className={s.paidLabel}>Paid</div>
+            {/* The stamp — the authority that marks the account settled.
+                SETTLED when the close was negotiated short of the full
+                debt, PAID otherwise. */}
+            <div className={s.paidStamp}>
+              {amountPaid > 0 && amountPaid < invoiceTotal - 0.005 ? "Settled" : "Paid"}
+            </div>
             <div className={s.paidDate}>{formatDate(inv.paid_date)}</div>
             {/* What actually happened at settlement: money above the invoice
                 total is late charges Hielda collected; money below it was

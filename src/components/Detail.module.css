@@ -1130,8 +1130,14 @@
   margin: 0 0 14px;
 }
 
+/* The soul of the product, dressed as a printed statement fragment:
+   mono eyebrow, ruled rows, a double rule above the total. */
 .oweLaw {
-  font-size: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--td);
   margin-bottom: 12px;
 }
@@ -1159,7 +1165,7 @@
   justify-content: space-between;
   margin-top: 14px;
   padding-top: 10px;
-  border-top: 2px solid rgba(30,95,160,0.2);
+  border-top: 3px double var(--tx);
 }
 
 .oweTotalLabel {
@@ -1204,6 +1210,27 @@
   font-size: 17px;
   font-weight: 700;
   color: var(--gn);
+}
+
+/* The stamp: mono caps, heavy border, a few degrees off square, faint
+   ink unevenness via the radial mask. Rubber-stamp authority — used
+   only where an account closes. */
+.paidStamp {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gn);
+  border: 2.5px solid var(--gn);
+  border-radius: 6px;
+  padding: 5px 18px;
+  transform: rotate(-6deg);
+  opacity: 0.9;
+  margin-bottom: 12px;
+  -webkit-mask-image: radial-gradient(circle at 30% 40%, black 92%, transparent 96%);
+  mask-image: radial-gradient(circle at 30% 40%, black 92%, transparent 96%);
 }
 
 .paidDate {

@@ -98,7 +98,9 @@
 /* ── Stat Cards Grid ── */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* Capped columns, left-aligned: headline numbers don't earn a metre of
+     card on an ultrawide the way tables earn full bleed. */
+  grid-template-columns: repeat(3, minmax(0, 360px));
   gap: 10px;
   margin-bottom: 24px;
 }
@@ -241,6 +243,24 @@
 }
 .cgStage {
   text-align: center;
+}
+.stagePill,
+.stagePillHot {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--bdl);
+  color: var(--tm);
+  white-space: nowrap;
+}
+.stagePillHot {
+  color: var(--or);
+  border-color: rgba(201, 107, 3, 0.3);
+  background: rgba(201, 107, 3, 0.05);
 }
 .cgLate {
   font-family: var(--mono);

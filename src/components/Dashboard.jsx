@@ -473,6 +473,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 sub={`${pending.length} not yet due`}
                 color="var(--acl)"
                 borderColor="var(--acl)"
+                quiet
                 footer={{
                   label: "Next due",
                   value: nextDue ? `${formatDate(nextDue.due_date)} · ${fmt(round2(outstanding(nextDue)))}` : "none scheduled",
@@ -558,6 +559,10 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               const ex = chargeableExtras(i)
               const owed = outstanding(i)
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
+              // Only the serious end of the ladder gets colour — a row of
+              // five bright badges reads as noise, one hot badge reads as
+              // urgency.
+              const hotStage = /final|escalation|recovery/.test(i.chase_stage || "")
               return (
                 <div
                   key={i.id}
@@ -570,7 +575,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   <span className={s.cgRef}>{i.ref}</span>
                   <span className={s.cgClient}>{i.client_name || "Client"}</span>
                   <span className={s.cgDue}>due <strong>{formatDate(i.due_date)}</strong></span>
-                  <span className={s.cgStage}>{stg && <Badge color={stg.col}>{stg.label}</Badge>}</span>
+                  <span className={s.cgStage}>
+                    {stg && <span className={hotStage ? s.stagePillHot : s.stagePill}>{stg.label}</span>}
+                  </span>
                   <span className={s.cgLate}>{daysLate(i.due_date)}d</span>
                   <span className={s.cgAmt}>
                     {fmt(owed + ex)}

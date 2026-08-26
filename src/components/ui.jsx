@@ -333,20 +333,23 @@ export const Sel = ({ label, value, onChange, opts }) => (
 // color?, muted?}). Every card in a row carrying a footer keeps the row's
 // heights equal — the minis are pushed flush to the bottom edge, so they
 // align across the row regardless of how much text sits above them.
-export const StatCard = ({ label, value, sub, color, borderColor, footer }) => (
+export const StatCard = ({ label, value, sub, color, borderColor, footer, quiet }) => (
   <div
     className={s.statCard}
     style={{
-      borderLeft: `3px solid ${borderColor}`,
+      // `quiet` demotes a card to the supporting cast: neutral border, no
+      // wash, muted value. One loud accent per row — the quiet cards are
+      // what make the loud one loud.
+      borderLeft: `3px solid ${quiet ? "var(--bd)" : borderColor}`,
       // A whisper of the accent colour washing in from the accent edge —
       // enough to make each card feel owned by its number, not painted.
-      background: `linear-gradient(105deg, ${borderColor}0d, var(--sf) 45%)`,
+      background: quiet ? "var(--sf)" : `linear-gradient(105deg, ${borderColor}0d, var(--sf) 45%)`,
     }}
   >
     <div className={s.statLabel} data-gold={borderColor === "#d4a017" ? "true" : undefined}>
       {label}
     </div>
-    <div className={s.statValue} style={{ color }}>{value}</div>
+    <div className={s.statValue} style={{ color: quiet ? "var(--tm)" : color }}>{value}</div>
     {sub && <div className={s.statSub}>{sub}</div>}
     {footer && (
       <div
