@@ -227,7 +227,6 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
     <div style="background:#eff6ff;border-left:4px solid #1e5fa0;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
       <div style="font-size:12px;color:#1e5fa0;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
       <div style="font-size:24px;font-weight:700;color:#1e5fa0;">${fmt(grandTotal)}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:4px;">Outstanding invoices: ${fmt(grandOutstanding)}${grandExtras > 0 ? ` + Late charges: ${fmt(grandExtras)}` : ''}</div>
     </div>
     ${settledSection}
     ${anyOverdue ? `<p style="font-size:12px;color:#64748b;">Late charges are applied under the Late Payment of Commercial Debts (Interest) Act 1998 and continue to accrue daily until payment is received.</p>` : ''}
