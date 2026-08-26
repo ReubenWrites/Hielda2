@@ -125,8 +125,12 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       (i) => i.status !== "paid" && (Number(i.amount_paid) || 0) > 0
     )
     const partPaidCount = openWithPartPayment.length
+    // Real cash received, not face values: a paid invoice with a payment
+    // ledger contributes what actually arrived (charges collected push it
+    // above face; a settled-short invoice sits below). Invoices marked
+    // paid without any recorded payment fall back to face value.
     const totPaid = round2(
-      paid.reduce((s, i) => s + Number(i.amount), 0) +
+      paid.reduce((s, i) => s + ((Number(i.amount_paid) || 0) > 0 ? Number(i.amount_paid) : Number(i.amount)), 0) +
       openWithPartPayment.reduce((s, i) => s + (Number(i.amount_paid) || 0), 0)
     )
 
@@ -361,23 +365,28 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       )}
 
       <div className={s.statsGrid}>
-        {/* StatCard palette is restrained but not flat: three of the four
-            cards use the brand blue (--ac), and only "Being chased" uses
-            a warm accent (--or). That one card is the actionable one —
-            the money you should be collecting — so the row visually
-            highlights it without splashing four different colours. */}
+        {/* Three cards, not four: "Extra by Hielda" is a slice of the other
+            two numbers (claimed extras live inside Being chased, collected
+            extras inside Paid), so it reads as a sub-line on each rather
+            than a card double-counting them. "Being chased" keeps the warm
+            accent — it's the actionable one. */}
         <StatCard
-          label="Extra by Hielda"
-          value={`+${fmt(totExtra)}`}
-          sub={totExtraWon > 0 ? `${fmt(totExtraWon)} collected so far` : "penalties + interest"}
-          color="var(--ac)"
-          borderColor="var(--ac)"
+          label="Being chased"
+          value={fmt(totOwed)}
+          sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}${totExtra > 0 ? ` · incl. +${fmt(totExtra)} by Hielda` : ""}`}
+          color="var(--or)"
+          borderColor="var(--or)"
         />
-        <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--or)" borderColor="var(--or)" />
         {/* outstanding() so a part-paid pending invoice isn't double
             counted — its paid slice lives in the Paid card. */}
         <StatCard label="Pending" value={fmt(round2(pending.reduce((s, i) => s + outstanding(i), 0)))} sub={`${pending.length} not yet due`} color="var(--acl)" borderColor="var(--acl)" />
-        <StatCard label="Paid (90 days)" value={fmt(totPaid)} sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}`} color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard
+          label="Paid (90 days)"
+          value={fmt(totPaid)}
+          sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}${totExtraWon > 0 ? ` · incl. +${fmt(totExtraWon)} won by Hielda` : ""}`}
+          color="var(--ac)"
+          borderColor="var(--ac)"
+        />
       </div>
 
       {overdue.length > 0 && (
@@ -474,14 +483,6 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   ) : (
                     <span className={s.clientNoEmail}>No email on file</span>
                   )}
-                </div>
-                <div className={s.clientInvoiceChips}>
-                  {g.invoices.map((i) => (
-                    <button key={i.id} className={s.clientInvoiceChip} onClick={() => navigate(`/invoice/${i.id}`)}>
-                      {i.ref} · {fmt(round2(outstanding(i) + chargeableExtras(i)))}
-                      {i.status === "overdue" && <span className={s.clientChipLate}> · {daysLate(i.due_date)}d late</span>}
-                    </button>
-                  ))}
                 </div>
               </Card>
             ))}
