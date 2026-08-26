@@ -257,6 +257,10 @@
 }
 .clientAmounts {
   text-align: right;
+  cursor: pointer;
+}
+.clientAmounts:hover .clientTotal {
+  color: var(--ac);
 }
 .clientTotal {
   font-family: var(--mono);

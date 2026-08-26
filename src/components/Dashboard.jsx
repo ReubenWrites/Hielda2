@@ -493,7 +493,14 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                       {lastStatement && <span className={s.clientStatementSent}> · statement sent {daysAgo(lastStatement)}</span>}
                     </div>
                   </div>
-                  <div className={s.clientAmounts}>
+                  <div
+                    className={s.clientAmounts}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { setStatusFilter("all"); setSearch(g.name) }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { setStatusFilter("all"); setSearch(g.name) } }}
+                    title="Show this client's invoices below"
+                  >
                     <div className={s.clientTotal}>{fmt(g.total)}</div>
                     {g.extras > 0 && <div className={s.clientExtras}>incl. +{fmt(g.extras)} by Hielda</div>}
                   </div>
