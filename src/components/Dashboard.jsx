@@ -172,6 +172,24 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
   const [sendingStatement, setSendingStatement] = useState("")
 
+  // Chasing list: collapsed to the summary bar by default; the choice
+  // sticks per browser. localStorage can throw (private windows, blocked
+  // site data) so reads and writes are best-effort.
+  const [chasingOpen, setChasingOpen] = useState(() => {
+    try {
+      return localStorage.getItem("hielda_chasing_open") === "1"
+    } catch {
+      return false
+    }
+  })
+  const toggleChasingOpen = () => {
+    setChasingOpen((v) => {
+      const next = !v
+      try { localStorage.setItem("hielda_chasing_open", next ? "1" : "0") } catch {}
+      return next
+    })
+  }
+
   // When each client last received a consolidated statement — shown on the
   // client row so a second send is a decision, not an accident.
   const [statementLog, setStatementLog] = useState({})
@@ -482,22 +500,48 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         })()}
       </div>
 
-      {overdue.length > 0 && (
+      {overdue.length > 0 && (() => {
+        // Summary bar is the collapsed state: count, client(s), the range
+        // of overdueness, and the total. The chevron expands the full
+        // list — a strict column grid (everything centred, money
+        // right-aligned so the pennies stack) — and the choice sticks
+        // per browser.
+        const sorted = [...overdue].sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
+        const lates = sorted.map((i) => daysLate(i.due_date))
+        const minLate = Math.min(...lates)
+        const maxLate = Math.max(...lates)
+        const names = [...new Set(sorted.map((i) => i.client_name || "Client"))]
+        const clientLabel = names.length === 1 ? names[0] : `${names[0]} + ${names.length - 1} more`
+        return (
         <div className={s.chasingSection}>
-          <div className={s.chasingHeader}>
-            <div className={s.pulseWrapper}>
-              <div className={s.pulseDot} />
-              <div className="pulse-ring" />
-            </div>
-            <span className={s.chasingLabel}>Hielda is chasing these</span>
-            <span className={s.chasingTotal}>{fmt(totOwed)}</span>
-          </div>
-          {/* One compact card, one line per invoice, most overdue first.
-              Descriptions, avatars and per-invoice cards made this section
-              a wall — the detail page holds the story, this holds the
-              status. */}
           <Card style={{ padding: 0, overflow: "hidden" }}>
-            {[...overdue].sort((a, b) => (a.due_date < b.due_date ? -1 : 1)).map((i, idx) => {
+            <div
+              className={s.chaseSumBar}
+              role="button"
+              tabIndex={0}
+              aria-expanded={chasingOpen}
+              onClick={toggleChasingOpen}
+              onKeyDown={(e) => { if (e.key === "Enter") toggleChasingOpen() }}
+            >
+              <div className={s.pulseWrapper}>
+                <div className={s.pulseDot} />
+                <div className="pulse-ring" />
+              </div>
+              <span className={s.chasingLabel}>
+                Hielda is chasing {overdue.length} invoice{overdue.length !== 1 ? "s" : ""}
+              </span>
+              {!isMobile && (
+                <span className={s.chaseSumStat}>
+                  client{names.length > 1 ? "s" : ""}: <strong>{clientLabel}</strong>
+                </span>
+              )}
+              <span className={s.chaseSumLate}>
+                {minLate === maxLate ? `${maxLate}d overdue` : `${minLate}–${maxLate} days overdue`}
+              </span>
+              <span className={s.chasingTotal}>{fmt(totOwed)}</span>
+              <span className={`${s.chaseChev}${chasingOpen ? " " + s.chaseChevOpen : ""}`} aria-hidden="true">▼</span>
+            </div>
+            {chasingOpen && sorted.map((i) => {
               const ex = chargeableExtras(i)
               const owed = outstanding(i)
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
@@ -506,16 +550,16 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   key={i.id}
                   role="button"
                   tabIndex={0}
-                  className={`${s.chaseCompactRow} table-row-hover`}
-                  style={idx > 0 ? { borderTop: "1px solid var(--bdl)" } : undefined}
+                  className={`${s.chaseGridRow} table-row-hover`}
                   onClick={() => navigate(`/invoice/${i.id}`)}
                   onKeyDown={(e) => { if (e.key === "Enter") navigate(`/invoice/${i.id}`) }}
                 >
-                  <span className={s.chaseCompactRef}>{i.ref}</span>
-                  <span className={s.chaseCompactClient}>{i.client_name || "Client"}</span>
-                  {!isMobile && stg && <Badge color={stg.col}>{stg.label}</Badge>}
-                  <span className={s.chaseCompactLate}>{daysLate(i.due_date)}d late</span>
-                  <span className={s.chaseCompactAmt}>
+                  <span className={s.cgRef}>{i.ref}</span>
+                  <span className={s.cgClient}>{i.client_name || "Client"}</span>
+                  <span className={s.cgDue}>due <strong>{formatDate(i.due_date)}</strong></span>
+                  <span className={s.cgStage}>{stg && <Badge color={stg.col}>{stg.label}</Badge>}</span>
+                  <span className={s.cgLate}>{daysLate(i.due_date)}d</span>
+                  <span className={s.cgAmt}>
                     {fmt(owed + ex)}
                     {ex > 0 && <span className={s.chaseCompactExtra}>+{fmt(ex)}</span>}
                   </span>
@@ -525,7 +569,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             })}
           </Card>
         </div>
-      )}
+        )
+      })()}
 
       {clientGroups.length > 0 && (
         <div className={s.clientSection}>

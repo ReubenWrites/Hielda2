@@ -159,43 +159,104 @@
   color: var(--or);
 }
 
-/* Compact one-line chasing rows */
-.chaseCompactRow {
+/* Chasing summary bar (collapsed state / expandable header) */
+.chaseSumBar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 14px;
+  padding: 13px 18px;
   cursor: pointer;
+  user-select: none;
   min-width: 0;
 }
-.chaseCompactRef {
-  font-family: var(--mono);
+.chaseSumBar:hover {
+  background: rgba(30, 95, 160, 0.03);
+}
+.chaseSumStat {
   font-size: 12px;
   color: var(--tm);
-  flex-shrink: 0;
-}
-.chaseCompactClient {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--tx);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-  flex: 1;
 }
-.chaseCompactLate {
-  font-size: 11px;
+.chaseSumStat strong {
+  color: var(--tx);
+  font-weight: 600;
+}
+.chaseSumLate {
+  font-size: 12px;
   color: var(--or);
   font-weight: 600;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
-.chaseCompactAmt {
+.chaseChev {
+  flex-shrink: 0;
+  color: var(--tm);
+  font-size: 11px;
+  transition: transform 0.18s ease;
+}
+.chaseChevOpen {
+  transform: rotate(180deg);
+}
+
+/* Expanded rows: strict column grid — everything centred except the
+   amount, which stays right-aligned so the pennies stack. */
+.chaseGridRow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 140px 140px 56px 150px 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px;
+  cursor: pointer;
+  border-top: 1px solid var(--bdl);
+}
+.cgRef {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tm);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cgClient {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--tx);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cgDue {
+  font-size: 12px;
+  color: var(--tm);
+  text-align: center;
+  white-space: nowrap;
+}
+.cgDue strong {
+  color: var(--tx);
+  font-weight: 600;
+}
+.cgStage {
+  text-align: center;
+}
+.cgLate {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--or);
+  text-align: center;
+  white-space: nowrap;
+}
+.cgAmt {
   font-family: var(--mono);
   font-weight: 600;
   font-size: 13px;
   color: var(--tx);
-  flex-shrink: 0;
+  text-align: right;
+  white-space: nowrap;
 }
 .chaseCompactExtra {
   font-size: 11px;
@@ -984,14 +1045,25 @@
     margin-bottom: 18px;
   }
 
-  /* Compact chase rows: on a phone the ref + client + amount is the
-     story — the extra figure lives on the invoice page. */
-  .chaseCompactRow {
+  /* Chase rows on a phone: client + days late + amount is the story —
+     ref, due date, stage and the extra figure live on the invoice page. */
+  .chaseGridRow {
+    grid-template-columns: minmax(0, 1fr) 44px auto 14px;
     gap: 8px;
     padding: 10px 12px;
   }
+  .cgRef,
+  .cgDue,
+  .cgStage,
   .chaseCompactExtra {
     display: none;
+  }
+  .cgClient {
+    text-align: left;
+  }
+  .chaseSumBar {
+    gap: 10px;
+    padding: 12px 14px;
   }
 
   .invoicesHeader {
