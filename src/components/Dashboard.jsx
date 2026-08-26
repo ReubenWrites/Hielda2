@@ -397,61 +397,40 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               <div className="pulse-ring" />
             </div>
             <span className={s.chasingLabel}>Hielda is chasing these</span>
+            <span className={s.chasingTotal}>{fmt(totOwed)}</span>
           </div>
-          <div className={s.chasingList}>
-            {overdue.map((i) => {
+          {/* One compact card, one line per invoice, most overdue first.
+              Descriptions, avatars and per-invoice cards made this section
+              a wall — the detail page holds the story, this holds the
+              status. */}
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            {[...overdue].sort((a, b) => (a.due_date < b.due_date ? -1 : 1)).map((i, idx) => {
               const ex = chargeableExtras(i)
               const owed = outstanding(i)
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
               return (
-                <Card key={i.id} onClick={() => navigate(`/invoice/${i.id}`)} style={{ padding: isMobile ? "12px 14px" : "13px 18px" }}>
-                  {isMobile ? (
-                    /* Mobile: stacked layout */
-                    <div>
-                      <div className={s.chaseMobileTop}>
-                        <div className={s.chaseMobileAvatar} aria-hidden="true">
-                          🛡️
-                        </div>
-                        <div className={s.chaseMobileInfo}>
-                          <div className={s.chaseMobileClient}>{i.client_name || "Client"}</div>
-                          <div className={s.chaseMobileRef}>{i.ref} · {i.description}</div>
-                        </div>
-                        <span className={s.arrowIcon} aria-hidden="true">→</span>
-                      </div>
-                      <div className={s.chaseMobileBottom}>
-                        <div>
-                          <span className={s.chaseMobileTotal}>{fmt(owed + ex)}</span>
-                          {ex > 0 && <span className={s.chaseMobileExtra}>+{fmt(ex)}</span>}
-                        </div>
-                        {stg && <Badge color={stg.col}>{stg.label}</Badge>}
-                      </div>
-                    </div>
-                  ) : (
-                    /* Desktop: horizontal layout */
-                    <div className={s.chaseRow}>
-                      <div className={s.chaseLeft}>
-                        <div className={s.chaseAvatar} aria-hidden="true">
-                          🛡️
-                        </div>
-                        <div>
-                          <div className={s.chaseClient}>{i.client_name || "Client"}</div>
-                          <div className={s.chaseRef}>{i.ref} · {i.description}</div>
-                        </div>
-                      </div>
-                      <div className={s.chaseRight}>
-                        <div className={s.chaseAmounts}>
-                          <div className={s.chaseTotal}>{fmt(owed + ex)}</div>
-                          {ex > 0 && <div className={s.chaseExtra}>+{fmt(ex)} extra</div>}
-                        </div>
-                        {stg && <Badge color={stg.col}>{stg.label}</Badge>}
-                        <span className={s.arrowIcon} aria-hidden="true">→</span>
-                      </div>
-                    </div>
-                  )}
-                </Card>
+                <div
+                  key={i.id}
+                  role="button"
+                  tabIndex={0}
+                  className={`${s.chaseCompactRow} table-row-hover`}
+                  style={idx > 0 ? { borderTop: "1px solid var(--bdl)" } : undefined}
+                  onClick={() => navigate(`/invoice/${i.id}`)}
+                  onKeyDown={(e) => { if (e.key === "Enter") navigate(`/invoice/${i.id}`) }}
+                >
+                  <span className={s.chaseCompactRef}>{i.ref}</span>
+                  <span className={s.chaseCompactClient}>{i.client_name || "Client"}</span>
+                  {!isMobile && stg && <Badge color={stg.col}>{stg.label}</Badge>}
+                  <span className={s.chaseCompactLate}>{daysLate(i.due_date)}d late</span>
+                  <span className={s.chaseCompactAmt}>
+                    {fmt(owed + ex)}
+                    {ex > 0 && <span className={s.chaseCompactExtra}>+{fmt(ex)}</span>}
+                  </span>
+                  <span className={s.arrowIcon} aria-hidden="true">→</span>
+                </div>
               )
             })}
-          </div>
+          </Card>
         </div>
       )}
 
