@@ -811,6 +811,16 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const recordPartialPayment = async () => {
     const amount = parseFloat(partialAmount)
     if (!amount || amount <= 0) return
+    // Guard against fat-fingered overpayments: recording more than is owed
+    // silently closed the invoice and swallowed the excess, with no hint
+    // that the money probably belonged on a different invoice.
+    if (amount > amountRemaining + 0.005) {
+      setError(
+        `That's more than the ${fmt(amountRemaining)} still owed on this invoice. ` +
+        `Check you're on the right invoice — or record ${fmt(amountRemaining)} here and the rest against the correct one.`
+      )
+      return
+    }
     const paidOn = partialDate || todayStr()
     if (paidOn > todayStr()) {
       setError("The payment date can't be in the future.")
@@ -850,6 +860,46 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       onUpdate()
     } catch (e) {
       setError("Failed to record payment: " + e.message)
+    }
+    setSavingPartial(false)
+  }
+
+  // Undo a recorded payment — the escape hatch for "wrong amount" or
+  // "wrong invoice". Totals are recomputed from the remaining ledger rows
+  // (the ledger is the source of truth), and an invoice that was auto-marked
+  // paid by the deleted payment reopens as pending; App.jsx re-derives
+  // 'overdue' from the due date.
+  const deletePayment = async (p) => {
+    if (!(await confirm({
+      title: `Remove this ${fmt(p.amount)} payment?`,
+      message: `The payment recorded for ${formatDate(p.paid_on)} will be removed and the outstanding balance recalculated.${inv.status === "paid" ? "\n\nThe invoice will reopen as unpaid. Your client will NOT be chased automatically — Hielda always checks with you first." : ""}`,
+      confirmLabel: "Remove payment",
+      cancelLabel: "Keep it",
+      danger: true,
+    }))) return
+    setSavingPartial(true)
+    setError("")
+    try {
+      const { error: delErr } = await supabase.from("invoice_payments").delete().eq("id", p.id)
+      if (delErr) throw delErr
+      const remaining = payments.filter((x) => x.id !== p.id)
+      const newPaid = round2(remaining.reduce((sum, x) => sum + Number(x.amount), 0))
+      const newBeforeDue = round2(
+        remaining.filter((x) => x.paid_on <= inv.due_date).reduce((sum, x) => sum + Number(x.amount), 0)
+      )
+      const updates = { amount_paid: newPaid, paid_before_due: newBeforeDue }
+      if (inv.status === "paid" && newPaid < Number(inv.amount)) {
+        updates.status = "pending"
+        updates.paid_date = null
+      }
+      const { error: err } = await supabase.from("invoices").update(updates).eq("id", inv.id)
+      if (err) throw err
+      setPayments(remaining)
+      trackEvent("payment_removed", { ref: inv.ref, amount: Number(p.amount) })
+      toast.success(`Removed ${fmt(p.amount)} payment — ${fmt(round2(Number(inv.amount) - newPaid))} now outstanding`)
+      onUpdate()
+    } catch (e) {
+      setError("Failed to remove payment: " + e.message)
     }
     setSavingPartial(false)
   }
@@ -1220,6 +1270,15 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                   <span className={s.paymentHistoryDate}>
                     {formatDate(p.paid_on)}{p.paid_on <= inv.due_date ? " · before due date" : ""}
                   </span>
+                  <button
+                    className={s.paymentUndoBtn}
+                    onClick={() => deletePayment(p)}
+                    disabled={savingPartial}
+                    aria-label={`Remove ${fmt(p.amount)} payment`}
+                    title="Remove this payment"
+                  >
+                    ✕
+                  </button>
                 </div>
               ))}
             </div>
@@ -1520,6 +1579,28 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.paidIcon} aria-hidden="true">✓</div>
             <div className={s.paidLabel}>Paid</div>
             <div className={s.paidDate}>{formatDate(inv.paid_date)}</div>
+            {/* Payment history stays visible after the invoice closes —
+                a mis-recorded payment is usually noticed only once the
+                invoice has wrongly gone green, so the undo must live here. */}
+            {payments.length > 0 && (
+              <div className={s.paymentHistory} style={{ textAlign: "left", marginTop: 12 }}>
+                {payments.map((p) => (
+                  <div key={p.id} className={s.paymentHistoryRow}>
+                    <span>{fmt(p.amount)}</span>
+                    <span className={s.paymentHistoryDate}>{formatDate(p.paid_on)}</span>
+                    <button
+                      className={s.paymentUndoBtn}
+                      onClick={() => deletePayment(p)}
+                      disabled={savingPartial}
+                      aria-label={`Remove ${fmt(p.amount)} payment`}
+                      title="Remove this payment"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <Btn v="ghost" sz="sm" onClick={unmarkPaid} dis={marking} style={{ marginTop: 12 }}>
               {marking ? "..." : "Mark as unpaid"}
             </Btn>
@@ -1618,10 +1699,13 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             const stg = CHASE_STAGES.find((s) => s.id === log.chase_stage)
             const isCheckIn = log.status === "check_in_sent"
             const isMarkedPaid = log.status === "marked_paid_via_check_in"
+            const isStatement = log.status === "statement_sent"
             const statusLabel = isCheckIn
               ? `Check-in: ${stg?.label || log.chase_stage}`
               : isMarkedPaid
               ? "Marked paid via check-in"
+              : isStatement
+              ? "Consolidated statement"
               : stg?.label || log.chase_stage
             const dotColor = isCheckIn ? c.ac : isMarkedPaid ? c.gn : stg?.col || c.ac
 

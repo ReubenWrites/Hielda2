@@ -476,6 +476,25 @@
 .paymentHistoryDate {
   color: var(--tm);
   font-family: var(--font);
+  margin-left: auto;
+}
+.paymentUndoBtn {
+  border: none;
+  background: none;
+  color: var(--tm);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.paymentUndoBtn:hover {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.08);
+}
+.paymentUndoBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* Disputed banner */

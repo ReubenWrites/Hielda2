@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
 import { colors as c, CHASE_STAGES } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras } from "../utils"
-import { Card, Badge, Btn, StatCard, useConfirm } from "./ui"
+import { Card, Badge, Btn, StatCard, useConfirm, useToast } from "./ui"
 import { supabase } from "../supabase"
 import { trackEvent } from "../posthog"
 import EmailQueue from "./EmailQueue"
@@ -21,6 +21,7 @@ function csvCell(v) {
 export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const navigate = useNavigate()
   const confirm = useConfirm()
+  const toast = useToast()
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("created_at")
@@ -123,6 +124,71 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
     return { overdue, pending, paid, disputed, totExtra, totOwed, totPaid, partPaidCount }
   }, [invs])
+
+  // One client, one debt. Groups open invoices by client email (falling
+  // back to name) so a client with several outstanding invoices can be
+  // seen — and chased — as a single consolidated position. Only shown for
+  // clients with 2+ open invoices; a single invoice is chased normally.
+  const clientGroups = useMemo(() => {
+    const open = invs.filter((i) => i.status === "overdue" || i.status === "pending")
+    const byClient = new Map()
+    for (const i of open) {
+      const key = (i.client_email || i.client_name || "").trim().toLowerCase()
+      if (!key) continue
+      if (!byClient.has(key)) byClient.set(key, [])
+      byClient.get(key).push(i)
+    }
+    return Array.from(byClient.values())
+      .filter((group) => group.length >= 2)
+      .map((group) => {
+        const total = round2(group.reduce((sum, i) => sum + outstanding(i) + chargeableExtras(i), 0))
+        const extras = round2(group.reduce((sum, i) => sum + chargeableExtras(i), 0))
+        const overdueCount = group.filter((i) => i.status === "overdue").length
+        return {
+          name: group[0].client_name || group[0].client_email,
+          email: group[0].client_email,
+          invoices: group,
+          total,
+          extras,
+          overdueCount,
+        }
+      })
+      .sort((a, b) => b.total - a.total)
+  }, [invs])
+
+  const [sendingStatement, setSendingStatement] = useState("")
+
+  const sendStatement = async (group) => {
+    const lines = group.invoices
+      .map((i) => `${i.ref} — ${fmt(round2(outstanding(i) + chargeableExtras(i)))}${i.status === "overdue" ? ` (${daysLate(i.due_date)}d late)` : ""}`)
+      .join("\n")
+    if (!(await confirm({
+      title: `Send a consolidated statement to ${group.name}?`,
+      message: `One email to ${group.email} itemising every outstanding invoice:\n\n${lines}\n\nTotal owed: ${fmt(group.total)}\n\nYou'll be BCC'd a copy.`,
+      confirmLabel: "Send statement",
+      cancelLabel: "Cancel",
+    }))) return
+    setSendingStatement(group.email)
+    try {
+      const session = await supabase.auth.getSession()
+      const res = await fetch("/api/send-statement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice_ids: group.invoices.map((i) => i.id),
+          user_token: session.data.session?.access_token,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to send")
+      trackEvent("statement_sent", { invoice_count: data.invoice_count, total: data.total })
+      toast.success(`Statement sent to ${data.email_to} — ${fmt(data.total)} across ${data.invoice_count} invoices`)
+      onUpdate()
+    } catch (e) {
+      toast.error("Failed to send statement: " + e.message)
+    }
+    setSendingStatement("")
+  }
 
   const filtered = useMemo(() => {
     let result = invs
@@ -362,6 +428,49 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 </Card>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {clientGroups.length > 0 && (
+        <div className={s.clientSection}>
+          <div className={s.clientSectionHeader}>
+            <h2 className={s.invoicesTitle}>Owed by client</h2>
+            <span className={s.clientSectionSub}>Clients with several open invoices — send one email that itemises them all</span>
+          </div>
+          <div className={s.clientList}>
+            {clientGroups.map((g) => (
+              <Card key={g.email || g.name} style={{ padding: isMobile ? "12px 14px" : "14px 18px" }}>
+                <div className={s.clientRow}>
+                  <div className={s.clientInfo}>
+                    <div className={s.clientName}>{g.name}</div>
+                    <div className={s.clientMeta}>
+                      {g.invoices.length} open invoice{g.invoices.length !== 1 ? "s" : ""}
+                      {g.overdueCount > 0 && <span className={s.clientOverdue}> · {g.overdueCount} overdue</span>}
+                    </div>
+                  </div>
+                  <div className={s.clientAmounts}>
+                    <div className={s.clientTotal}>{fmt(g.total)}</div>
+                    {g.extras > 0 && <div className={s.clientExtras}>incl. +{fmt(g.extras)} late charges</div>}
+                  </div>
+                  {g.email ? (
+                    <Btn sz="sm" onClick={() => sendStatement(g)} dis={sendingStatement === g.email}>
+                      {sendingStatement === g.email ? "Sending…" : "Send statement"}
+                    </Btn>
+                  ) : (
+                    <span className={s.clientNoEmail}>No email on file</span>
+                  )}
+                </div>
+                <div className={s.clientInvoiceChips}>
+                  {g.invoices.map((i) => (
+                    <button key={i.id} className={s.clientInvoiceChip} onClick={() => navigate(`/invoice/${i.id}`)}>
+                      {i.ref} · {fmt(round2(outstanding(i) + chargeableExtras(i)))}
+                      {i.status === "overdue" && <span className={s.clientChipLate}> · {daysLate(i.due_date)}d late</span>}
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       )}
