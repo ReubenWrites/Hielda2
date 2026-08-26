@@ -11,6 +11,18 @@
   letter-spacing: -0.02em;
   color: var(--tx);
   margin: 0;
+  position: relative;
+  padding-bottom: 10px;
+}
+.title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ac), var(--or));
 }
 
 .subtitle {
@@ -126,6 +138,17 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.wonTag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gn);
+  background: rgba(21, 146, 74, 0.08);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
 .chasingTotal {

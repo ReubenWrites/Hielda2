@@ -314,7 +314,12 @@ export const Sel = ({ label, value, onChange, opts }) => (
 export const StatCard = ({ label, value, sub, color, borderColor }) => (
   <div
     className={s.statCard}
-    style={{ borderLeft: `3px solid ${borderColor}` }}
+    style={{
+      borderLeft: `3px solid ${borderColor}`,
+      // A whisper of the accent colour washing in from the accent edge —
+      // enough to make each card feel owned by its number, not painted.
+      background: `linear-gradient(105deg, ${borderColor}0d, var(--sf) 45%)`,
+    }}
   >
     <div className={s.statLabel} data-gold={borderColor === "#d4a017" ? "true" : undefined}>
       {label}

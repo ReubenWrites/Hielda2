@@ -674,7 +674,12 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               ) : (
                 filtered.map((i) => {
                   const ex = chargeableExtras(i)
-                  const owed = i.status === "paid" ? Number(i.amount) : outstanding(i)
+                  // Paid rows show what actually arrived, not the face value —
+                  // charges collected sit above it, settled-short sits below.
+                  const cash = Number(i.amount_paid) || 0
+                  const face = Number(i.total_with_vat) || Number(i.amount)
+                  const owed = i.status === "paid" ? (cash > 0 ? cash : face) : outstanding(i)
+                  const won = i.status === "paid" ? Math.max(0, round2(cash - face)) : 0
                   return (
                     <Card
                       key={i.id}
@@ -704,6 +709,10 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                             <div>
                               <span className={s.mobileAmount}>{fmt(owed + ex)}</span>
                               {ex > 0 && <span className={s.mobileExtra}>+{fmt(ex)}</span>}
+                              {won > 0 && <span className={s.wonTag}>incl. +{fmt(won)} won</span>}
+                              {i.status === "paid" && cash > 0 && cash < face - 0.005 && (
+                                <span className={s.partPaidTag}>settled — {fmt(round2(face - cash))} off</span>
+                              )}
                               {ex === 0 && i.status === "overdue" && (i.no_fines || i.client_type === "consumer") && (
                                 <span className={s.waivedTag}>fines waived</span>
                               )}
@@ -760,7 +769,14 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   ) : (
                     filtered.map((i) => {
                       const ex = chargeableExtras(i)
-                      const owed = i.status === "paid" ? Number(i.amount) : outstanding(i)
+                      // Paid rows show what actually arrived: collected late
+                      // charges appear in Extra, and Total is real cash — so
+                      // a settled invoice's row matches the Paid stat card.
+                      const cash = Number(i.amount_paid) || 0
+                      const face = Number(i.total_with_vat) || Number(i.amount)
+                      const owed = i.status === "paid" ? (cash > 0 ? cash : face) : outstanding(i)
+                      const won = i.status === "paid" ? Math.max(0, round2(cash - face)) : 0
+                      const settledShort = i.status === "paid" && cash > 0 && cash < face - 0.005
                       const partPaid = i.status !== "paid" && (Number(i.amount_paid) || 0) > 0
                       return (
                         <tr
@@ -778,12 +794,17 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                           <td className={s.tdMono}>
                             {fmt(i.amount)}
                             {partPaid && <span className={s.partPaidTag}>{fmt(Number(i.amount_paid))} paid</span>}
+                            {settledShort && <span className={s.partPaidTag}>settled — {fmt(round2(face - cash))} off</span>}
                           </td>
-                          <td className={s.tdMonoBold} style={{ color: ex > 0 ? c.go : c.td }}>
+                          <td className={s.tdMonoBold} style={{ color: won > 0 ? c.gn : ex > 0 ? c.go : c.td }}>
                             {/* "waived" beats a silent dash: an overdue invoice
                                 with fines switched off looked like a broken
-                                Extra column rather than a choice. */}
-                            {ex > 0 ? `+${fmt(ex)}` : i.status === "overdue" && (i.no_fines || i.client_type === "consumer") ? <span className={s.waivedTag}>waived</span> : "—"}
+                                Extra column rather than a choice. Green on paid
+                                rows = late charges actually collected. */}
+                            {won > 0 ? <span title="Late charges collected">+{fmt(won)} won</span>
+                              : ex > 0 ? `+${fmt(ex)}`
+                              : i.status === "overdue" && (i.no_fines || i.client_type === "consumer") ? <span className={s.waivedTag}>waived</span>
+                              : "—"}
                           </td>
                           <td className={s.tdMonoBold}>{fmt(owed + ex)}</td>
                           <td className={s.tdDue}>{formatDate(i.due_date)}</td>

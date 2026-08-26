@@ -400,6 +400,10 @@
 
 .contentInner {
   position: relative;
+  /* Ultrawide screens stretched every card to the horizon — cap the
+     working area like a document, don't fill it like wallpaper. */
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
 /* ── Data error banner ── */
