@@ -210,6 +210,14 @@
 .clientInfo {
   flex: 1;
   min-width: 140px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.clientInfo:hover .clientName {
+  color: var(--ac);
+}
+.clientStatementSent {
+  color: var(--gn);
 }
 .clientName {
   font-weight: 600;

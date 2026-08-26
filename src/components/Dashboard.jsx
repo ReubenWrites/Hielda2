@@ -156,6 +156,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         const total = round2(group.reduce((sum, i) => sum + outstanding(i) + chargeableExtras(i), 0))
         const extras = round2(group.reduce((sum, i) => sum + chargeableExtras(i), 0))
         const overdueCount = group.filter((i) => i.status === "overdue").length
+        const oldestLate = Math.max(0, ...group.map((i) => (i.status === "overdue" ? daysLate(i.due_date) : 0)))
         return {
           name: group[0].client_name || group[0].client_email,
           email: group[0].client_email,
@@ -163,12 +164,40 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           total,
           extras,
           overdueCount,
+          oldestLate,
         }
       })
       .sort((a, b) => b.total - a.total)
   }, [invs])
 
   const [sendingStatement, setSendingStatement] = useState("")
+
+  // When each client last received a consolidated statement — shown on the
+  // client row so a second send is a decision, not an accident.
+  const [statementLog, setStatementLog] = useState({})
+  useEffect(() => {
+    if (!profile?.id || clientGroups.length === 0) return
+    ;(async () => {
+      const { data } = await supabase
+        .from("chase_log")
+        .select("email_to, sent_at")
+        .eq("user_id", profile.id)
+        .eq("status", "statement_sent")
+        .order("sent_at", { ascending: false })
+        .limit(100)
+      const byEmail = {}
+      for (const row of data || []) {
+        const key = (row.email_to || "").toLowerCase()
+        if (key && !byEmail[key]) byEmail[key] = row.sent_at
+      }
+      setStatementLog(byEmail)
+    })()
+  }, [profile?.id, invs, clientGroups.length])
+
+  const daysAgo = (ts) => {
+    const d = Math.floor((Date.now() - new Date(ts).getTime()) / 864e5)
+    return d === 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`
+  }
 
   const sendStatement = async (group) => {
     const lines = group.invoices
@@ -441,30 +470,44 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             <span className={s.clientSectionSub}>Clients with several open invoices — send one email that itemises them all</span>
           </div>
           <div className={s.clientList}>
-            {clientGroups.map((g) => (
+            {clientGroups.map((g) => {
+              const lastStatement = g.email ? statementLog[g.email.toLowerCase()] : null
+              return (
               <Card key={g.email || g.name} style={{ padding: isMobile ? "12px 14px" : "14px 18px" }}>
                 <div className={s.clientRow}>
-                  <div className={s.clientInfo}>
+                  {/* Clicking the client filters the invoice table below to
+                      them — the breakdown lives where invoices already live
+                      instead of being repeated here. */}
+                  <div
+                    className={s.clientInfo}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { setStatusFilter("all"); setSearch(g.name) }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { setStatusFilter("all"); setSearch(g.name) } }}
+                    title="Show this client's invoices below"
+                  >
                     <div className={s.clientName}>{g.name}</div>
                     <div className={s.clientMeta}>
                       {g.invoices.length} open invoice{g.invoices.length !== 1 ? "s" : ""}
-                      {g.overdueCount > 0 && <span className={s.clientOverdue}> · {g.overdueCount} overdue</span>}
+                      {g.overdueCount > 0 && <span className={s.clientOverdue}> · oldest {g.oldestLate}d overdue</span>}
+                      {lastStatement && <span className={s.clientStatementSent}> · statement sent {daysAgo(lastStatement)}</span>}
                     </div>
                   </div>
                   <div className={s.clientAmounts}>
                     <div className={s.clientTotal}>{fmt(g.total)}</div>
-                    {g.extras > 0 && <div className={s.clientExtras}>incl. +{fmt(g.extras)} late charges</div>}
+                    {g.extras > 0 && <div className={s.clientExtras}>incl. +{fmt(g.extras)} by Hielda</div>}
                   </div>
                   {g.email ? (
-                    <Btn sz="sm" onClick={() => sendStatement(g)} dis={sendingStatement === g.email}>
-                      {sendingStatement === g.email ? "Sending…" : "Send statement"}
+                    <Btn sz="sm" v={lastStatement ? "ghost" : "primary"} onClick={() => sendStatement(g)} dis={sendingStatement === g.email}>
+                      {sendingStatement === g.email ? "Sending…" : lastStatement ? "Send again" : "Send statement"}
                     </Btn>
                   ) : (
                     <span className={s.clientNoEmail}>No email on file</span>
                   )}
                 </div>
               </Card>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
