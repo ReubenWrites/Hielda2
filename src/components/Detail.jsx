@@ -309,6 +309,11 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     })()
   }, [inv?.id, inv?.amount_paid])
   const [savingPartial, setSavingPartial] = useState(false)
+  // Settle-short flow: a checkbox for part payments accepted as full and
+  // final, and a breakdown popup when a payment covers the invoice but
+  // only part of the late charges.
+  const [settleShort, setSettleShort] = useState(false)
+  const [settlePrompt, setSettlePrompt] = useState(null)
   const [disputing, setDisputing] = useState(false)
   const [showDisputeModal, setShowDisputeModal] = useState(false)
   const [showResolveModal, setShowResolveModal] = useState(false)
@@ -808,24 +813,10 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setResending(false)
   }
 
-  const recordPartialPayment = async () => {
-    const amount = parseFloat(partialAmount)
-    if (!amount || amount <= 0) return
-    // Guard against fat-fingered overpayments: recording more than is owed
-    // silently closed the invoice and swallowed the excess, with no hint
-    // that the money probably belonged on a different invoice.
-    if (amount > amountRemaining + 0.005) {
-      setError(
-        `That's more than the ${fmt(amountRemaining)} still owed on this invoice. ` +
-        `Check you're on the right invoice — or record ${fmt(amountRemaining)} here and the rest against the correct one.`
-      )
-      return
-    }
-    const paidOn = partialDate || todayStr()
-    if (paidOn > todayStr()) {
-      setError("The payment date can't be in the future.")
-      return
-    }
+  // Writes one payment to the ledger and settles the invoice state.
+  // `settle` closes the invoice even though less than the full debt
+  // (invoice + late charges) has been received — a deliberate write-off.
+  const commitPayment = async (amount, paidOn, settle) => {
     setSavingPartial(true)
     setError("")
     try {
@@ -840,13 +831,18 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       })
       if (ledgerErr) throw ledgerErr
 
-      const newPaid = Math.round(((Number(inv.amount_paid) || 0) + amount) * 100) / 100
-      const fullyPaid = newPaid >= Number(inv.amount)
+      const newPaid = round2((Number(inv.amount_paid) || 0) + amount)
+      // "Fully paid" means the whole debt — invoice AND the late charges
+      // Hielda has been demanding. Comparing against the face value alone
+      // closed invoices the client had underpaid (the charges vanished).
+      const owedNow = Math.max(0, tot)
+      const coversAll = amount >= owedNow - 0.005
+      const closing = coversAll || settle
       const updates = { amount_paid: newPaid }
       if (paidOn <= inv.due_date) {
-        updates.paid_before_due = Math.round(((Number(inv.paid_before_due) || 0) + amount) * 100) / 100
+        updates.paid_before_due = round2((Number(inv.paid_before_due) || 0) + amount)
       }
-      if (fullyPaid) {
+      if (closing) {
         updates.status = "paid"
         updates.paid_date = paidOn
         updates.chase_stage = null
@@ -856,12 +852,63 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       setShowPartialPayment(false)
       setPartialAmount("")
       setPartialDate(todayStr())
-      toast.success(fullyPaid ? "Invoice fully paid!" : `Recorded ${fmt(amount)} paid on ${formatDate(paidOn)}`)
+      setSettleShort(false)
+      setSettlePrompt(null)
+      // amount_paid above the invoice total is money Hielda's late charges
+      // brought in — worth celebrating by name.
+      const chargesCollected = round2(Math.max(0, newPaid - invoiceTotal))
+      if (settle && !coversAll) {
+        trackEvent("invoice_settled_short", { ref: inv.ref, received: newPaid, written_off: round2(owedNow - amount) })
+        toast.success(`Settled for ${fmt(newPaid)} — ${fmt(round2(owedNow - amount))} written off`)
+      } else if (coversAll) {
+        trackEvent("invoice_paid", { amount: Number(inv.amount), ref: inv.ref })
+        toast.success(chargesCollected > 0
+          ? `Paid in full — including ${fmt(chargesCollected)} in late charges Hielda won for you`
+          : "Invoice fully paid!")
+      } else {
+        toast.success(`Recorded ${fmt(amount)} paid on ${formatDate(paidOn)}`)
+      }
       onUpdate()
     } catch (e) {
       setError("Failed to record payment: " + e.message)
     }
     setSavingPartial(false)
+  }
+
+  const recordPartialPayment = async () => {
+    const amount = parseFloat(partialAmount)
+    if (!amount || amount <= 0) return
+    const owedNow = Math.max(0, tot)
+    const faceRem = Math.max(0, round2(invoiceTotal - paidSoFar))
+    // Guard against fat-fingered overpayments: the cap is the whole debt
+    // including late charges — a client paying invoice + charges is normal
+    // and must be recordable, but more than that belongs elsewhere.
+    if (amount > owedNow + 0.005) {
+      setError(
+        `That's more than the ${fmt(owedNow)} owed on this invoice including late charges. ` +
+        `Check you're on the right invoice — or record ${fmt(owedNow)} here and the rest against the correct one.`
+      )
+      return
+    }
+    const paidOn = partialDate || todayStr()
+    if (paidOn > todayStr()) {
+      setError("The payment date can't be in the future.")
+      return
+    }
+    // Covers the invoice but only part of the late charges — the most
+    // common "nearly there" payment. Lay out the split and let the user
+    // decide: keep chasing the shortfall, or call it settled.
+    if (amount > faceRem + 0.005 && amount < owedNow - 0.005) {
+      setSettlePrompt({
+        amount,
+        paidOn,
+        faceRem,
+        towardCharges: round2(amount - faceRem),
+        remainder: round2(owedNow - amount),
+      })
+      return
+    }
+    await commitPayment(amount, paidOn, settleShort && amount < owedNow - 0.005)
   }
 
   // Undo a recorded payment — the escape hatch for "wrong amount" or
@@ -1204,28 +1251,34 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       )}
 
       {/* Partial payment form */}
-      {showPartialPayment && inv.status !== "paid" && (
+      {showPartialPayment && inv.status !== "paid" && (() => {
+        const owedNow = Math.max(0, tot)
+        const faceRem = Math.max(0, round2(invoiceTotal - paidSoFar))
+        const amt = parseFloat(partialAmount) || 0
+        const settlesAll = amt >= owedNow - 0.005 && amt > 0
+        const canSettleShort = amt > 0 && !settlesAll && amt <= faceRem + 0.005
+        return (
         <div className={s.partialForm}>
-          <div className={s.partialFormTitle}>Record a partial payment</div>
-          {amountPaid > 0 && (
-            <div className={s.partialFormInfo}>
-              Already received: <strong>{fmt(amountPaid)}</strong> of {fmt(inv.amount)} · Remaining: <strong>{fmt(amountRemaining)}</strong>
-            </div>
-          )}
+          <div className={s.partialFormTitle}>Record a payment</div>
+          <div className={s.partialFormInfo}>
+            {amountPaid > 0 && <>Already received: <strong>{fmt(amountPaid)}</strong> · </>}
+            Invoice: <strong>{fmt(faceRem)}</strong>
+            {owedNow > faceRem && <> + late charges: <strong>{fmt(round2(owedNow - faceRem))}</strong> · Total owed: <strong>{fmt(owedNow)}</strong></>}
+          </div>
           <div className={s.partialFormRow}>
             <input
               type="number"
               value={partialAmount}
               onChange={e => setPartialAmount(e.target.value)}
-              placeholder={`Up to ${fmt(amountRemaining)}`}
+              placeholder={`Up to ${fmt(owedNow)}`}
               step="0.01"
-              max={amountRemaining}
+              max={owedNow}
               className={s.partialInput}
             />
             <Btn sz="sm" onClick={recordPartialPayment} dis={savingPartial || !partialAmount || parseFloat(partialAmount) <= 0}>
-              {savingPartial ? "..." : "Record"}
+              {savingPartial ? "..." : canSettleShort && settleShort ? "Settle" : "Record"}
             </Btn>
-            <button onClick={() => setShowPartialPayment(false)} className={s.cancelBtn}>Cancel</button>
+            <button onClick={() => { setShowPartialPayment(false); setSettleShort(false) }} className={s.cancelBtn}>Cancel</button>
           </div>
           {/* When the money actually arrived — backdatable, because most
               people record a payment days after it lands. If it arrived
@@ -1245,9 +1298,58 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
               <span className={s.partialDateHint}>Before the due date — this reduces the late charges your client owes.</span>
             )}
           </div>
-          {parseFloat(partialAmount) >= amountRemaining && partialAmount && (
-            <div className={s.partialFullNote}>This will mark the invoice as fully paid.</div>
+          {settlesAll && (
+            <div className={s.partialFullNote}>
+              This settles the invoice in full{owedNow > faceRem ? ", including all late charges" : ""}.
+            </div>
           )}
+          {canSettleShort && (
+            <label className={s.settleShortRow}>
+              <input
+                type="checkbox"
+                checked={settleShort}
+                onChange={e => setSettleShort(e.target.checked)}
+              />
+              <span>
+                Accept as <strong>full &amp; final settlement</strong> — write off the remaining {fmt(round2(owedNow - amt))} and close the invoice
+              </span>
+            </label>
+          )}
+        </div>
+        )
+      })()}
+
+      {/* Payment covers the invoice but only part of the late charges —
+          lay out the split and let the user choose: chase or settle. */}
+      {settlePrompt && (
+        <div className={s.settleOverlay} role="presentation" onClick={() => setSettlePrompt(null)}>
+          <div
+            className={s.settleBox}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settle-prompt-title"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className={s.settleTitle} id="settle-prompt-title">This covers the invoice — but not all the late charges</h3>
+            <div className={s.settleRows}>
+              <div className={s.settleRow}><span>You've been paid</span><strong>{fmt(settlePrompt.amount)}</strong></div>
+              <div className={s.settleRow}><span>Your original invoice</span><span>{fmt(settlePrompt.faceRem)}</span></div>
+              <div className={s.settleRow}><span>Towards fines &amp; interest</span><span style={{ color: c.gn }}>+{fmt(settlePrompt.towardCharges)}</span></div>
+              <div className={`${s.settleRow} ${s.settleRowTotal}`}><span>Still unpaid</span><strong>{fmt(settlePrompt.remainder)}</strong></div>
+            </div>
+            <p className={s.settleHint}>
+              Do you want to keep chasing the remaining {fmt(settlePrompt.remainder)}, or are you happy to accept this and call it settled?
+            </p>
+            <div className={s.settleActions}>
+              <button onClick={() => setSettlePrompt(null)} className={s.cancelBtn}>Cancel</button>
+              <Btn v="ghost" sz="sm" onClick={() => commitPayment(settlePrompt.amount, settlePrompt.paidOn, false)} dis={savingPartial}>
+                Keep chasing {fmt(settlePrompt.remainder)}
+              </Btn>
+              <Btn sz="sm" onClick={() => commitPayment(settlePrompt.amount, settlePrompt.paidOn, true)} dis={savingPartial}>
+                {savingPartial ? "..." : "Settle — write it off"}
+              </Btn>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1579,6 +1681,19 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             <div className={s.paidIcon} aria-hidden="true">✓</div>
             <div className={s.paidLabel}>Paid</div>
             <div className={s.paidDate}>{formatDate(inv.paid_date)}</div>
+            {/* What actually happened at settlement: money above the invoice
+                total is late charges Hielda collected; money below it was
+                deliberately written off when settling short. */}
+            {amountPaid > invoiceTotal + 0.005 && (
+              <div className={s.paidChargesNote}>
+                Including <strong>{fmt(round2(amountPaid - invoiceTotal))}</strong> in late charges Hielda won for you
+              </div>
+            )}
+            {amountPaid > 0 && amountPaid < invoiceTotal - 0.005 && (
+              <div className={s.paidSettledNote}>
+                Settled for {fmt(amountPaid)} — {fmt(round2(invoiceTotal - amountPaid))} written off
+              </div>
+            )}
             {/* Payment history stays visible after the invoice closes —
                 a mis-recorded payment is usually noticed only once the
                 invoice has wrongly gone green, so the undo must live here. */}

@@ -95,7 +95,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     return `${Math.floor(hrs / 24)}d ago`
   }
 
-  const { overdue, pending, paid, disputed, totExtra, totOwed, totPaid, partPaidCount } = useMemo(() => {
+  const { overdue, pending, paid, disputed, totExtra, totExtraWon, totOwed, totPaid, partPaidCount } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
     const pending = invs.filter((i) => i.status === "pending")
     const disputed = invs.filter((i) => i.status === "disputed")
@@ -108,6 +108,14 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     const totExtra = round2(overdue.reduce((s, i) => s + chargeableExtras(i), 0))
 
     const totOwed = round2(overdue.reduce((s, i) => s + outstanding(i) + chargeableExtras(i), 0))
+
+    // Late charges actually COLLECTED, not just claimed: any cash received
+    // above an invoice's face total is money Hielda's fines and interest
+    // brought in. The strongest number in the product — show it off.
+    const totExtraWon = round2(invs.reduce((s, i) => {
+      const face = Number(i.total_with_vat) || Number(i.amount)
+      return s + Math.max(0, (Number(i.amount_paid) || 0) - face)
+    }, 0))
 
     // "Paid" counts money actually received: fully paid invoices in the
     // 90-day window PLUS part-payments sitting on still-open invoices.
@@ -122,7 +130,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       openWithPartPayment.reduce((s, i) => s + (Number(i.amount_paid) || 0), 0)
     )
 
-    return { overdue, pending, paid, disputed, totExtra, totOwed, totPaid, partPaidCount }
+    return { overdue, pending, paid, disputed, totExtra, totExtraWon, totOwed, totPaid, partPaidCount }
   }, [invs])
 
   // One client, one debt. Groups open invoices by client email (falling
@@ -358,7 +366,13 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             a warm accent (--or). That one card is the actionable one —
             the money you should be collecting — so the row visually
             highlights it without splashing four different colours. */}
-        <StatCard label="Extra by Hielda" value={`+${fmt(totExtra)}`} sub="penalties + interest" color="var(--ac)" borderColor="var(--ac)" />
+        <StatCard
+          label="Extra by Hielda"
+          value={`+${fmt(totExtra)}`}
+          sub={totExtraWon > 0 ? `${fmt(totExtraWon)} collected so far` : "penalties + interest"}
+          color="var(--ac)"
+          borderColor="var(--ac)"
+        />
         <StatCard label="Being chased" value={fmt(totOwed)} sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`} color="var(--or)" borderColor="var(--or)" />
         {/* outstanding() so a part-paid pending invoice isn't double
             counted — its paid slice lives in the Paid card. */}
