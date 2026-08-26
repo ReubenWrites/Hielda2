@@ -171,7 +171,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     setSendingStatement(group.email)
     try {
       const session = await supabase.auth.getSession()
-      const res = await fetch("/api/send-statement", {
+      const res = await fetch("/api/send-chase-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

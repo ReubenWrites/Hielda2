@@ -183,6 +183,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // Consolidated statement requests share this endpoint (Hobby plan caps
+  // deployments at 12 functions) — invoice_ids instead of a chase_stage
+  // marks them, and _sendStatement.js does its own auth and rate limiting.
+  if (Array.isArray(req.body?.invoice_ids)) {
+    const { sendStatement } = await import('./_sendStatement.js')
+    return sendStatement(req, res)
+  }
+
   // Load live BoE rate before calculating
   await loadLiveRate()
 

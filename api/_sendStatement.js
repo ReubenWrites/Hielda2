@@ -1,7 +1,10 @@
-// Vercel Serverless Function: Send a consolidated statement via Resend.
-// One email to one client itemising every outstanding invoice — refs,
-// dates, days late, what's been paid, late charges, and a single total.
-// Called from the Dashboard's "Owed by client" section.
+// Send a consolidated statement via Resend. One email to one client
+// itemising every outstanding invoice — refs, dates, days late, what's
+// been paid, late charges, and a single total.
+//
+// Not a standalone endpoint: the Hobby plan caps deployments at 12
+// serverless functions, so this is dispatched from send-chase-email.js
+// when the request body carries invoice_ids instead of a chase_stage.
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -166,7 +169,7 @@ function buildStatementEmail(invoices, profile) {
   return { subject, html, fromName, grandTotal }
 }
 
-export default async function handler(req, res) {
+export async function sendStatement(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
