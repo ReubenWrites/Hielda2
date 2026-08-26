@@ -98,9 +98,9 @@
 /* ── Stat Cards Grid ── */
 .statsGrid {
   display: grid;
-  /* Capped columns, left-aligned: headline numbers don't earn a metre of
-     card on an ultrawide the way tables earn full bleed. */
-  grid-template-columns: repeat(3, minmax(0, 360px));
+  /* Full-width columns: the capped left-aligned version left a hole on
+     the right that read worse than wide cards did. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 24px;
 }
