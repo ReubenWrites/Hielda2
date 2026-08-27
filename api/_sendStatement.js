@@ -9,7 +9,6 @@
 // so the dashboard can show exactly what the client will receive.
 
 import { createClient } from '@supabase/supabase-js'
-import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -439,16 +438,37 @@ export async function sendStatement(req, res) {
     const bccList = [profile.email].filter(Boolean)
     if (bccList.length > 0) resendPayload.bcc = bccList
 
-    // Every open invoice's PDF rides along — email HTML renders at the
-    // mercy of the client's mail app, the PDF doesn't. Best-effort per
-    // invoice: a failed generation drops that one attachment, never the
-    // send. Capped at 10 to keep the message under attachment limits.
-    const attachments = []
-    for (const inv of open.slice(0, 10)) {
-      const att = await getInvoicePdfAttachment(inv.id, inv.ref)
-      if (att) attachments.push(att)
+    // One consolidated statement PDF rides along — the same blocks,
+    // payments, settled section and total as the email body, but immune
+    // to whatever the client's mail app does to HTML. Best-effort: a
+    // failed generation drops the attachment, never the send.
+    try {
+      const pdfRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-statement-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        },
+        body: JSON.stringify({
+          invoice_ids: open.map((i) => i.id),
+          include_payments: !!include_payments,
+          include_settled: !!include_settled,
+          rate: RATE,
+        }),
+      })
+      if (pdfRes.ok) {
+        const buf = await pdfRes.arrayBuffer()
+        resendPayload.attachments = [{
+          filename: `statement-${new Date().toISOString().split('T')[0]}.pdf`,
+          content: Buffer.from(buf).toString('base64'),
+        }]
+      } else {
+        console.warn(`[statement-pdf] generation returned ${pdfRes.status}`)
+      }
+    } catch (e) {
+      console.warn('[statement-pdf] failed:', e.message)
     }
-    if (attachments.length > 0) resendPayload.attachments = attachments
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
