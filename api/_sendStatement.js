@@ -9,6 +9,7 @@
 // so the dashboard can show exactly what the client will receive.
 
 import { createClient } from '@supabase/supabase-js'
+import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -83,8 +84,11 @@ function invoiceFigures(invoice) {
   return { dl, amountPaid, outstanding, interest, pen, total }
 }
 
-const CELL_L = 'padding:5px 14px 5px 0;color:#64748b;font-size:12.5px;white-space:nowrap;vertical-align:top;'
-const CELL_R = 'padding:5px 0;font-size:12.5px;color:#0f172a;text-align:right;vertical-align:top;'
+// Labels must be allowed to wrap — nowrap on "Interest (24 days at
+// 11.75% p.a. on the balance)" is what crushed the value column into
+// unreadability on phones. Only the money keeps nowrap.
+const CELL_L = 'padding:5px 14px 5px 0;color:#64748b;font-size:12.5px;vertical-align:top;'
+const CELL_R = 'padding:5px 0;font-size:12.5px;color:#0f172a;text-align:right;vertical-align:top;white-space:nowrap;'
 
 function invoiceBlock(invoice, f, payments) {
   const dl = f.dl
@@ -110,12 +114,12 @@ function invoiceBlock(invoice, f, payments) {
 
   return `
     <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:0 0 12px;">
-      <table style="width:100%;border-collapse:collapse;"><tr>
+      <table class="stackHead" style="width:100%;border-collapse:collapse;"><tr>
         <td style="vertical-align:top;">
           <div style="font-weight:700;font-size:14px;color:#0f172a;">${esc(invoice.ref)}${invoice.client_ref ? ` <span style="color:#94a3b8;font-weight:400;font-size:12px;">(your ref ${esc(invoice.client_ref)})</span>` : ''}</div>
           ${invoice.description ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${esc(invoice.description)}</div>` : ''}
         </td>
-        <td style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:12px;">${chip}</td>
+        <td class="chipCell" style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:12px;">${chip}</td>
       </tr></table>
       <table style="width:100%;border-collapse:collapse;margin-top:10px;">
         ${invoice.issue_date ? `<tr><td style="${CELL_L}">Issued</td><td style="${CELL_R}">${formatDate(invoice.issue_date)}</td></tr>` : ''}
@@ -160,12 +164,12 @@ function settledBlock(invoice, payments) {
 
   return `
     <div style="border:1px solid #bbe3cb;background:#f4fbf7;border-radius:10px;padding:16px 18px;margin:0 0 12px;">
-      <table style="width:100%;border-collapse:collapse;"><tr>
+      <table class="stackHead" style="width:100%;border-collapse:collapse;"><tr>
         <td style="vertical-align:top;">
           <div style="font-weight:700;font-size:14px;color:#0f172a;">${esc(invoice.ref)}${invoice.client_ref ? ` <span style="color:#94a3b8;font-weight:400;font-size:12px;">(your ref ${esc(invoice.client_ref)})</span>` : ''}</div>
           ${invoice.description ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${esc(invoice.description)}</div>` : ''}
         </td>
-        <td style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:12px;">
+        <td class="chipCell" style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:12px;">
           <span style="display:inline-block;background:#dcf3e6;color:#15803d;font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;">settled ${settledOn ? formatDate(settledOn) : ''}</span>
         </td>
       </tr></table>
@@ -236,7 +240,17 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
 
   const html = `<!DOCTYPE html>
     <html>
-    <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+    <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <style>
+      /* Phone widths: the ref/chip header stacks instead of fighting for
+         one row. Supported by iOS Mail, Gmail apps, Outlook mobile;
+         clients that strip <style> just keep the two-column layout. */
+      @media only screen and (max-width: 480px) {
+        .stackHead td { display: block !important; text-align: left !important; }
+        .chipCell { padding: 8px 0 0 !important; white-space: normal !important; }
+      }
+    </style>
+    </head>
     <body style="margin:0;padding:0;background:#f1f3f6;font-family:'DM Sans',system-ui,-apple-system,sans-serif;">
       <div style="max-width:600px;margin:0 auto;padding:24px;">
         <div style="background:#fff;border-radius:12px;border:1px solid #dce1e8;overflow:hidden;">
@@ -424,6 +438,17 @@ export async function sendStatement(req, res) {
     }
     const bccList = [profile.email].filter(Boolean)
     if (bccList.length > 0) resendPayload.bcc = bccList
+
+    // Every open invoice's PDF rides along — email HTML renders at the
+    // mercy of the client's mail app, the PDF doesn't. Best-effort per
+    // invoice: a failed generation drops that one attachment, never the
+    // send. Capped at 10 to keep the message under attachment limits.
+    const attachments = []
+    for (const inv of open.slice(0, 10)) {
+      const att = await getInvoicePdfAttachment(inv.id, inv.ref)
+      if (att) attachments.push(att)
+    }
+    if (attachments.length > 0) resendPayload.attachments = attachments
 
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',

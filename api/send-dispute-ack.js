@@ -134,20 +134,28 @@ export default async function handler(req, res) {
     : buildAckEmail(invoice, fromName, amount)
 
   try {
+    // The invoice PDF rides along with every piece of correspondence —
+    // best-effort, the notice still sends without it.
+    const { getInvoicePdfAttachment } = await import('./_invoicePdfAttachment.js')
+    const pdfAttachment = await getInvoicePdfAttachment(invoice.id, invoice.ref)
+
+    const payload = {
+      from: `${fromName} via Hielda <chase@hielda.com>`,
+      reply_to: user.email,
+      to: [invoice.client_email],
+      cc: [user.email],
+      subject: email.subject,
+      html: email.html,
+    }
+    if (pdfAttachment) payload.attachments = [pdfAttachment]
+
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: `${fromName} via Hielda <chase@hielda.com>`,
-        reply_to: user.email,
-        to: [invoice.client_email],
-        cc: [user.email],
-        subject: email.subject,
-        html: email.html,
-      }),
+      body: JSON.stringify(payload),
     })
 
     return res.status(200).json({ sent: true })
