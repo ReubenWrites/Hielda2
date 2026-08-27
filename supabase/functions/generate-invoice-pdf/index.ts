@@ -176,10 +176,10 @@ serve(async (req) => {
     const logoImg = profile.logo_url ? await fetchImageAsBase64(profile.logo_url) : null
 
     // Build PDF
-    // Muted palette shared with the statement PDF — colour only where it
-    // carries meaning, a step down in saturation from the web app.
+    // Whisper palette shared with the statement PDF — near-neutral inks
+    // with just enough hue to carry meaning.
     const doc = new jsPDF()
-    const blue = "#1f5d96"
+    const blue = "#46688b"
     const gray = "#5f6c7c"
     const dark = "#18222f"
     let y = 20
@@ -444,21 +444,21 @@ serve(async (req) => {
 
       if (amountPaid > 0) {
         y += 6
-        doc.setTextColor("#2e7d51")
+        doc.setTextColor("#55796a")
         doc.text("Payments received — thank you", 120, y)
         doc.text(`-${fmt(amountPaid)}`, 190, y, { align: "right" })
       }
 
       if (pen > 0) {
         y += 6
-        doc.setTextColor("#8c6a1d")
+        doc.setTextColor("#7d7154")
         doc.text("Fixed debt recovery cost", 120, y)
         doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
       }
 
       if (interest > 0) {
         y += 6
-        doc.setTextColor("#8c6a1d")
+        doc.setTextColor("#7d7154")
         doc.text(`Interest — ${daysOverdue}d at ${RATE}%${amountPaid > 0 ? ", on balance" : ""}`, 120, y)
         doc.text(`+${fmt(interest)}`, 190, y, { align: "right" })
       }
@@ -480,7 +480,7 @@ serve(async (req) => {
       y += 7
       doc.setFont("helvetica", "normal")
       doc.setFontSize(9)
-      doc.setTextColor("#2e7d51")
+      doc.setTextColor("#55796a")
       doc.text("Payments received — thank you", 120, y)
       doc.text(`-${fmt(amountPaid)}`, 190, y, { align: "right" })
 

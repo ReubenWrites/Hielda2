@@ -156,16 +156,16 @@ serve(async (req) => {
     }
 
     // ── Build PDF ──
-    // Muted, professional palette: colour only where it carries meaning,
-    // and a step down in saturation from the web app — print tolerates
-    // far less colour than a screen before it reads as felt-tip.
+    // Whisper palette: near-neutral inks with just enough hue to carry
+    // meaning — slate-blue accents, grey-green for money in, grey-bronze
+    // for charges, clay for overdue.
     const doc = new jsPDF()
-    const blue = "#1f5d96"
+    const blue = "#46688b"
     const gray = "#5f6c7c"
     const dark = "#18222f"
-    const green = "#2e7d51"
-    const gold = "#8c6a1d"
-    const red = "#b45309"
+    const green = "#55796a"
+    const gold = "#7d7154"
+    const red = "#97664a"
     let y = 20
 
     const pageBreak = (needed: number) => {
