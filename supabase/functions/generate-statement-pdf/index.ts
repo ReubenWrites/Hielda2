@@ -156,13 +156,16 @@ serve(async (req) => {
     }
 
     // ── Build PDF ──
+    // Muted, professional palette: colour only where it carries meaning,
+    // and a step down in saturation from the web app — print tolerates
+    // far less colour than a screen before it reads as felt-tip.
     const doc = new jsPDF()
-    const blue = "#1e5fa0"
-    const gray = "#64748b"
-    const dark = "#0f172a"
-    const green = "#15803d"
-    const gold = "#a16207"
-    const red = "#b91c1c"
+    const blue = "#1f5d96"
+    const gray = "#5f6c7c"
+    const dark = "#18222f"
+    const green = "#2e7d51"
+    const gold = "#8c6a1d"
+    const red = "#b45309"
     let y = 20
 
     const pageBreak = (needed: number) => {
@@ -230,9 +233,9 @@ serve(async (req) => {
     ) => {
       doc.setFontSize(9)
       const subLines = subtitle ? doc.splitTextToSize(subtitle, 130) : []
-      const headerH = 8 + subLines.length * 4
-      const blockH = headerH + rows.length * 5.5 + 12
-      pageBreak(blockH + 4)
+      const headerH = 9 + subLines.length * 3.8
+      const blockH = headerH + 3 + rows.length * 5.5 + 12
+      pageBreak(blockH + 5)
 
       if (fill) {
         doc.setFillColor(fill)
@@ -245,22 +248,29 @@ serve(async (req) => {
         doc.roundedRect(20, y, 170, blockH, 2, 2, "S")
       }
 
-      let by = y + 7
-      doc.setFontSize(11)
+      let by = y + 7.5
+      doc.setFontSize(10.5)
       doc.setTextColor(dark)
       doc.setFont("helvetica", "bold")
       doc.text(title, 26, by)
-      doc.setFontSize(8)
+      doc.setFontSize(7.5)
       doc.setTextColor(chipColor)
       doc.text(chip, 184, by, { align: "right" })
       if (subLines.length) {
-        doc.setFontSize(8)
+        doc.setFontSize(7.5)
         doc.setTextColor(gray)
         doc.setFont("helvetica", "normal")
-        doc.text(subLines, 26, by + 4)
+        doc.text(subLines, 26, by + 4.2)
       }
-      by += headerH - 3
 
+      // A hairline between the block's identity and its figures keeps the
+      // ledger rows reading as a table rather than floating text.
+      const dividerY = y + headerH + 1.5
+      doc.setDrawColor("#e8ecf1")
+      doc.setLineWidth(0.2)
+      doc.line(26, dividerY, 184, dividerY)
+
+      by = dividerY + 1
       doc.setFontSize(9)
       for (const r of rows) {
         by += 5.5
@@ -281,7 +291,7 @@ serve(async (req) => {
       doc.text(totalRow.label, 26, by)
       doc.text(totalRow.value, 184, by, { align: "right" })
 
-      y += blockH + 4
+      y += blockH + 5
     }
 
     // Outstanding invoice blocks
@@ -303,23 +313,24 @@ serve(async (req) => {
       const chip = f.dl > 0 ? `${f.dl} DAYS OVERDUE` : `DUE IN ${daysUntil(inv.due_date)} DAYS`
       drawBlock(
         safe(inv.ref), safe(inv.description, ""), chip, f.dl > 0 ? red : gray,
-        rows, { label: "Amount due", value: fmt(f.total) }, null, "#cbd5e1",
+        rows, { label: "Amount due", value: fmt(f.total) }, null, "#d8dee6",
       )
     }
 
-    // Total band
+    // Total band — a quiet panel with a single accent bar, not a blue box
     pageBreak(20)
-    doc.setFillColor("#eff6ff")
-    doc.setDrawColor(blue)
-    doc.setLineWidth(0.5)
-    doc.roundedRect(20, y, 170, 16, 2, 2, "FD")
+    doc.setFillColor("#f3f6fa")
+    doc.roundedRect(20, y, 170, 16, 2, 2, "F")
+    doc.setFillColor(blue)
+    doc.rect(20, y, 1.6, 16, "F")
     doc.setFontSize(9)
-    doc.setTextColor(blue)
+    doc.setTextColor(dark)
     doc.setFont("helvetica", "bold")
-    doc.text("TOTAL NOW OWED", 26, y + 10)
+    doc.text("TOTAL NOW OWED", 27, y + 10)
     doc.setFontSize(14)
+    doc.setTextColor(blue)
     doc.text(fmt(grandTotal), 184, y + 10.5, { align: "right" })
-    y += 22
+    y += 23
 
     // Settled section — same frozen-at-settlement maths as the email
     if (settled.length > 0) {
@@ -362,7 +373,7 @@ serve(async (req) => {
           safe(inv.ref), safe(inv.description, ""),
           `SETTLED ${settledOn ? formatDate(settledOn).toUpperCase() : ""}`, green,
           rows, { label: "Nothing further due — account settled", value: fmt(0), color: green },
-          "#f4fbf7", "#bbe3cb",
+          "#f6faf7", "#d3e6da",
         )
       }
     }

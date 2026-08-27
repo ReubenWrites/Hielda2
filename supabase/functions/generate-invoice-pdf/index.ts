@@ -176,10 +176,12 @@ serve(async (req) => {
     const logoImg = profile.logo_url ? await fetchImageAsBase64(profile.logo_url) : null
 
     // Build PDF
+    // Muted palette shared with the statement PDF — colour only where it
+    // carries meaning, a step down in saturation from the web app.
     const doc = new jsPDF()
-    const blue = "#1e5fa0"
-    const gray = "#64748b"
-    const dark = "#0f172a"
+    const blue = "#1f5d96"
+    const gray = "#5f6c7c"
+    const dark = "#18222f"
     let y = 20
 
     // Logo or business name in top-right. Cap at 70mm wide so a long
@@ -338,11 +340,11 @@ serve(async (req) => {
 
     // Line items start below whichever column extends further down —
     // BILL TO (with potentially-wrapped client name + address + email)
-    // or DETAILS (with potentially-wrapped client ref). Defaulting to a
-    // fixed y=100 used to cause the line item header to render on top
-    // of overflowing bill-to text.
+    // or DETAILS (with potentially-wrapped client ref). No fixed floor:
+    // the old max(100, ...) left a ~30mm dead gap on invoices with short
+    // addresses and pushed the payment box onto a near-empty second page.
     const billToBottom = billToY + (invoice.client_email ? 6 : 0)
-    y = Math.max(100, billToBottom + 4, detailsY + 4)
+    y = Math.max(billToBottom + 6, detailsY + 6)
     doc.setDrawColor("#dce1e8")
     doc.setLineWidth(0.3)
     doc.line(20, y, 190, y)
@@ -370,7 +372,7 @@ serve(async (req) => {
     // Render individual line items if available
     if (lineItems?.length) {
       for (const li of lineItems) {
-        y += 7
+        y += 6.2
         doc.setFontSize(10)
         doc.setTextColor(dark)
         doc.setFont("helvetica", "normal")
@@ -400,7 +402,7 @@ serve(async (req) => {
     }
 
     // Totals
-    y += 10
+    y += 8
     doc.setDrawColor("#dce1e8")
     doc.setLineWidth(0.3)
     doc.line(120, y, 190, y)
@@ -442,22 +444,22 @@ serve(async (req) => {
 
       if (amountPaid > 0) {
         y += 6
-        doc.setTextColor("#15803d")
+        doc.setTextColor("#2e7d51")
         doc.text("Payments received — thank you", 120, y)
         doc.text(`-${fmt(amountPaid)}`, 190, y, { align: "right" })
       }
 
       if (pen > 0) {
         y += 6
-        doc.setTextColor("#a16207")
+        doc.setTextColor("#8c6a1d")
         doc.text("Fixed debt recovery cost", 120, y)
         doc.text(`+${fmt(pen)}`, 190, y, { align: "right" })
       }
 
       if (interest > 0) {
         y += 6
-        doc.setTextColor("#a16207")
-        doc.text(`Interest (${daysOverdue}d at ${RATE}% p.a.${amountPaid > 0 ? " on balance" : ""})`, 120, y)
+        doc.setTextColor("#8c6a1d")
+        doc.text(`Interest — ${daysOverdue}d at ${RATE}%${amountPaid > 0 ? ", on balance" : ""}`, 120, y)
         doc.text(`+${fmt(interest)}`, 190, y, { align: "right" })
       }
 
@@ -478,7 +480,7 @@ serve(async (req) => {
       y += 7
       doc.setFont("helvetica", "normal")
       doc.setFontSize(9)
-      doc.setTextColor("#15803d")
+      doc.setTextColor("#2e7d51")
       doc.text("Payments received — thank you", 120, y)
       doc.text(`-${fmt(amountPaid)}`, 190, y, { align: "right" })
 
@@ -499,7 +501,7 @@ serve(async (req) => {
     // If has VAT, not overdue, and nothing part-paid: total already shown above
 
     // Payment details box
-    y += 16
+    y += 10
 
     // Build payment lines. Each one is wrapped to the box's inner width
     // (170mm - 2*8mm padding = 154mm) — a long bank name or account
