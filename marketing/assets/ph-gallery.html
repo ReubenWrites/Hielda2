@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ac:#1f5d96; --acd:#174a7a; --acl:#4583c0;
+    --bg:#f5f6f8; --sf:#fff; --bd:#d3dae3; --bdl:#e2e7ee;
+    --tx:#18222f; --tm:#5f6c7c; --td:#98a3b1;
+    --or:#c96b03; --gn:#15924a; --go:#946007; --red:#b45309;
+    --mono:'JetBrains Mono',monospace; --font:'DM Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{width:1270px;height:760px;overflow:hidden;font-family:var(--font)}
+  .slide{display:none;width:1270px;height:760px;position:relative}
+  body[data-s="1"] #s1, body[data-s="2"] #s2, body[data-s="3"] #s3,
+  body[data-s="4"] #s4, body[data-s="5"] #s5 {display:flex}
+
+  /* ── Slide 1: hero ── */
+  #s1{background:linear-gradient(140deg,#1f5d96 0%,#174a7a 60%,#123a61 100%);color:#fff;
+      flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px}
+  #s1 .shield{margin-bottom:36px}
+  #s1 h1{font-size:64px;font-weight:900;letter-spacing:-.025em;line-height:1.12;max-width:980px}
+  #s1 h1 .accent{color:#8fc1ee}
+  #s1 .sub{margin-top:28px;font-size:22px;color:rgba(255,255,255,.75);max-width:760px;line-height:1.5}
+  #s1 .url{position:absolute;bottom:36px;font-family:var(--mono);font-size:16px;color:rgba(255,255,255,.55);left:0;right:0;text-align:center}
+
+  /* ── Slide 2: timeline ── */
+  #s2{background:var(--bg);flex-direction:column;justify-content:center;padding:70px 80px}
+  .kick{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ac);margin-bottom:14px}
+  #s2 h2,#s3 h2,#s4 h2{font-size:42px;font-weight:800;letter-spacing:-.02em;color:var(--tx);margin-bottom:10px}
+  .subline{font-size:19px;color:var(--tm);margin-bottom:52px}
+  .track{position:relative;height:6px;background:linear-gradient(90deg,#4583c0,#c9a227,#c96b03,#b3541e,#a03d1c);border-radius:3px;margin:0 30px}
+  .stops{display:flex;justify-content:space-between;margin:0 0;position:relative;top:-15px}
+  .stop{width:170px;text-align:center;position:relative}
+  .dot{width:24px;height:24px;border-radius:50%;border:5px solid #fff;margin:0 auto;box-shadow:0 2px 8px rgba(24,34,47,.2)}
+  .stop .day{font-family:var(--mono);font-size:14px;font-weight:700;margin-top:14px}
+  .stop .lbl{font-size:15px;font-weight:700;color:var(--tx);margin-top:6px}
+  .stop .dsc{font-size:12.5px;color:var(--tm);margin-top:4px;line-height:1.45}
+
+  /* ── Slide 3: the maths ── */
+  #s3{background:var(--bg);align-items:center;justify-content:center;gap:80px;padding:60px}
+  #s3 .left{max-width:430px}
+  #s3 .left p{font-size:19px;color:var(--tm);line-height:1.6;margin-top:16px}
+  .stmt{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:40px 44px;width:520px;
+        box-shadow:0 18px 50px rgba(24,34,47,.12)}
+  .stmt .eyebrow{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--td);margin-bottom:22px}
+  .srow{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bdl);font-size:18px;color:var(--tm)}
+  .srow .n{font-family:var(--mono);font-weight:600;color:var(--tx)}
+  .srow.charge .n{color:var(--go)}
+  .stotal{display:flex;justify-content:space-between;padding-top:20px;margin-top:8px;border-top:3px double var(--tx);align-items:baseline}
+  .stotal .l{font-size:15px;font-weight:800;letter-spacing:.06em;color:var(--tx)}
+  .stotal .n{font-family:var(--mono);font-size:32px;font-weight:700;color:var(--ac)}
+  .daily{text-align:right;font-size:13px;color:var(--td);margin-top:10px}
+
+  /* ── Slide 4: their side / your side ── */
+  #s4{background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:60px}
+  #s4 .cols{display:flex;align-items:stretch;gap:36px;margin-top:48px}
+  .panel{width:440px;background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:34px 38px}
+  .panel.you{border:2px solid var(--ac);box-shadow:0 18px 50px rgba(31,93,150,.14)}
+  .panel .ttl{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.12em;color:var(--tm);margin-bottom:24px}
+  .panel.you .ttl{color:var(--ac)}
+  .role{display:flex;gap:16px;align-items:flex-start;padding:14px 0}
+  .role + .role{border-top:1px solid var(--bdl)}
+  .role .ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:#eef2f7}
+  .role .nm{font-size:17px;font-weight:700;color:var(--tx)}
+  .role .ds{font-size:14px;color:var(--tm);margin-top:3px;line-height:1.45}
+  .eq{align-self:center;font-size:40px;font-weight:800;color:var(--td)}
+
+  /* ── Slide 5: dashboard ── */
+  #s5{background:#e8eaee;align-items:center;justify-content:center;padding:44px}
+  .app{width:1180px;background:var(--bg);border:1px solid var(--bd);border-radius:14px;overflow:hidden;display:flex;
+       box-shadow:0 24px 60px rgba(24,34,47,.18)}
+  .side{width:180px;background:var(--ac);color:#fff;flex-shrink:0}
+  .slogo{height:52px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.12);font-weight:700;font-size:17px}
+  .nav{padding:24px 10px}
+  .ni{padding:8px 10px;border-radius:7px;font-size:13px;color:rgba(255,255,255,.55);margin-bottom:2px}
+  .ni.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600}
+  .main{flex:1;padding:0}
+  .top{height:52px;background:var(--sf);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 22px;gap:10px}
+  .won{margin-left:auto;font-size:11px;font-weight:600;color:var(--gn);background:rgba(21,146,74,.07);border:1px solid rgba(21,146,74,.2);border-radius:999px;padding:3px 11px}
+  .chasepill{font-size:11px;font-weight:600;color:var(--or);background:rgba(201,107,3,.07);border:1px solid rgba(201,107,3,.2);border-radius:999px;padding:3px 11px}
+  .content{padding:22px}
+  .content h1{font-size:26px;font-weight:800;color:var(--tx);padding-bottom:8px;position:relative;margin-bottom:16px}
+  .content h1::after{content:"";position:absolute;left:0;bottom:0;width:40px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--ac),var(--or))}
+  .stats{display:flex;gap:10px;margin-bottom:16px}
+  .stat{flex:1;background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--bd);border-radius:0 10px 10px 0;padding:12px 13px;box-shadow:0 1px 3px rgba(24,34,47,.05)}
+  .stat.loud{border-left-color:var(--or);background:linear-gradient(105deg,rgba(201,107,3,.05),var(--sf) 45%)}
+  .stat.brand{border-left-color:var(--ac)}
+  .stat .l{font-size:9px;font-weight:600;color:var(--tm);text-transform:uppercase;letter-spacing:.05em}
+  .stat .v{font-family:var(--mono);font-size:17px;font-weight:600;margin-top:4px}
+  .stat.loud .v{color:var(--or)} .stat.brand .v{color:var(--ac)} .stat .v.mut{color:var(--tm)}
+  .stat .mini{margin-top:9px;border:1px solid var(--bdl);border-radius:7px;padding:5px 9px;display:flex;gap:6px;align-items:baseline;font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)}
+  .stat .mini .mv{font-family:var(--mono);font-size:11px;margin-left:auto}
+  .mini.gold .mv{color:var(--go)} .mini.green .mv{color:var(--gn)} .mini.plain .mv{color:var(--td)}
+  .card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;box-shadow:0 1px 3px rgba(24,34,47,.05);margin-bottom:14px;overflow:hidden}
+  .sumbar{display:flex;align-items:center;gap:12px;padding:11px 15px;font-size:12.5px}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--or);box-shadow:0 0 0 3px rgba(201,107,3,.18)}
+  .sumbar b{font-size:12.5px}
+  .late{color:var(--or);font-weight:600}
+  .tot{margin-left:auto;font-family:var(--mono);font-weight:700;color:var(--or)}
+  .row{display:grid;grid-template-columns:110px 1fr 105px 110px 40px 110px;gap:8px;align-items:center;padding:8px 15px;border-top:1px solid var(--bdl);font-size:11.5px}
+  .rref{font-family:var(--mono);color:var(--tm);font-size:11px}
+  .rcl{font-weight:600;text-align:center}
+  .rdue{color:var(--tm);text-align:center}
+  .rstage{text-align:center}
+  .pill{display:inline-block;font-size:8.5px;font-weight:700;padding:2px 7px;border-radius:999px;border:1px solid var(--bdl);color:var(--tm);text-transform:uppercase}
+  .pill.hot{color:var(--or);border-color:rgba(201,107,3,.3);background:rgba(201,107,3,.05)}
+  .rlate{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--or);text-align:center}
+  .ramt{font-family:var(--mono);font-weight:600;text-align:right}
+  .checkin{background:#f3f6fa;border:1px solid var(--bdl);border-left:3px solid var(--ac);border-radius:0 10px 10px 0;padding:13px 16px;display:flex;align-items:center;gap:14px}
+  .checkin .q{font-size:13px;font-weight:600;color:var(--tx)}
+  .checkin .h{font-size:11.5px;color:var(--tm)}
+  .btn{background:var(--ac);color:#fff;border-radius:7px;padding:6px 14px;font-size:11.5px;font-weight:600}
+  .btn.ghost{background:none;border:1px solid var(--bd);color:var(--tm)}
+</style>
+</head>
+<body data-s="1">
+<script>
+  const s = new URLSearchParams(location.search).get('s') || '1'
+  document.body.dataset.s = s
+</script>
+
+<!-- 1 · Hero -->
+<section class="slide" id="s1">
+  <svg class="shield" width="84" height="100" viewBox="0 0 80 96"><path d="M40 4 L72 16 L72 52 Q72 78 40 92 Q8 78 8 52 L8 16 Z" fill="rgba(255,255,255,0.14)" stroke="#fff" stroke-width="3"/><rect x="24" y="26" width="8" height="40" rx="2" fill="#fff"/><rect x="48" y="26" width="8" height="40" rx="2" fill="#fff"/><rect x="30" y="42" width="20" height="8" rx="2" fill="#fff"/></svg>
+  <h1>They're using your wages<br/>as their working capital.<br/><span class="accent">Time to charge for it.</span></h1>
+  <p class="sub">Hielda chases your late invoices on your behalf. It automatically adds the statutory interest and fees you're entitled to under UK law.<br/><span style="display:inline-block;margin-top:14px;font-weight:700;color:#fff;">If they're going to pay you late, they pay you more.</span></p>
+  <div class="url">hielda.com</div>
+</section>
+
+<!-- 2 · Timeline -->
+<section class="slide" id="s2">
+  <div class="kick">The chase ladder</div>
+  <h2>19 emails, approved by you and sent on your behalf</h2>
+  <p class="subline">Hielda drafts everything for your approval, from a gentle nudge to a letter before legal action. Making it easier for you to claim what you're legally owed.</p>
+  <div class="track"></div>
+  <div class="stops">
+    <div class="stop"><div class="dot" style="background:#4583c0"></div><div class="day" style="color:#4583c0">DAY −5</div><div class="lbl">Friendly reminder</div><div class="dsc">"Just a heads-up, this is due Friday"</div></div>
+    <div class="stop"><div class="dot" style="background:#3f76ad"></div><div class="day" style="color:#3f76ad">DAY 0</div><div class="lbl">Due date</div><div class="dsc">Polite note with payment details</div></div>
+    <div class="stop"><div class="dot" style="background:#c9a227"></div><div class="day" style="color:#c9a227">DAY +7</div><div class="lbl">Firm chase</div><div class="dsc">The accounts-team tone begins</div></div>
+    <div class="stop"><div class="dot" style="background:#c96b03"></div><div class="day" style="color:#c96b03">DAY +14</div><div class="lbl">Charges applied</div><div class="dsc">Statutory interest + £40–£100 fee, itemised</div></div>
+    <div class="stop"><div class="dot" style="background:#b3541e"></div><div class="day" style="color:#b3541e">DAY +21</div><div class="lbl">Formal notice</div><div class="dsc">Late Payment Act 1998 cited in full</div></div>
+    <div class="stop"><div class="dot" style="background:#a03d1c"></div><div class="day" style="color:#a03d1c">DAY +30</div><div class="lbl">Final notice</div><div class="dsc">Next steps: letter before action</div></div>
+  </div>
+</section>
+
+<!-- 3 · The maths -->
+<section class="slide" id="s3">
+  <div class="left">
+    <div class="kick">The law is on your side</div>
+    <h2>Late payers owe you more than the invoice.</h2>
+    <p>Under the Late Payment of Commercial Debts (Interest) Act 1998, every overdue B2B invoice earns statutory interest at 8% + Bank of England base rate, plus a fixed recovery fee. Automatically. No contract clause needed.</p>
+    <p style="font-weight:700;color:var(--tx)">Almost nobody claims it. Hielda does.</p>
+  </div>
+  <div class="stmt">
+    <div class="eyebrow">Statement · Late Payment of Commercial Debts (Interest) Act 1998</div>
+    <div class="srow"><span>Original invoice</span><span class="n">£3,000.00</span></div>
+    <div class="srow charge"><span>Fixed debt recovery cost</span><span class="n">+£70.00</span></div>
+    <div class="srow charge"><span>Interest — 30 days at 11.75% p.a.</span><span class="n">+£28.97</span></div>
+    <div class="stotal"><span class="l">TOTAL NOW OWED</span><span class="n">£3,098.97</span></div>
+    <div class="daily">+£0.97/day interest accruing until settled</div>
+  </div>
+</section>
+
+<!-- 4 · Their side / your side -->
+<section class="slide" id="s4">
+  <div class="kick">You stay the good guy</div>
+  <h2>Big companies have an accounts team. Now you do.</h2>
+  <div class="cols">
+    <div class="panel">
+      <div class="ttl">THEIR SIDE</div>
+      <div class="role"><div class="ic">🤝</div><div><div class="nm">The person who hired you</div><div class="ds">Loves your work. Not responsible for payment.</div></div></div>
+      <div class="role"><div class="ic">🏦</div><div><div class="nm">Their accounts department</div><div class="ds">Delays payment. Applies pressure. Nothing personal.</div></div></div>
+    </div>
+    <div class="eq">=</div>
+    <div class="panel you">
+      <div class="ttl">YOUR SIDE</div>
+      <div class="role"><div class="ic">🎨</div><div><div class="nm">You</div><div class="ds">Do great work. Keep the relationship warm.</div></div></div>
+      <div class="role"><div class="ic" style="background:#e4edf6">🛡️</div><div><div class="nm">Hielda</div><div class="ds">Chases payment. Applies the statutory charges. Nothing personal.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · Product -->
+<section class="slide" id="s5">
+  <div class="app">
+    <div class="side">
+      <div class="slogo"><svg width="18" height="22" viewBox="0 0 80 96"><path d="M40 4 L72 16 L72 52 Q72 78 40 92 Q8 78 8 52 L8 16 Z" fill="rgba(255,255,255,0.18)" stroke="#fff" stroke-width="3"/><rect x="24" y="26" width="8" height="40" rx="2" fill="#fff"/><rect x="48" y="26" width="8" height="40" rx="2" fill="#fff"/><rect x="30" y="42" width="20" height="8" rx="2" fill="#fff"/></svg> Hielda</div>
+      <div class="nav">
+        <div class="ni on">Dashboard</div><div class="ni">New Invoice</div><div class="ni">Refer &amp; Earn</div><div class="ni">How It Works</div><div class="ni">Your Details</div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="top">
+        <span style="font-size:12px;font-weight:600">Studio Nine Design</span>
+        <span class="won">★ £284.51 extra claimed by Hielda</span>
+        <span class="chasepill">● 3 chasing · £6,410.22</span>
+      </div>
+      <div class="content">
+        <h1>Dashboard</h1>
+        <div class="stats">
+          <div class="stat"><div class="l">Pending</div><div class="v mut">£2,150.00</div><div class="mini plain">Next due<span class="mv">12 Sep · £850.00</span></div></div>
+          <div class="stat loud"><div class="l">Being chased</div><div class="v">£6,410.22</div><div class="mini gold">Extra by Hielda<span class="mv">+£312.40</span></div></div>
+          <div class="stat brand"><div class="l">Paid (90 days)</div><div class="v">£11,847.51</div><div class="mini green">Extra claimed by Hielda<span class="mv">+£284.51</span></div></div>
+        </div>
+        <div class="card">
+          <div class="sumbar"><span class="pulse"></span><b>Hielda is chasing 3 invoices</b><span style="color:var(--tm)">clients: <b>2</b></span><span class="late">6–31 days overdue</span><span class="tot">£6,410.22</span></div>
+          <div class="row"><span class="rref">INV-0041</span><span class="rcl">Brightline Media</span><span class="rdue">due 28 Jul</span><span class="rstage"><span class="pill hot">Final notice</span></span><span class="rlate">31d</span><span class="ramt">£3,187.94</span></div>
+          <div class="row"><span class="rref">INV-0044</span><span class="rcl">Harbour &amp; Co</span><span class="rdue">due 9 Aug</span><span class="rstage"><span class="pill">Second chase</span></span><span class="rlate">19d</span><span class="ramt">£2,341.28</span></div>
+          <div class="row"><span class="rref">INV-0046</span><span class="rcl">Brightline Media</span><span class="rdue">due 22 Aug</span><span class="rstage"><span class="pill">Reminder</span></span><span class="rlate">6d</span><span class="ramt">£881.00</span></div>
+        </div>
+        <div class="checkin">
+          <div style="flex:1">
+            <div class="q">Has Brightline Media paid INV-0041?</div>
+            <div class="h">Hielda checks with you before every chase — nothing reaches your client without your say-so.</div>
+          </div>
+          <span class="btn ghost">Yes, paid</span>
+          <span class="btn">Not yet — send the chase</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</body>
+</html>

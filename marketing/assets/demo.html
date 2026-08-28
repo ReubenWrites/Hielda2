@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ac:#1f5d96; --bg:#f5f6f8; --sf:#fff; --bd:#d3dae3; --bdl:#e2e7ee;
+    --tx:#18222f; --tm:#5f6c7c; --td:#98a3b1;
+    --or:#c96b03; --gn:#15924a; --go:#946007;
+    --mono:'JetBrains Mono',monospace; --font:'DM Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{width:1270px;height:760px;overflow:hidden;font-family:var(--font)}
+  .scene{display:none;width:1270px;height:760px;position:relative;background:var(--bg)}
+  body[data-s="1"] #c1,body[data-s="2"] #c2,body[data-s="3"] #c3,body[data-s="4"] #c4,body[data-s="5"] #c5,
+  body[data-s="6"] #c6,body[data-s="7"] #c7,body[data-s="8"] #c8,body[data-s="9"] #c9,body[data-s="10"] #c10{display:flex}
+  .center{align-items:center;justify-content:center;flex-direction:column}
+
+  .caption{position:absolute;bottom:40px;left:0;right:0;display:flex;justify-content:center;z-index:9}
+  .caption .inner{background:rgba(24,34,47,.88);color:#fff;padding:13px 26px;border-radius:14px;
+    box-shadow:0 8px 30px rgba(24,34,47,.3);display:flex;align-items:center;gap:14px}
+  .caption .step{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.1em;color:#8fc1ee;
+    border:1px solid rgba(143,193,238,.4);border-radius:999px;padding:3px 12px;white-space:nowrap}
+  .caption .txt{font-size:21px;font-weight:600}
+
+  #c1,#c10{background:linear-gradient(140deg,#1f5d96 0%,#174a7a 60%,#123a61 100%);color:#fff;text-align:center}
+  #c1 h1{font-size:72px;font-weight:900;letter-spacing:-.02em;margin-top:28px}
+  #c1 .t{font-size:25px;color:rgba(255,255,255,.75);margin-top:12px}
+  #c10 h1{font-size:50px;font-weight:900;letter-spacing:-.02em;line-height:1.2;max-width:900px}
+  #c10 .u{font-family:var(--mono);font-size:19px;color:rgba(255,255,255,.65);margin-top:28px}
+  #c10 .cta{margin-top:24px;background:#fff;color:#1f5d96;font-weight:800;font-size:19px;padding:13px 32px;border-radius:12px}
+
+  .panel{background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:0 24px 60px rgba(24,34,47,.16);overflow:hidden}
+
+  /* create form */
+  .form{width:640px;padding:34px 40px}
+  .form h2{font-size:22px;font-weight:800;color:var(--tx);margin-bottom:22px}
+  .f{margin-bottom:16px}
+  .f label{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tm);margin-bottom:6px}
+  .f .inp{border:1.5px solid var(--bd);border-radius:9px;padding:10px 14px;font-size:15px;color:var(--tx);background:var(--sf)}
+  .f .inp.focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(31,93,150,.12)}
+  .two{display:flex;gap:14px}.two .f{flex:1}
+  .li{display:flex;justify-content:space-between;border:1.5px solid var(--bdl);border-radius:9px;padding:10px 14px;font-size:14.5px;color:var(--tx);margin-bottom:8px}
+  .li .a{font-family:var(--mono);font-weight:600}
+  .ftotal{display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:var(--tx);padding:12px 2px 0;border-top:2px solid var(--bdl)}
+  .ftotal .a{font-family:var(--mono);color:var(--ac);font-size:18px}
+  .fbtn{margin-top:20px;background:var(--ac);color:#fff;text-align:center;border-radius:10px;padding:13px;font-size:16px;font-weight:700}
+
+  /* email mock */
+  .email{width:640px}
+  .eband{color:#fff;padding:13px 24px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+  .eband .tag{background:rgba(255,255,255,.18);border-radius:999px;padding:3px 12px;font-size:11px}
+  .ebody{padding:24px 28px;font-size:14.5px;line-height:1.65;color:var(--tx)}
+  .erow{display:flex;justify-content:space-between;padding:9px 14px;font-size:13.5px;color:var(--tm);background:#f6f7f9;border-radius:8px;margin-top:6px}
+  .erow .n{font-family:var(--mono);font-weight:600;color:var(--tx)}
+  .erow.charge .n{color:var(--go)}
+  .erow.total{background:#eef4fa}
+  .erow.total span,.erow.total .n{color:var(--ac);font-weight:700}
+  .attach{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--bdl);border-radius:9px;padding:8px 14px;font-size:13px;color:var(--tm);margin-top:14px}
+  .attach b{color:var(--tx)}
+
+  /* watch scene */
+  .watch{width:560px;padding:34px 40px;text-align:left}
+  .watch .l{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tm)}
+  .watch .v{font-family:var(--mono);font-size:34px;font-weight:600;color:var(--tm);margin-top:8px}
+  .watch .mini{margin-top:18px;border:1px solid var(--bdl);border-left:3px solid var(--ac);border-radius:9px;padding:12px 16px;display:flex;align-items:baseline;gap:10px}
+  .watch .mini .ml{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tm)}
+  .watch .mini .mv{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--ac);margin-left:auto}
+  .watch .note{margin-top:16px;font-size:14px;color:var(--tm);line-height:1.55}
+
+  /* check-in */
+  .checkin{width:900px;border-left:4px solid var(--ac);padding:34px 38px;display:flex;align-items:center;gap:22px}
+  .checkin .q{font-size:23px;font-weight:700;color:var(--tx)}
+  .checkin .h{font-size:15.5px;color:var(--tm);margin-top:8px;line-height:1.5}
+  .btn{background:var(--ac);color:#fff;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;white-space:nowrap}
+  .btn.ghost{background:none;border:1px solid var(--bd);color:var(--tm)}
+
+  /* ladder */
+  .ladder{width:1090px;padding:50px 50px 60px}
+  .ladder h3{font-size:26px;font-weight:800;color:var(--tx);margin-bottom:36px;text-align:center}
+  .track{position:relative;height:6px;background:linear-gradient(90deg,#4583c0,#c9a227,#c96b03,#b3541e,#a03d1c);border-radius:3px;margin:0 26px}
+  .stops{display:flex;justify-content:space-between;position:relative;top:-14px}
+  .stop{width:158px;text-align:center}
+  .dot{width:22px;height:22px;border-radius:50%;border:5px solid #fff;margin:0 auto;box-shadow:0 2px 8px rgba(24,34,47,.2)}
+  .stop .day{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:12px}
+  .stop .lbl{font-size:14px;font-weight:700;color:var(--tx);margin-top:5px}
+
+  /* paid */
+  .paidc{padding:48px 66px;text-align:center;background:linear-gradient(150deg,rgba(21,146,74,.09),rgba(21,146,74,.03));border:1.5px solid rgba(21,146,74,.3)}
+  .stamp{display:inline-block;font-family:var(--mono);font-size:25px;font-weight:700;letter-spacing:.14em;color:var(--gn);
+         border:4px solid var(--gn);border-radius:10px;padding:9px 28px;transform:rotate(-6deg);opacity:.92}
+  .paidc .ref{font-size:25px;font-weight:800;color:var(--tx);margin-top:24px}
+  .paidc .d{font-size:16px;color:var(--tm);margin-top:8px}
+  .paidc .x{font-size:16px;color:var(--gn);font-weight:600;margin-top:9px}
+</style>
+</head>
+<body data-s="1">
+<script>document.body.dataset.s = new URLSearchParams(location.search).get('s') || '1'</script>
+
+<!-- 1 · Title -->
+<div class="scene center" id="c1">
+  <svg width="96" height="115" viewBox="0 0 80 96"><path d="M40 4 L72 16 L72 52 Q72 78 40 92 Q8 78 8 52 L8 16 Z" fill="rgba(255,255,255,0.14)" stroke="#fff" stroke-width="3"/><rect x="24" y="26" width="8" height="40" rx="2" fill="#fff"/><rect x="48" y="26" width="8" height="40" rx="2" fill="#fff"/><rect x="30" y="42" width="20" height="8" rx="2" fill="#fff"/></svg>
+  <h1>Hielda</h1>
+  <p class="t">Invoice. Chase. Get paid — plus what you're owed.</p>
+</div>
+
+<!-- 2 · Create -->
+<div class="scene center" id="c2">
+  <div class="panel form">
+    <h2>New invoice</h2>
+    <div class="two">
+      <div class="f"><label>Client</label><div class="inp">Brightline Media</div></div>
+      <div class="f"><label>Client email</label><div class="inp">accounts@brightline.co.uk</div></div>
+    </div>
+    <div class="f"><label>Line items</label>
+      <div class="li"><span>Brand campaign — design, 4 days</span><span class="a">£1,800.00</span></div>
+      <div class="li"><span>Location photography</span><span class="a">£600.00</span></div>
+    </div>
+    <div class="two">
+      <div class="f"><label>Payment terms</label><div class="inp focus">14 days</div></div>
+      <div class="f"><label>Due date</label><div class="inp">11 Sep 2026</div></div>
+    </div>
+    <div class="ftotal"><span>Total</span><span class="a">£2,400.00</span></div>
+    <div class="fbtn">Create &amp; send invoice</div>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 1</span><span class="txt">Create the invoice — client, work, terms. Done.</span></div></div>
+</div>
+
+<!-- 3 · Sent -->
+<div class="scene center" id="c3">
+  <div class="panel email">
+    <div class="eband" style="background:var(--ac)"><span>Studio Nine Design</span><span class="tag">via Hielda</span></div>
+    <div class="ebody">
+      <b>Invoice INV-0047 — £2,400.00, due 11 September</b>
+      <p style="color:var(--tm);margin-top:8px;font-size:13.5px">Hi Brightline team — please find invoice INV-0047 attached for the brand campaign. Payment details are on the invoice. Any questions, just reply.</p>
+      <div class="attach">📎 <b>INV-0047.pdf</b> · 84 KB</div>
+    </div>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 1</span><span class="txt">Hielda emails it to your client, PDF attached.</span></div></div>
+</div>
+
+<!-- 4 · Watch -->
+<div class="scene center" id="c4">
+  <div class="panel watch">
+    <div class="l">Pending</div>
+    <div class="v">£2,400.00</div>
+    <div class="mini"><span class="ml">Next due</span><span class="mv">11 Sep · £2,400.00</span></div>
+    <p class="note">Hielda tracks every due date and the live Bank of England rate — ready to act the moment an invoice slips.</p>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 2</span><span class="txt">Hielda watches the due date, so you don't have to.</span></div></div>
+</div>
+
+<!-- 5 · Pre-due nudge -->
+<div class="scene center" id="c5">
+  <div class="panel email">
+    <div class="eband" style="background:#4583c0"><span>Accounts — Studio Nine Design</span><span class="tag">due in 5 days</span></div>
+    <div class="ebody">
+      <b>A friendly heads-up: INV-0047 is due this Friday</b>
+      <p style="color:var(--tm);margin-top:8px;font-size:13.5px">Just a gentle reminder that invoice INV-0047 (£2,400.00) falls due on 11 September. If it's already scheduled, please ignore this — and thank you!</p>
+    </div>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 3</span><span class="txt">A friendly nudge goes out before it's even due.</span></div></div>
+</div>
+
+<!-- 6 · Check-in -->
+<div class="scene center" id="c6">
+  <div class="panel checkin">
+    <div style="flex:1">
+      <div class="q">Has Brightline Media paid INV-0047?</div>
+      <div class="h">The due date has passed. Hielda checks with you before every chase — nothing reaches your client without your say-so.</div>
+    </div>
+    <span class="btn ghost">Yes, paid</span>
+    <span class="btn">Not yet — send the chase</span>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 4</span><span class="txt">Overdue? Hielda always asks you first.</span></div></div>
+</div>
+
+<!-- 7 · Escalating chase -->
+<div class="scene center" id="c7">
+  <div class="panel email">
+    <div class="eband" style="background:#a03d1c"><span>Accounts — Studio Nine Design</span><span class="tag">21 days overdue</span></div>
+    <div class="ebody">
+      <b>Invoice INV-0047 — statutory charges now applied</b>
+      <p style="color:var(--tm);margin-top:8px;font-size:13.5px">INV-0047 remains unpaid. Under the Late Payment of Commercial Debts (Interest) Act 1998, the following now applies and accrues daily:</p>
+      <div class="erow"><span>Original invoice</span><span class="n">£2,400.00</span></div>
+      <div class="erow charge"><span>Fixed debt recovery cost</span><span class="n">+£70.00</span></div>
+      <div class="erow charge"><span>Interest — 21 days at 11.75% p.a.</span><span class="n">+£16.22</span></div>
+      <div class="erow total"><span>TOTAL NOW OWED</span><span class="n">£2,486.22</span></div>
+    </div>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 5</span><span class="txt">Approved chases escalate — statutory interest and fees added.</span></div></div>
+</div>
+
+<!-- 8 · The ladder -->
+<div class="scene center" id="c8">
+  <div class="panel ladder">
+    <h3>The full ladder: 19 emails, approved by you</h3>
+    <div class="track"></div>
+    <div class="stops">
+      <div class="stop"><div class="dot" style="background:#4583c0"></div><div class="day" style="color:#4583c0">DAY −5</div><div class="lbl">Friendly reminder</div></div>
+      <div class="stop"><div class="dot" style="background:#3f76ad"></div><div class="day" style="color:#3f76ad">DAY 0</div><div class="lbl">Due date</div></div>
+      <div class="stop"><div class="dot" style="background:#c9a227"></div><div class="day" style="color:#c9a227">DAY +7</div><div class="lbl">Firm chase</div></div>
+      <div class="stop"><div class="dot" style="background:#c96b03"></div><div class="day" style="color:#c96b03">DAY +14</div><div class="lbl">Charges applied</div></div>
+      <div class="stop"><div class="dot" style="background:#b3541e"></div><div class="day" style="color:#b3541e">DAY +21</div><div class="lbl">Formal notice</div></div>
+      <div class="stop"><div class="dot" style="background:#a03d1c"></div><div class="day" style="color:#a03d1c">DAY +30</div><div class="lbl">Final notice</div></div>
+    </div>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 5</span><span class="txt">From gentle nudge to letter before legal action.</span></div></div>
+</div>
+
+<!-- 9 · Paid -->
+<div class="scene center" id="c9">
+  <div class="panel paidc">
+    <span class="stamp">SETTLED</span>
+    <div class="ref">INV-0047 — Brightline Media</div>
+    <div class="d">£2,486.22 received · 2 Oct 2026</div>
+    <div class="x">including £86.22 in late charges claimed by Hielda</div>
+  </div>
+  <div class="caption"><div class="inner"><span class="step">STEP 6</span><span class="txt">They pay — including the extra you claimed.</span></div></div>
+</div>
+
+<!-- 10 · End -->
+<div class="scene center" id="c10">
+  <h1>If they're going to pay you late,<br/>they pay you more.</h1>
+  <span class="cta">Start free — no card required</span>
+  <div class="u">hielda.com</div>
+</div>
+</body>
+</html>
