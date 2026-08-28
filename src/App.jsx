@@ -439,7 +439,7 @@ export default function App() {
               return lifetimeWon > 0 && !isMobile ? (
                 <div className={s.badgeWon} title="Late charges Hielda has collected for you, all time">
                   <span className={s.wonStar} aria-hidden="true">★</span>
-                  {fmt(lifetimeWon)} won by Hielda
+                  {fmt(lifetimeWon)} extra claimed by Hielda
                 </div>
               ) : null
             })()}

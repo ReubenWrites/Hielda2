@@ -863,7 +863,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       } else if (coversAll) {
         trackEvent("invoice_paid", { amount: Number(inv.amount), ref: inv.ref })
         toast.success(chargesCollected > 0
-          ? `Paid in full — including ${fmt(chargesCollected)} in late charges Hielda won for you`
+          ? `Paid in full — including ${fmt(chargesCollected)} in late charges claimed by Hielda`
           : "Invoice fully paid!")
       } else {
         toast.success(`Recorded ${fmt(amount)} paid on ${formatDate(paidOn)}`)
@@ -1690,7 +1690,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                 deliberately written off when settling short. */}
             {amountPaid > invoiceTotal + 0.005 && (
               <div className={s.paidChargesNote}>
-                Including <strong>{fmt(round2(amountPaid - invoiceTotal))}</strong> in late charges Hielda won for you
+                Including <strong>{fmt(round2(amountPaid - invoiceTotal))}</strong> in late charges claimed by Hielda
               </div>
             )}
             {amountPaid > 0 && amountPaid < invoiceTotal - 0.005 && (

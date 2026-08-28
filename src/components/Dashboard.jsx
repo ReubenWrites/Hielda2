@@ -619,7 +619,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 color="var(--ac)"
                 borderColor="var(--ac)"
                 footer={{
-                  label: "Won by Hielda",
+                  label: "Extra claimed by Hielda",
                   sub: "late charges collected",
                   value: totExtraWon > 0 ? `+${fmt(totExtraWon)}` : "none yet",
                   color: "var(--gn)",
@@ -1107,7 +1107,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                             <div>
                               <span className={s.mobileAmount}>{fmt(owed + ex)}</span>
                               {ex > 0 && <span className={s.mobileExtra}>+{fmt(ex)}</span>}
-                              {won > 0 && <span className={s.wonTag}>incl. +{fmt(won)} won</span>}
+                              {won > 0 && <span className={s.wonTag}>incl. +{fmt(won)} claimed</span>}
                               {i.status === "paid" && cash > 0 && cash < face - 0.005 && (
                                 <span className={s.partPaidTag}>settled — {fmt(round2(face - cash))} off</span>
                               )}
@@ -1199,7 +1199,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                                 with fines switched off looked like a broken
                                 Extra column rather than a choice. Green on paid
                                 rows = late charges actually collected. */}
-                            {won > 0 ? <span title="Late charges collected">+{fmt(won)} won</span>
+                            {won > 0 ? <span title="Late charges collected">+{fmt(won)} claimed</span>
                               : ex > 0 ? `+${fmt(ex)}`
                               : i.status === "overdue" && (i.no_fines || i.client_type === "consumer") ? <span className={s.waivedTag}>waived</span>
                               : "—"}
