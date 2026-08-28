@@ -94,11 +94,13 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
             UK Late Payment Act 1998
           </div>
           <h1 className={s.heroTitle}>
-            They're using your invoice<br />
-            <span className={s.heroAccent}>as a free loan. Time to charge for it.</span>
+            They're using your wages as their working capital.<br />
+            <span className={s.heroAccent}>Time to charge for it.</span>
           </h1>
           <p className={s.heroSubtitle}>
-            Large companies deliberately delay paying freelancers — using your money as their interest-free working capital. We know that as an individual or small business, it can be hard to assert your right to payment on time — or to levy the fees and fines you're entitled to — when you can't afford to damage the relationship. That's why we chase on your behalf, and if they're late paying, we add the charges for you, so you never have to be the bad guy.
+            Hielda chases your late invoices on your behalf. It automatically adds the statutory interest and fees you're entitled to under UK law.
+            <br />
+            <strong>If they're going to pay you late, they pay you more.</strong>
           </p>
           <div className={s.heroCtas}>
             <button onClick={onGetStarted} className={s.heroTrialBtn}>
