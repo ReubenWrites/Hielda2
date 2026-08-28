@@ -192,6 +192,13 @@ export default async function handler(req, res) {
     return sendStatement(req, res)
   }
 
+  // Self-copy requests share it too, for the same function-cap reason —
+  // marked by self_copy: true, handled entirely by _sendSelfCopy.js.
+  if (req.body?.self_copy === true) {
+    const { sendSelfCopy } = await import('./_sendSelfCopy.js')
+    return sendSelfCopy(req, res)
+  }
+
   // Load live BoE rate before calculating
   await loadLiveRate()
 

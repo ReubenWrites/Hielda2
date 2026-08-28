@@ -1,7 +1,10 @@
-// Vercel Serverless Function: Send a copy of an invoice to the freelancer
-// themselves. Used by the "Email me a copy" button on the invoice Detail
-// page — useful for forwarding to an accountant, keeping a copy outside
-// the client thread, etc.
+// Send a copy of an invoice to the freelancer themselves. Used by the
+// "Email me a copy" button on the invoice Detail page — useful for
+// forwarding to an accountant, keeping a copy outside the client thread.
+//
+// Not a standalone endpoint: the Hobby plan caps deployments at 12
+// serverless functions, so this is dispatched from send-chase-email.js
+// when the request body carries self_copy: true.
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -20,7 +23,7 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-export default async function handler(req, res) {
+export async function sendSelfCopy(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {

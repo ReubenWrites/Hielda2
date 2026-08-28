@@ -15,6 +15,76 @@ export default function Settings({ profile, onUpdate, isMobile }) {
 
   const [rateInfo, setRateInfo] = useState({ boe: getBoe(), rate: getRate() })
 
+  // Xero integration: status is fetched from the server (tokens never
+  // reach the browser), and the OAuth callback lands back here with
+  // ?xero=connected|denied|error.
+  const [xero, setXero] = useState(null)
+  const [xeroBusy, setXeroBusy] = useState(false)
+  const [xeroMsg, setXeroMsg] = useState(() => {
+    const flag = new URLSearchParams(window.location.search).get("xero")
+    if (flag === "connected") return "Xero connected — run your first sync below."
+    if (flag === "denied") return "Xero connection was cancelled."
+    if (flag === "error") return "Xero connection failed — please try again."
+    return ""
+  })
+
+  const xeroCall = async (action) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch("/api/xero", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, user_token: session?.access_token }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || "Request failed")
+    return data
+  }
+
+  useEffect(() => {
+    xeroCall("status")
+      .then(setXero)
+      .catch(() => setXero({ configured: false, connected: false }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const xeroConnect = async () => {
+    setXeroBusy(true)
+    try {
+      const { url } = await xeroCall("connect")
+      window.location.href = url
+    } catch (e) {
+      setXeroMsg("Couldn't start the Xero connection: " + e.message)
+      setXeroBusy(false)
+    }
+  }
+
+  const xeroSync = async () => {
+    setXeroBusy(true)
+    setXeroMsg("")
+    try {
+      const result = await xeroCall("sync")
+      setXeroMsg(`Sync complete: ${result.summary}.`)
+      setXero((x) => ({ ...x, last_sync_at: new Date().toISOString(), last_sync_result: result.summary }))
+      onUpdate()
+    } catch (e) {
+      setXeroMsg("Sync failed: " + e.message)
+    }
+    setXeroBusy(false)
+  }
+
+  const xeroDisconnect = async () => {
+    if (!window.confirm("Disconnect Xero?\n\nAlready-imported invoices stay in Hielda; they just stop syncing.")) return
+    setXeroBusy(true)
+    try {
+      await xeroCall("disconnect")
+      setXero((x) => ({ ...x, connected: false, tenant_name: null }))
+      setXeroMsg("Xero disconnected.")
+    } catch (e) {
+      setXeroMsg("Disconnect failed: " + e.message)
+    }
+    setXeroBusy(false)
+  }
+
   useEffect(() => {
     if (profile) setP(profile)
   }, [profile])
@@ -387,6 +457,46 @@ export default function Settings({ profile, onUpdate, isMobile }) {
           <p className={s.termsHint}>
             New invoices will default to this payment term. You can override it per invoice.
           </p>
+        </Card>
+      </div>
+
+      <div className={s.section}>
+        <Card>
+          <h3 className={s.sectionHeading}>Integrations</h3>
+          {xero === null ? (
+            <p className={s.termsHint}>Checking Xero status…</p>
+          ) : !xero.configured ? (
+            <p className={s.termsHint}>
+              <strong>Xero sync — coming soon.</strong> Pull your unpaid invoices straight from Xero (no retyping) and have payments reconcile back automatically. We're in Xero's app-partner process now.
+            </p>
+          ) : xero.connected ? (
+            <div>
+              <p style={{ fontSize: 13, margin: "0 0 6px" }}>
+                Connected to <strong>{xero.tenant_name || "your Xero organisation"}</strong>.
+                {" "}
+                {xero.last_sync_at
+                  ? `Last sync ${new Date(xero.last_sync_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} — ${xero.last_sync_result || "done"}.`
+                  : "Not synced yet."}
+              </p>
+              <p className={s.termsHint}>
+                Imported invoices arrive with chasing switched <strong>off</strong> — review them, then enable chasing per invoice. Payments recorded in Xero reconcile into Hielda's ledger on each sync.
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <Btn sz="sm" onClick={xeroSync} dis={xeroBusy}>{xeroBusy ? "Syncing…" : "Sync now"}</Btn>
+                <Btn sz="sm" v="ghost" onClick={xeroDisconnect} dis={xeroBusy}>Disconnect</Btn>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className={s.termsHint}>
+                Pull your unpaid invoices straight from Xero — no retyping — and have payments recorded in Xero reconcile back into Hielda automatically.
+              </p>
+              <div style={{ marginTop: 10 }}>
+                <Btn sz="sm" onClick={xeroConnect} dis={xeroBusy}>{xeroBusy ? "Redirecting…" : "Connect Xero"}</Btn>
+              </div>
+            </div>
+          )}
+          {xeroMsg && <p style={{ fontSize: 12, marginTop: 10, color: "var(--ac)" }}>{xeroMsg}</p>}
         </Card>
       </div>
 

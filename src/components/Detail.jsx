@@ -623,10 +623,10 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setError("")
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch("/api/send-self-copy", {
+      const res = await fetch("/api/send-chase-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoice_id: inv.id, user_token: session?.access_token }),
+        body: JSON.stringify({ self_copy: true, invoice_id: inv.id, user_token: session?.access_token }),
       })
       if (!res.ok) {
         const text = await res.text()
