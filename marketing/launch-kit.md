@@ -279,6 +279,35 @@ Secondary number worth a glance monthly, not weekly: trial → paid conversion �
 
 ---
 
+## 8. The accounting-platform channel (added Aug 2026)
+
+**Why this section exists.** As of 28 Aug 2026 the funnel reality is: 13 signups ever, 0 in the last 30 days, 0 calculator leads, 0 referrals, 53 automated X posts → 5 engagements. Users have also directly asked for accounting-software integration. The app marketplaces solve both problems at once: they put Hielda in front of people *already searching for credit-control tools*, and connecting Xero removes the worst onboarding friction (retyping invoices).
+
+**What Xero does and doesn't do natively (verified Aug 2026):**
+- Up to 5 automated invoice reminders per org, then it stops. Same tone every time — no escalation ladder.
+- **No native late fees or statutory interest.** Xero flags an invoice overdue but won't calculate LPCDIA charges, apply them, or raise a fee invoice. This has been one of the longest-running requests on Xero's product ideas board. QuickBooks is equivalent.
+
+**Competition on the Xero App Store:** Paidnice and Owed both sell credit-control/late-fee add-ons for Xero. This validates the category (businesses pay for exactly this) — differentiation is Hielda's UK statutory specificity (the Act, the tiers, the daily rate), the escalating "accounts team" tone ladder, the you-stay-the-good-guy positioning, and price.
+
+**Xero App Partner requirements (verified Aug 2026):**
+- Build a working integration (OAuth2 + Accounting API), then pass certification checkpoints: sign-up flow, connection UX, branding/naming rules, scopes, error handling, data integrity, account/payment mapping, taxes.
+- Onboard **at least 3 active connected customers** during the review window before certification.
+- Commercial terms: as of March 2026 Xero moved to usage-based API pricing (previously a 15% App Store revenue share). Read current terms before signing.
+
+**Sequencing [judgement]:**
+1. Build the read-only Xero sync beta (import unpaid invoices, webhook/poll payments, reconcile against Hielda's ledger) — usable privately long before certification.
+2. Start the App Partner application immediately in parallel — the process, not the code, is the long pole.
+3. Use the 3-active-customers requirement as a marketing forcing function: "free while in beta, help us get certified".
+4. FreeAgent after Xero (beloved by UK contractors, lighter marketplace process); QuickBooks third.
+5. Vercel Hobby's 12-function cap is already full — the OAuth/webhook endpoints need either the dispatch-through-existing-endpoints trick again or the Pro plan (~$20/mo). Take Pro.
+
+**One-week action order (the kit above is only worth what gets posted):**
+1. Send one consolidated statement to a real client — the new growth footer is now on every client-facing email and PDF.
+2. Product Hunt: create the draft page this week using §1's ready-to-paste assets; pick a Tues–Thurs launch date.
+3. Submit the §2 directory list (Capterra, GetApp, AlternativeTo) — one evening.
+4. Start the Xero developer account + App Partner application.
+5. Turn off the automated X posting (53 posts, 5 engagements — it's a cost, not a channel).
+
 ## Appendix: key sources checked (June 2026)
 
 - Product Hunt mechanics/timing: producthunt.com/launch/preparing-for-launch; producthunt.com forum thread on launch timing; multiple 2026 launch guides (teract.ai, hackmamba.io) — 12:01am PT start, ~10% featuring rate, self-launch viable.
