@@ -496,6 +496,21 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <a href="/guides" className={s.footerNavLink}>All guides</a>
           <a href="/privacy" className={s.footerNavLink}>Privacy policy</a>
           <a href="mailto:support@hielda.com" className={s.footerNavLink}>support@hielda.com</a>
+          {/* Product Hunt badge — launched 2 Sep 2026 */}
+          <a
+            href="https://www.producthunt.com/products/hielda?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hielda"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginTop: 10, display: "inline-block" }}
+          >
+            <img
+              alt="Hielda - Winning interest & fees for freelancers on late invoices | Product Hunt"
+              width="250"
+              height="54"
+              style={{ maxWidth: "100%", height: "auto" }}
+              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light&t=1787929808370"
+            />
+          </a>
         </div>
       </section>
 
