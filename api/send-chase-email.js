@@ -168,8 +168,9 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
             ${body}
           </div>
         </div>
-        <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">
-          Sent via <a href="https://hielda.com?ref=chase-email" style="color:#1e5fa0;text-decoration:none;font-weight:600;">Hielda</a> — Late payment enforcement for freelancers &amp; SMEs.
+        <div style="text-align:center;padding:16px 24px;font-size:11px;color:#94a3b8;line-height:1.7;">
+          Sent via <a href="https://hielda.com/?utm_source=client_email&utm_medium=email&utm_campaign=footer&utm_content=chase" style="color:#46688b;text-decoration:none;font-weight:600;">Hielda</a> — late payment enforcement for UK freelancers &amp; small businesses.<br/>
+          Owed money yourself? Hielda chases unpaid invoices automatically and adds the statutory late fees you're entitled to. <a href="https://hielda.com/?utm_source=client_email&utm_medium=email&utm_campaign=footer&utm_content=chase" style="color:#46688b;text-decoration:none;font-weight:600;">Start free &rarr;</a>
         </div>
       </div>
     </body>
