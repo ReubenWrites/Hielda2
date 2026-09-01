@@ -443,18 +443,30 @@ export default function App() {
                 </div>
               ) : null
             })()}
-            {overdueInvs.length > 0 && (
-              <div className={s.badgeOverdue}>
-                <span className={s.pulseWrap}>
-                  <span className="header-pulse" />
-                  <span className={s.pulseDot} />
-                </span>
-                {/* Same maths as the dashboard's "Being chased" card —
-                    outstanding plus accrued charges — so the two never
-                    show different totals for the same debt. */}
-                {overdueInvs.length} chasing{!isMobile && ` · ${fmt(overdueInvs.reduce((s, i) => s + outstanding(i) + chargeableExtras(i), 0))}`}
-              </div>
-            )}
+            {overdueInvs.length > 0 && (() => {
+              // "Chasing" is only true for invoices with auto-chase on;
+              // paused ones are merely overdue, and saying otherwise
+              // misdescribes what Hielda is doing on the user's behalf.
+              const chased = overdueInvs.filter((i) => i.auto_chase !== false)
+              const quiet = overdueInvs.length - chased.length
+              const parts = []
+              if (chased.length > 0) parts.push(`${chased.length} chasing`)
+              if (quiet > 0) parts.push(`${quiet} overdue`)
+              return (
+                <div className={s.badgeOverdue}>
+                  {chased.length > 0 && (
+                    <span className={s.pulseWrap}>
+                      <span className="header-pulse" />
+                      <span className={s.pulseDot} />
+                    </span>
+                  )}
+                  {/* Same maths as the dashboard's overdue card —
+                      outstanding plus accrued charges — so the two never
+                      show different totals for the same debt. */}
+                  {parts.join(" · ")}{!isMobile && ` · ${fmt(overdueInvs.reduce((s, i) => s + outstanding(i) + chargeableExtras(i), 0))}`}
+                </div>
+              )
+            })()}
             {pendingInvs.length > 0 && !isMobile && (
               <div className={s.badgePending}>
                 <span className={s.pendingDot} />

@@ -678,9 +678,13 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 }}
               />
               <StatCard
-                label="Being chased"
+                label={overdue.some((i) => i.auto_chase !== false) ? "Being chased" : "Overdue"}
                 value={fmt(totOwed)}
-                sub={`${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`}
+                sub={(() => {
+                  const quiet = overdue.filter((i) => i.auto_chase === false).length
+                  const base = `${overdue.length} invoice${overdue.length !== 1 ? "s" : ""}`
+                  return quiet > 0 && quiet < overdue.length ? `${base} · ${quiet} not chased` : base
+                })()}
                 color="var(--or)"
                 borderColor="var(--or)"
                 footer={{
@@ -733,13 +737,24 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               onClick={toggleChasingOpen}
               onKeyDown={(e) => { if (e.key === "Enter") toggleChasingOpen() }}
             >
-              <div className={s.pulseWrapper}>
-                <div className={s.pulseDot} />
-                <div className="pulse-ring" />
-              </div>
-              <span className={s.chasingLabel}>
-                Hielda is chasing {overdue.length} invoice{overdue.length !== 1 ? "s" : ""}
-              </span>
+              {(() => {
+                const nChased = overdue.filter((i) => i.auto_chase !== false).length
+                const nQuiet = overdue.length - nChased
+                const label = nChased === 0
+                  ? `${overdue.length} overdue invoice${overdue.length !== 1 ? "s" : ""} — chasing off`
+                  : `Hielda is chasing ${nChased} invoice${nChased !== 1 ? "s" : ""}${nQuiet > 0 ? ` · ${nQuiet} not chased` : ""}`
+                return (
+                  <>
+                    {nChased > 0 && (
+                      <div className={s.pulseWrapper}>
+                        <div className={s.pulseDot} />
+                        <div className="pulse-ring" />
+                      </div>
+                    )}
+                    <span className={s.chasingLabel}>{label}</span>
+                  </>
+                )
+              })()}
               {!isMobile && (
                 <span className={s.chaseSumStat}>
                   client{names.length > 1 ? "s" : ""}: <strong>{clientLabel}</strong>
@@ -1076,7 +1091,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               feel cluttered. Disputed invoices remain visible under "All". */}
           {[
             { id: "all", label: "All", count: invs.length },
-            { id: "overdue", label: "Chasing", count: overdue.length, color: c.or },
+            { id: "overdue", label: overdue.some((i) => i.auto_chase !== false) ? "Chasing" : "Overdue", count: overdue.length, color: c.or },
             { id: "pending", label: "Pending", count: pending.length, color: c.am },
             // Count ALL paid invoices, not the stat card's 90-day window —
             // a pill that says 3 while clicking it shows 4 reads as rows
@@ -1191,7 +1206,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                           <div className={s.mobileCardTop}>
                             <span className={s.mobileClientName}>{i.client_name || "—"}</span>
                             <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>
-                              {i.status === "overdue" ? "chasing" : i.status}
+                              {i.status === "overdue" ? (i.auto_chase !== false ? "chasing" : "overdue") : i.status}
                             </Badge>
                           </div>
                           <div className={s.mobileRef}>{i.ref}</div>
@@ -1300,7 +1315,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                           <td className={s.tdDue}>{formatDate(i.due_date)}</td>
                           <td className={s.td}>
                             <Badge color={i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}>
-                              {i.status === "overdue" ? "being chased" : i.status}
+                              {i.status === "overdue" ? (i.auto_chase !== false ? "being chased" : "overdue") : i.status}
                             </Badge>
                           </td>
                           <td className={s.tdArrow} aria-hidden="true">→</td>
