@@ -96,11 +96,11 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  /* Same height as the content header bar (54px + its 1px border), so
-     the nav list and the page content share one horizon line — the
-     first nav item and the page H1 then align from their matching
-     28px offsets. */
-  height: 55px;
+  /* Taller than the content header bar on purpose: the extra room
+     breathes around the logo, and the nav's reduced top margin puts the
+     first nav item's vertical centre on the page H1's centre —
+     68 + 1 + 15 + half a nav item ≈ 55 + 28 + half the H1. */
+  height: 68px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 0;
 }
@@ -124,7 +124,7 @@
   flex: 1;
   position: relative;
   z-index: 2;
-  margin-top: 28px;
+  margin-top: 15px;
 }
 
 .navBtn {
