@@ -275,12 +275,39 @@ export default async function handler(req, res) {
         )
       }
 
-      // Mark as paid
+      // Mark as paid — and record the money. A bare status flip left the
+      // cash out of the ledger, which misreported part-paid invoices as
+      // "settled short". The check-in flow can't ask how much arrived, so
+      // it assumes paid-in-full: the outstanding balance plus accrued
+      // charges, logged as a payment dated today. If the real amount
+      // differed, the payment is undoable from the invoice page.
+      const today = new Date().toISOString().split('T')[0]
+      const face = Number(invoice.amount) || 0
+      const alreadyPaid = Number(invoice.amount_paid) || 0
+      const outstandingNow = Math.max(0, Math.round((face - alreadyPaid) * 100) / 100)
+      const dl = Math.max(0, Math.floor((Date.now() - new Date(invoice.due_date).getTime()) / 864e5))
+      const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
+      const debtAtDue = Math.max(0, face - (Number(invoice.paid_before_due) || 0))
+      const pen = dl > 0 && finesEnabled && outstandingNow > 0 && debtAtDue > 0
+        ? (debtAtDue < 1000 ? 40 : debtAtDue < 10000 ? 70 : 100) : 0
+      const interest = dl > 0 && finesEnabled
+        ? Math.round(outstandingNow * (RATE / 365 / 100) * dl * 100) / 100 : 0
+      const owedNow = Math.round((outstandingNow + pen + interest) * 100) / 100
+
+      if (owedNow > 0) {
+        await supabase.from('invoice_payments').insert({
+          invoice_id,
+          user_id: invoice.user_id,
+          amount: owedNow,
+          paid_on: today,
+        })
+      }
       await supabase
         .from('invoices')
         .update({
+          amount_paid: Math.round((alreadyPaid + owedNow) * 100) / 100,
           status: 'paid',
-          paid_date: new Date().toISOString().split('T')[0],
+          paid_date: today,
           chase_stage: null,
           auto_chase: false,
         })

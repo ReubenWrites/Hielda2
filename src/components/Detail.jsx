@@ -461,32 +461,18 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setDeleting(false)
   }
 
-  const markPaid = async () => {
-    setMarking(true)
-    setError("")
-    try {
-      const { error: err } = await supabase
-        .from("invoices")
-        .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], chase_stage: null })
-        .eq("id", inv.id)
-      if (err) throw err
-      trackEvent("invoice_paid", { amount: Number(inv.amount), ref: inv.ref })
-      // One-shot flag for the dashboard's payment celebration + referral
-      // nudge — the moment an invoice gets paid is the moment users are
-      // happiest with Hielda, which is the right time to ask for a share.
-      try {
-        sessionStorage.setItem("hielda_paid_celebration", JSON.stringify({
-          client: inv.client_name || "Your client",
-          amount: Number(inv.amount),
-          extra: ov ? ex : 0,
-        }))
-      } catch {}
-      onUpdate()
-      navigate("/dashboard")
-    } catch (e) {
-      setError("Failed to mark as paid: " + e.message)
-    }
-    setMarking(false)
+  // "Mark as paid" must never make money disappear into a status flip.
+  // It now opens the payment form prefilled with everything owed
+  // (balance + charges, dated today) — recording goes through the same
+  // ledger path as any payment, and the existing flows catch every
+  // mismatch: an overpayment is blocked with an explanation, a payment
+  // covering the invoice but not the charges opens the settle popup,
+  // and an underpayment offers part-payment or full-and-final.
+  const markPaid = () => {
+    setPartialAmount(Math.max(0, tot).toFixed(2))
+    setPartialDate(todayStr())
+    setSettleShort(false)
+    setShowPartialPayment(true)
   }
 
   // Recovery for accidental "Mark as paid" clicks. Reverts to pending —
@@ -857,6 +843,17 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       // amount_paid above the invoice total is money Hielda's late charges
       // brought in — worth celebrating by name.
       const chargesCollected = round2(Math.max(0, newPaid - invoiceTotal))
+      if (closing) {
+        // One-shot flag for the dashboard's payment celebration + referral
+        // nudge — amount + extra always sums to the real cash received.
+        try {
+          sessionStorage.setItem("hielda_paid_celebration", JSON.stringify({
+            client: inv.client_name || "Your client",
+            amount: round2(newPaid - chargesCollected),
+            extra: chargesCollected,
+          }))
+        } catch {}
+      }
       if (settle && !coversAll) {
         trackEvent("invoice_settled_short", { ref: inv.ref, received: newPaid, written_off: round2(owedNow - amount) })
         toast.success(`Settled for ${fmt(newPaid)} — ${fmt(round2(owedNow - amount))} written off`)
@@ -869,6 +866,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         toast.success(`Recorded ${fmt(amount)} paid on ${formatDate(paidOn)}`)
       }
       onUpdate()
+      if (closing) navigate("/dashboard")
     } catch (e) {
       setError("Failed to record payment: " + e.message)
     }

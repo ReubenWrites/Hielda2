@@ -470,25 +470,50 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     }
   }
 
+  // Bulk mark-paid records the money, not just the status: each invoice
+  // gets a ledger payment for its full outstanding balance (including
+  // accrued charges) dated today. Blind status-flips used to make cash
+  // vanish from the books — an invoice with a prior part-payment would
+  // show as "settled short" with money written off that was really paid.
   const bulkMarkPaid = async () => {
     if (!(await confirm({
       title: `Mark ${selected.size} ${selected.size === 1 ? "invoice" : "invoices"} as paid?`,
-      message: "Each one will be marked paid with today's date. Any active chasing stops immediately.",
+      message: "Each will be recorded as paid in full today — a payment is logged for the outstanding balance including any late charges. If a client actually paid a different amount, use Record payment on that invoice instead.",
       confirmLabel: "Mark as paid",
       cancelLabel: "Cancel",
     }))) return
     setBulkLoading(true)
     try {
-      const ids = Array.from(selected)
-      const { error } = await supabase
-        .from("invoices")
-        .update({ status: "paid", paid_date: new Date().toISOString().split("T")[0], chase_stage: null })
-        .in("id", ids)
-      if (error) throw error
+      const today = todayStr()
+      for (const id of Array.from(selected)) {
+        const i = invs.find((x) => x.id === id)
+        if (!i || i.status === "paid") continue
+        const owed = round2(outstanding(i) + chargeableExtras(i))
+        if (owed > 0) {
+          const { error: ledgerErr } = await supabase.from("invoice_payments").insert({
+            invoice_id: i.id,
+            user_id: profile.id,
+            amount: owed,
+            paid_on: today,
+          })
+          if (ledgerErr) throw ledgerErr
+        }
+        const { error } = await supabase
+          .from("invoices")
+          .update({
+            amount_paid: round2((Number(i.amount_paid) || 0) + owed),
+            status: "paid",
+            paid_date: today,
+            chase_stage: null,
+          })
+          .eq("id", i.id)
+        if (error) throw error
+      }
       setSelected(new Set())
       onUpdate()
     } catch (e) {
-      alert("Failed to update: " + e.message)
+      alert("Failed part-way through: " + e.message + " — check the invoices before retrying.")
+      onUpdate()
     }
     setBulkLoading(false)
   }
