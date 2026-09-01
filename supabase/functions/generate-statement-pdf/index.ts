@@ -413,7 +413,8 @@ serve(async (req) => {
       const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
       const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
       const writtenOff = Math.max(0, round2(face + interest + pen - cash))
-      if (writtenOff > 0.005) {
+      // Ignore sub-5p write-offs: rounding artifacts, not favours.
+      if (writtenOff > 0.05) {
         favourNotes.push(`On ${safe(inv.ref)}, ${fmt(writtenOff)} of accrued charges was waived as a gesture of goodwill when the account settled.`)
       } else if (dlSettle > 0) {
         tierNote(inv)

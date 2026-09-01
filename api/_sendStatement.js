@@ -224,7 +224,9 @@ function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
     const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
     const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const writtenOff = Math.max(0, round2(face + interest + pen - cash))
-    if (writtenOff > 0.005) {
+    // Ignore sub-5p write-offs: they're rounding artifacts, not favours,
+    // and a "£0.01 waived as goodwill" bullet reads as a glitch.
+    if (writtenOff > 0.05) {
       notes.push(`On <b>${esc(inv.ref)}</b>, ${fmt(writtenOff)} of accrued charges was waived as a gesture of goodwill when the account settled.`)
     } else if (dlSettle > 0) {
       tierNote(inv)
