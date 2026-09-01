@@ -30,6 +30,9 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [terms, setTerms] = useState(isCustomDefault ? "-1" : defaultTerms)
   const [customDays, setCustomDays] = useState(isCustomDefault ? defaultTerms : "")
   const [date, setDate] = useState(todayStr())
+  // When the work itself was done — optional, distinct from the issue
+  // date. Shown on the invoice PDF and useful if a client disputes.
+  const [workDate, setWorkDate] = useState("")
   const [step, setStep] = useState(1)
   // Default to send-via-Hielda; users opt out via checkbox in step 2.
   const [meth, setMeth] = useState("portal")
@@ -134,6 +137,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         setNotes(inv.notes || "")
         setRef(inv.ref || "")
         setDate(inv.issue_date || todayStr())
+        setWorkDate(inv.work_date || "")
         const termDays = inv.payment_term_days ? String(inv.payment_term_days) : "30"
         const isKnownTerm = TERMS.slice(0, -1).some(t => String(t.d) === termDays)
         setTerms(isKnownTerm ? termDays : "-1")
@@ -223,6 +227,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     if (d.terms !== undefined) setTerms(d.terms)
     if (d.customDays !== undefined) setCustomDays(d.customDays)
     if (d.date !== undefined) setDate(d.date)
+    if (d.workDate !== undefined) setWorkDate(d.workDate)
     if (d.noFines !== undefined) setNoFines(d.noFines)
     if (d.autoChase !== undefined) setAutoChase(d.autoChase)
     if (d.sendIntro !== undefined) setSendIntro(d.sendIntro)
@@ -310,7 +315,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     // was a single invisible slot that users couldn't find again.
     if (savingDraft) return
     setSavingDraft(true)
-    const payload = { cn, ce, ca, lineItems, terms, customDays, date, noFines, autoChase, sendIntro, termsAgreed, clientType, clientRef, cc, bcc, notes }
+    const payload = { cn, ce, ca, lineItems, terms, customDays, date, workDate, noFines, autoChase, sendIntro, termsAgreed, clientType, clientRef, cc, bcc, notes }
     const display = {
       client_name: cn.trim() || null,
       amount: parsedTotal > 0 ? parsedTotal : null,
@@ -467,6 +472,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         total_with_vat: totalWithVat,
         line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount), vatRate: li.vatRate || "0" })),
         issue_date: date,
+        work_date: workDate || null,
         payment_term_days: enforceableDays,
         due_date: dueStr,
         terms_agreed: shortTerms ? termsAgreed : true,
@@ -559,6 +565,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         total_with_vat: totalWithVat,
         line_items: validItems.map(li => ({ description: li.description.trim(), amount: parseFloat(li.amount), vatRate: li.vatRate || "0" })),
         issue_date: date,
+        work_date: workDate || null,
         payment_term_days: effectiveDays,
         due_date: dueStr,
         status: isOverdue ? "overdue" : "pending",
@@ -1090,6 +1097,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                 </div>
               )}
               <Inp label="Issue Date" value={date} onChange={setDate} type="date" />
+              <Inp label="Date Work Completed (optional)" value={workDate} onChange={setWorkDate} type="date" />
 
               <div className={clientType === "consumer" ? s.noFinesRowHidden : s.noFinesRow}>
                 <input type="checkbox" id="noFines" checked={noFines} onChange={(e) => setNoFines(e.target.checked)} className={s.checkbox} />

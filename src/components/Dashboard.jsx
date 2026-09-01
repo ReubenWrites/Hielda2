@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
-import { colors as c, CHASE_STAGES } from "../constants"
+import { colors as c, CHASE_STAGES, getRate } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras, todayStr } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm, useToast } from "./ui"
 import { supabase } from "../supabase"
@@ -192,24 +192,42 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   }
 
   // When each client last received a consolidated statement — shown on the
-  // client row so a second send is a decision, not an accident.
+  // client row so a second send is a decision, not an accident. Alongside
+  // it, when each client's ledger last changed: a payment recorded after
+  // the last statement means their copy of the books is stale, so the
+  // button flips to a primary "Send updated statement".
   const [statementLog, setStatementLog] = useState({})
+  const [paymentLog, setPaymentLog] = useState({})
   useEffect(() => {
     if (!profile?.id || clientGroups.length === 0) return
     ;(async () => {
-      const { data } = await supabase
-        .from("chase_log")
-        .select("email_to, sent_at")
-        .eq("user_id", profile.id)
-        .eq("status", "statement_sent")
-        .order("sent_at", { ascending: false })
-        .limit(100)
+      const [{ data: stmts }, { data: pays }] = await Promise.all([
+        supabase
+          .from("chase_log")
+          .select("email_to, sent_at")
+          .eq("user_id", profile.id)
+          .eq("status", "statement_sent")
+          .order("sent_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("invoice_payments")
+          .select("created_at, invoices(client_email)")
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(100),
+      ])
       const byEmail = {}
-      for (const row of data || []) {
+      for (const row of stmts || []) {
         const key = (row.email_to || "").toLowerCase()
         if (key && !byEmail[key]) byEmail[key] = row.sent_at
       }
       setStatementLog(byEmail)
+      const payByEmail = {}
+      for (const row of pays || []) {
+        const key = (row.invoices?.client_email || "").toLowerCase()
+        if (key && !payByEmail[key]) payByEmail[key] = row.created_at
+      }
+      setPaymentLog(payByEmail)
     })()
   }, [profile?.id, invs, clientGroups.length])
 
@@ -387,6 +405,42 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       toast.error("Failed to rebuild preview: " + e.message)
       setStmtPreview((p) => (p ? { ...p, loading: false } : p))
     }
+  }
+
+  // Download the statement as a PDF instead of emailing it — for users
+  // who'd rather send it themselves, from their own address.
+  const downloadStatementPdf = async () => {
+    if (!stmtPreview || stmtPreview.sending || stmtPreview.loading) return
+    setStmtPreview((p) => ({ ...p, loading: true }))
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-statement-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_KEY,
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          invoice_ids: stmtPreview.group.invoices.map((i) => i.id),
+          include_payments: stmtPreview.includePayments,
+          include_settled: stmtPreview.includeSettled,
+          rate: getRate(),
+        }),
+      })
+      if (!res.ok) throw new Error(`PDF generation failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `statement-${stmtPreview.group.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${todayStr()}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      trackEvent("statement_pdf_downloaded", { invoices: stmtPreview.group.invoices.length })
+    } catch (e) {
+      toast.error("Couldn't generate the PDF: " + e.message)
+    }
+    setStmtPreview((p) => (p ? { ...p, loading: false } : p))
   }
 
   const confirmSendStatement = async () => {
@@ -743,6 +797,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           <div className={s.clientList}>
             {clientGroups.map((g) => {
               const lastStatement = g.email ? statementLog[g.email.toLowerCase()] : null
+              // The books changed since their last statement (a payment was
+              // recorded after it went out, or they've never had one while
+              // payments exist) — their copy is stale.
+              const lastPayment = g.email ? paymentLog[g.email.toLowerCase()] : null
+              const stale = Boolean(lastPayment && (!lastStatement || new Date(lastPayment) > new Date(lastStatement)))
               return (
               <Card key={g.email || g.name} style={{ padding: isMobile ? "12px 14px" : "14px 18px" }}>
                 <div className={s.clientRow}>
@@ -765,6 +824,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                     {g.invoices.length} open invoice{g.invoices.length !== 1 ? "s" : ""}
                     {g.overdueCount > 0 && <span className={s.clientOverdue}> · oldest {g.oldestLate}d overdue</span>}
                     {lastStatement && <span className={s.clientStatementSent}> · statement sent {daysAgo(lastStatement)}</span>}
+                    {stale && <span className={s.clientStale}> · payment recorded {daysAgo(lastPayment)}</span>}
                   </div>
                   <div
                     className={s.clientAmounts}
@@ -779,8 +839,12 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   </div>
                   <Btn sz="sm" v="ghost" onClick={() => openSplit(g)}>Record payment</Btn>
                   {g.email ? (
-                    <Btn sz="sm" v={lastStatement ? "ghost" : "primary"} onClick={() => openStatement(g)} dis={sendingStatement === g.email}>
-                      {sendingStatement === g.email ? "Preparing…" : lastStatement ? "Send again" : "Send statement"}
+                    // The button opens the preview, where sending or
+                    // downloading is decided — so its label describes the
+                    // document, not the delivery. Primary when the client
+                    // has never had a statement or theirs has gone stale.
+                    <Btn sz="sm" v={lastStatement && !stale ? "ghost" : "primary"} onClick={() => openStatement(g)} dis={sendingStatement === g.email}>
+                      {sendingStatement === g.email ? "Preparing…" : stale && lastStatement ? "Updated statement" : "Statement"}
                     </Btn>
                   ) : (
                     <span className={s.clientNoEmail}>No email on file</span>
@@ -923,6 +987,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               </div>
               <div className={s.stmtFootBtns}>
                 <Btn v="ghost" sz="sm" onClick={() => setStmtPreview(null)} dis={stmtPreview.sending}>Cancel</Btn>
+                <Btn v="ghost" sz="sm" onClick={downloadStatementPdf} dis={stmtPreview.loading || stmtPreview.sending}>
+                  Download PDF
+                </Btn>
                 <Btn sz="sm" onClick={confirmSendStatement} dis={stmtPreview.loading || stmtPreview.sending}>
                   {stmtPreview.sending ? "Sending…" : "Send now"}
                 </Btn>

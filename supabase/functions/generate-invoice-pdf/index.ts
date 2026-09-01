@@ -320,6 +320,7 @@ serve(async (req) => {
     // wrapping — without the cap, a long ref would run off the page edge.
     const DETAILS_VALUE_WIDTH = 30
     const details: string[][] = [
+      ...(invoice.work_date ? [["Work Date", formatDate(invoice.work_date)]] : []),
       ["Issue Date", formatDate(invoice.issue_date)],
       ["Due Date", formatDate(invoice.due_date)],
       ["Terms", `${invoice.payment_term_days} days`],

@@ -322,6 +322,10 @@
 .clientStatementSent {
   color: var(--gn);
 }
+.clientStale {
+  color: var(--ac);
+  font-weight: 600;
+}
 .clientMeta {
   flex: 1;
   text-align: center;

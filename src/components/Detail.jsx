@@ -1629,6 +1629,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
                 hasVat ? ["Net amount", fmt(netAmount)] : ["Original", fmt(netAmount)],
                 hasVat ? ["VAT", fmt(vatAmount)] : null,
                 hasVat ? ["Total (inc. VAT)", fmt(invoiceTotal)] : null,
+                inv.work_date ? ["Work completed", formatDate(inv.work_date)] : null,
                 ["Issued", formatDate(inv.issue_date)],
                 ["Terms", `${inv.payment_term_days} days`],
                 ["Due", formatDate(inv.due_date)],
