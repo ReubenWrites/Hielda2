@@ -123,9 +123,11 @@
   flex: 1;
   position: relative;
   z-index: 2;
-  /* With the header bar and logo block both 68px tall, matching 28px
-     offsets put the first nav item's centre on the page H1's centre. */
-  margin-top: 28px;
+  /* Measured, not estimated: below the shared 69px bar the H1's text
+     centre sits at 28px content padding + 21px (half its 42px line box)
+     = 49px; a 34px nav item centres at margin + 17px, so 32px margin
+     puts the two "Dashboard"s exactly middle-to-middle. */
+  margin-top: 32px;
 }
 
 .navBtn {
