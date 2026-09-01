@@ -96,10 +96,9 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  /* Taller than the content header bar on purpose: the extra room
-     breathes around the logo, and the nav's reduced top margin puts the
-     first nav item's vertical centre on the page H1's centre —
-     68 + 1 + 15 + half a nav item ≈ 55 + 28 + half the H1. */
+  /* Same height as the content header bar (68px), so its border-bottom
+     and the header's read as one continuous divider — and the logo gets
+     room to breathe. */
   height: 68px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 0;
@@ -124,7 +123,9 @@
   flex: 1;
   position: relative;
   z-index: 2;
-  margin-top: 15px;
+  /* With the header bar and logo block both 68px tall, matching 28px
+     offsets put the first nav item's centre on the page H1's centre. */
+  margin-top: 28px;
 }
 
 .navBtn {
@@ -251,7 +252,9 @@
   display: flex;
   align-items: center;
   z-index: 2;
-  min-height: 54px;
+  /* Matches the sidebar's logo-block height so the two divider lines
+     meet as one continuous rule across the sidebar boundary. */
+  min-height: 68px;
   gap: 10px;
 }
 

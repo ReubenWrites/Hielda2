@@ -378,6 +378,73 @@ serve(async (req) => {
       }
     }
 
+    // "How payments were applied" — only when allocation genuinely
+    // favoured the client: pre-due settlements that avoided charges,
+    // pre-due payments that lowered the fee tier, goodwill write-offs.
+    const favourNotes: string[] = []
+    const tierNote = (inv: any) => {
+      const face = Number(inv.amount)
+      const preDue = Number(inv.paid_before_due) || 0
+      if (preDue <= 0) return
+      const fullFee = penalty(face)
+      const actualFee = penalty(Math.max(0, round2(face - preDue)))
+      if (actualFee < fullFee) {
+        favourNotes.push(`Payments received before the due date on ${safe(inv.ref)} were credited first, lowering the fixed recovery fee from ${fmt(fullFee)} to ${fmt(actualFee)}.`)
+      }
+    }
+    for (const inv of open) {
+      if (daysLate(inv.due_date) > 0) tierNote(inv)
+    }
+    for (const inv of settled) {
+      const settledOn = inv.paid_date
+      if (settledOn && settledOn <= inv.due_date) {
+        favourNotes.push(`Payment was applied to ${safe(inv.ref)} so it settled before its due date — no late-payment charges ever applied to it.`)
+        continue
+      }
+      const face = Number(inv.amount)
+      const cash = Number(inv.amount_paid) || 0
+      const dlSettle = settledOn ? daysBetween(inv.due_date, settledOn) : 0
+      const finesEnabled = !inv.no_fines && inv.client_type !== "consumer"
+      const pays = settledPayments[inv.id] || []
+      const paidBefore = pays.filter((p: any) => settledOn && p.paid_on < settledOn)
+        .reduce((s: number, p: any) => s + Number(p.amount), 0)
+      const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
+      const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
+      const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+      const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
+      const writtenOff = Math.max(0, round2(face + interest + pen - cash))
+      if (writtenOff > 0.005) {
+        favourNotes.push(`On ${safe(inv.ref)}, ${fmt(writtenOff)} of accrued charges was waived as a gesture of goodwill when the account settled.`)
+      } else if (dlSettle > 0) {
+        tierNote(inv)
+      }
+    }
+    if (favourNotes.length > 0) {
+      doc.setFontSize(9)
+      const wrapped: string[] = []
+      for (const n of favourNotes) {
+        doc.splitTextToSize(`•  ${n}`, 156).forEach((l: string) => wrapped.push(l))
+      }
+      const noteBoxH = 16 + wrapped.length * 4.8
+      pageBreak(noteBoxH + 4)
+      doc.setDrawColor("#d8dee6")
+      doc.setLineWidth(0.3)
+      doc.roundedRect(20, y, 170, noteBoxH, 2, 2, "S")
+      let ny = y + 8
+      doc.setTextColor(dark)
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(8)
+      doc.text("HOW PAYMENTS WERE APPLIED", 26, ny)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(9)
+      doc.setTextColor(gray)
+      for (const line of wrapped) {
+        ny += 4.8
+        doc.text(line, 26, ny)
+      }
+      y += noteBoxH + 5
+    }
+
     // Payment details box
     const rawPayLines: string[] = []
     if (profile.account_name) rawPayLines.push(`Account Name: ${profile.account_name}`)

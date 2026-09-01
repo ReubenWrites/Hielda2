@@ -185,6 +185,54 @@ function settledBlock(invoice, payments) {
     </div>`
 }
 
+// Where payments were allocated in the CLIENT's favour, say so — a fee
+// tier quietly lowered or charges avoided entirely goes unnoticed unless
+// the statement explains it. Only renders when there's something
+// genuinely favourable to report.
+function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
+  const notes = []
+  const tierNote = (invoice) => {
+    const face = Number(invoice.amount)
+    const preDue = Number(invoice.paid_before_due) || 0
+    if (preDue <= 0) return
+    const fullFee = penalty(face)
+    const actualFee = penalty(Math.max(0, round2(face - preDue)))
+    if (actualFee < fullFee) {
+      notes.push(`Payments received before the due date on <b>${esc(invoice.ref)}</b> were credited first, reducing the debt that fell overdue — this lowered the fixed recovery fee from ${fmt(fullFee)} to ${fmt(actualFee)}.`)
+    }
+  }
+  for (const inv of open) {
+    if (daysLate(inv.due_date) > 0) tierNote(inv)
+  }
+  for (const inv of settled) {
+    const settledOn = inv.paid_date
+    if (settledOn && settledOn <= inv.due_date) {
+      notes.push(`Payment was applied to <b>${esc(inv.ref)}</b> so it settled in full before its due date — no late-payment charges ever applied to it.`)
+      continue
+    }
+    const face = Number(inv.amount)
+    const cash = Number(inv.amount_paid) || 0
+    const dlSettle = settledOn ? daysBetween(inv.due_date, settledOn) : 0
+    const finesEnabled = !inv.no_fines && inv.client_type !== 'consumer'
+    // Same maths as the settled block, so the note's figure always
+    // matches the figure shown on the invoice itself.
+    const pays = (settledPayments && settledPayments[inv.id]) || []
+    const paidBefore = pays.filter((p) => settledOn && p.paid_on < settledOn)
+      .reduce((s, p) => s + Number(p.amount), 0)
+    const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
+    const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
+    const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+    const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
+    const writtenOff = Math.max(0, round2(face + interest + pen - cash))
+    if (writtenOff > 0.005) {
+      notes.push(`On <b>${esc(inv.ref)}</b>, ${fmt(writtenOff)} of accrued charges was waived as a gesture of goodwill when the account settled.`)
+    } else if (dlSettle > 0) {
+      tierNote(inv)
+    }
+  }
+  return notes
+}
+
 function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, settledPayments) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const clientName = esc(invoices[0].client_name || 'there')
@@ -213,6 +261,17 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
       </div>
     </div>`
 
+  const favourNotes = collectFavourNotes(invoices, settled || [], settledPayments, DAILY_RATE)
+  const favourSection = favourNotes.length
+    ? `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:16px 0 0;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#5f6c7c;margin-bottom:8px;">How payments were applied</div>
+        <p style="font-size:12.5px;color:#5f6c7c;margin:0 0 8px;">Where possible, payments have been allocated in your favour:</p>
+        <ul style="margin:0;padding-left:18px;font-size:12.5px;color:#5f6c7c;line-height:1.7;">
+          ${favourNotes.map((n) => `<li>${n}</li>`).join('')}
+        </ul>
+      </div>`
+    : ''
+
   const anyOverdue = invoices.some((i) => daysLate(i.due_date) > 0)
   const subject = `Statement of account — ${fmt(grandTotal)} outstanding across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'} — ${fromName}`
 
@@ -232,6 +291,7 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
       <div style="font-size:24px;font-weight:700;color:#1e5fa0;">${fmt(grandTotal)}</div>
     </div>
     ${settledSection}
+    ${favourSection}
     ${anyOverdue ? `<p style="font-size:12px;color:#64748b;">Late charges are applied under the Late Payment of Commercial Debts (Interest) Act 1998 and continue to accrue daily until payment is received.</p>` : ''}
     ${payBlock}
     <p>A single payment of ${fmt(grandTotal)} settles everything above. If any of these invoices have already been paid, or you'd like to discuss them, just reply to this email.</p>
