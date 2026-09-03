@@ -253,6 +253,11 @@
 
 @media (max-width: 640px) {
   .step1Grid { grid-template-columns: 1fr; }
+  /* Grid items default to min-width:auto (their min-content width), so a
+     wide scrollable row inside a card would force the whole column — and
+     the page — out to the row's full width. Zero it: the cards take the
+     column width and anything wide inside them scrolls. */
+  .step1Grid > * { min-width: 0; }
 }
 
 .cardHeading {
@@ -290,6 +295,27 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Phones: one swipeable row of recent clients. Six chips wrapped one per
+   line pushed the actual form half a screen down. The row bleeds to the
+   card edges (card padding is 20px at this width) so the last chip can
+   scroll fully into view. */
+@media (max-width: 640px) {
+  .clientChips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -20px;
+    padding: 2px 20px;
+  }
+  .clientChips::-webkit-scrollbar {
+    display: none;
+  }
+  .clientChips > * {
+    flex-shrink: 0;
+  }
 }
 
 .chipWrap {

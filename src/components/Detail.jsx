@@ -253,8 +253,10 @@ function InvoiceLifecycleBar({ inv, isMobile }) {
               >
                 {isMobile ? m.short : m.label}
               </div>
-              {/* Date */}
-              {dates[i] && (
+              {/* Date. Seven dated nodes in 328px is noise on a phone — there,
+                  only the milestone we're at and the next one carry a date:
+                  where you are and what's coming. */}
+              {dates[i] && (!isMobile || i === current || isNext) && (
                 <div className={s.lifecycleDate}>
                   {dates[i]}
                 </div>

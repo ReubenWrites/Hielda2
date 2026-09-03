@@ -237,6 +237,16 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
 }
+.statCard[data-tappable="true"] {
+  cursor: pointer;
+}
+.statCard[data-tappable="true"]:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.statCard[data-tappable="true"]:active {
+  transform: translateY(0);
+}
 
 .statLabel {
   font-size: 10px;
