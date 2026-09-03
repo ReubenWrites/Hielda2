@@ -314,6 +314,42 @@
   white-space: nowrap;
 }
 
+/* Stat-card footers on phones: the cards sit two-up, and the one-line
+   "label · sub · value" strip can't fit in a half-width card — the card's
+   overflow:hidden then clips the value ("+£172.3"). Stack it instead:
+   label above, value below, and drop the descriptive sub-text, which is
+   the least important part and only earns its place at full width. */
+@media (max-width: 767px) {
+  .statFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 6px 9px;
+  }
+  .statFooterLabel {
+    white-space: normal;
+    line-height: 1.3;
+  }
+  .statFooterSub {
+    display: none;
+  }
+  .statFooterValue {
+    margin-left: 0;
+    white-space: normal;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+}
+
+/* Narrowest phones (320–380px): two-up stat cards leave ~140px for the
+   value, where an 18px five-figure sum would ellipsise. Money must never
+   truncate — step the size down instead. */
+@media (max-width: 380px) {
+  .statValue {
+    font-size: 16px;
+  }
+}
+
 /* ── Error Banner ── */
 .errorBanner {
   padding: 10px 14px;
