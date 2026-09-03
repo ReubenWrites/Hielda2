@@ -511,6 +511,23 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light&t=1787929808370"
             />
           </a>
+          {/* TechBase Directory featured badge — paid listing, their
+              listing page links back dofollow; the embed keeps the
+              featured status valid. */}
+          <a
+            href="https://techbasedirectory.com/product/hielda?utm_source=featured_embed"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginTop: 8, display: "inline-block" }}
+          >
+            <img
+              src="https://techbasedirectory.com/api/featured-embed"
+              alt="Hielda | Techbasedirectory.com"
+              width="200"
+              height="60"
+              style={{ maxWidth: "100%", height: "auto" }}
+            />
+          </a>
         </div>
       </section>
 
