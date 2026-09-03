@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
 import { colors as c, CHASE_STAGES, getRate } from "../constants"
@@ -30,6 +30,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [dismissedBanner, setDismissedBanner] = useState(false)
   const [showOverflow, setShowOverflow] = useState(false)
+  // Phones hide the per-row checkboxes until the user asks to select —
+  // they're a desktop pattern and cost every card ~30px of width.
+  const [selectMode, setSelectMode] = useState(false)
+  const showChecks = !isMobile || selectMode
+  const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()) }
 
   // One-shot celebration after marking an invoice paid (set by Detail).
   // The happiest moment in the product — and the natural moment to ask
@@ -495,6 +500,15 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     return result
   }, [invs, search, statusFilter, sortBy, sortDir])
 
+  // Tapping a stat card filters the invoice list to match — on a phone
+  // that list is a long scroll away, so bring it into view as well.
+  const invoicesRef = useRef(null)
+  const jumpToFilter = (filter) => {
+    setStatusFilter(filter)
+    setSearch("")
+    if (isMobile) invoicesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   const toggleSort = (col) => {
     if (sortBy === col) { setSortDir(d => d === "asc" ? "desc" : "asc") }
     else { setSortBy(col); setSortDir("asc") }
@@ -664,6 +678,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               {/* outstanding() so a part-paid pending invoice isn't double
                   counted — its paid slice lives in the Paid card. */}
               <StatCard
+                onClick={() => jumpToFilter("pending")}
                 label="Pending"
                 value={fmt(round2(pending.reduce((s, i) => s + outstanding(i), 0)))}
                 sub={`${pending.length} not yet due`}
@@ -678,6 +693,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 }}
               />
               <StatCard
+                onClick={() => jumpToFilter("overdue")}
                 label={overdue.some((i) => i.auto_chase !== false) ? "Being chased" : "Overdue"}
                 value={fmt(totOwed)}
                 sub={(() => {
@@ -696,6 +712,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 }}
               />
               <StatCard
+                onClick={() => jumpToFilter("paid")}
                 label="Paid (90 days)"
                 value={fmt(totPaid)}
                 sub={`${paid.length} invoice${paid.length !== 1 ? "s" : ""}${partPaidCount > 0 ? ` + ${partPaidCount} part-paid` : ""}`}
@@ -1023,7 +1040,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       <EmailQueue invs={invs} profile={profile} onUpdate={onUpdate} />
 
       <div>
-        <div className={s.invoicesHeader}>
+        <div className={s.invoicesHeader} ref={invoicesRef}>
           <h2 className={s.invoicesTitle}>All invoices</h2>
           <div className={s.searchWrap}>
             <input
@@ -1036,6 +1053,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             />
           </div>
           <Btn sz="sm" onClick={() => navigate("/create")}><Plus size={14} strokeWidth={2.5} /> New</Btn>
+          {isMobile && invs.length > 0 && (
+            <Btn sz="sm" v="ghost" onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}>
+              {selectMode ? "Done" : "Select"}
+            </Btn>
+          )}
           {/* Overflow menu for low-frequency actions. CSV export sat in
               prime position before but most users never touch it — moving
               it here keeps the primary header clean while staying one
@@ -1168,7 +1190,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 <Btn sz="sm" v="danger" onClick={bulkDelete} dis={bulkLoading}>
                   <Trash2 size={13} /> Delete
                 </Btn>
-                <Btn sz="sm" v="ghost" onClick={() => setSelected(new Set())}>
+                <Btn sz="sm" v="ghost" onClick={() => (isMobile ? exitSelectMode() : setSelected(new Set()))}>
                   ✕
                 </Btn>
               </div>
@@ -1201,13 +1223,15 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                       }}
                     >
                       <div className={s.mobileCardInner}>
-                        <input
-                          type="checkbox"
-                          checked={selected.has(i.id)}
-                          onChange={() => toggleOne(i.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className={s.mobileCheckbox}
-                        />
+                        {showChecks && (
+                          <input
+                            type="checkbox"
+                            checked={selected.has(i.id)}
+                            onChange={() => toggleOne(i.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={s.mobileCheckbox}
+                          />
+                        )}
                         <div className={s.mobileCardBody}>
                           <div className={s.mobileCardTop}>
                             <span className={s.mobileClientName}>{i.client_name || "—"}</span>

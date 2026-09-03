@@ -1408,6 +1408,31 @@
   .recipientsGrid {
     grid-template-columns: 1fr;
   }
+
+  /* Invoice-details rows: a 60%-wide value cell broke long values
+     mid-word ("example.co / m"). On phones let the row wrap so a long
+     value drops to its own full-width line instead. */
+  .detailRow {
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  .detailRowValue {
+    max-width: 100%;
+    margin-left: auto;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Partial-payment header: keep "£x / £y" together as one unit and let
+     it drop beneath the label when there isn't room beside it. */
+  .partialProgressHeader {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+  }
+  .partialProgressAmt {
+    white-space: nowrap;
+    margin-left: auto;
+  }
 }
 
 .recipientLabel {

@@ -333,9 +333,16 @@ export const Sel = ({ label, value, onChange, opts }) => (
 // color?, muted?}). Every card in a row carrying a footer keeps the row's
 // heights equal — the minis are pushed flush to the bottom edge, so they
 // align across the row regardless of how much text sits above them.
-export const StatCard = ({ label, value, sub, color, borderColor, footer, quiet }) => (
+export const StatCard = ({ label, value, sub, color, borderColor, footer, quiet, onClick }) => (
   <div
     className={s.statCard}
+    // Optional tap-through (the dashboard uses it to filter the invoice
+    // list). Keeps the card a plain div when there's nothing to do.
+    data-tappable={onClick ? "true" : undefined}
+    role={onClick ? "button" : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onClick={onClick}
+    onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick() } } : undefined}
     style={{
       // `quiet` demotes a card to the supporting cast: neutral border, no
       // wash, muted value. One loud accent per row — the quiet cards are
