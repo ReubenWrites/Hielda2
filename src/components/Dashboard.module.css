@@ -329,7 +329,9 @@
 .clientMeta {
   flex: 1;
   text-align: center;
-  min-width: 0;
+  /* A real floor: when the row is tight, the buttons wrap to a second
+     line rather than this text being squeezed into a one-word column. */
+  min-width: 180px;
 }
 
 /* Statement preview modal */
@@ -991,11 +993,18 @@
   color: var(--go);
   font-weight: 600;
   margin-left: 6px;
+  /* Wrap as a unit — never "+" on one line and the figure on the next. */
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .mobileDue {
   font-size: 11px;
   color: var(--tm);
+  /* A date never splits mid-value; the amount side wraps instead. */
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .mobileArrow {
@@ -1187,14 +1196,85 @@
   .cgClient {
     text-align: left;
   }
+  /* Chasing summary bar: five items in one flex row don't fit a phone,
+     and the only thing allowed to wrap was the label — which broke into
+     three lines next to a wall of nowrap figures. Two-row grid instead:
+       ● Hielda is chasing 2 invoices            ▼
+       32–42 days overdue               £2,933.94        */
   .chaseSumBar {
-    gap: 10px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "dot label chev"
+      "late late total";
+    gap: 6px 10px;
     padding: 12px 14px;
+  }
+  .chaseSumBar .pulseWrapper { grid-area: dot; }
+  .chaseSumBar .chasingLabel { grid-area: label; }
+  .chaseSumBar .chaseChev { grid-area: chev; justify-self: end; }
+  .chaseSumBar .chaseSumLate { grid-area: late; }
+  .chaseSumBar .chasingTotal { grid-area: total; justify-self: end; margin-left: 0; }
+
+  /* Client card: name and total share the top line, the meta gets the
+     full width beneath (it was being crushed into a one-word column),
+     and the two actions sit side by side at the bottom. */
+  .clientRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: start;
+  }
+  .clientInfo {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .clientAmounts {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .clientMeta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left;
+    min-width: 0;
+    line-height: 1.5;
+  }
+  .clientRow > button,
+  .clientRow > .clientNoEmail {
+    grid-row: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  .clientRow > .clientNoEmail {
+    align-self: center;
+    text-align: center;
   }
 
   .invoicesHeader {
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  /* Filter pills: one swipeable row instead of wrapping onto a second
+     line, and taller so they're comfortable to thumb. The row bleeds to
+     the content edges so the last pill can scroll fully into view. */
+  .filterBar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px 12px;
+    padding: 2px 16px;
+  }
+  .filterBar::-webkit-scrollbar {
+    display: none;
+  }
+  .filterPill {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 12px;
   }
 
   .searchWrap {

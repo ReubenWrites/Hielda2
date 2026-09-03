@@ -740,9 +740,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               {(() => {
                 const nChased = overdue.filter((i) => i.auto_chase !== false).length
                 const nQuiet = overdue.length - nChased
+                // Phones drop the "Hielda is" — the brand is already in the
+                // header, and the shorter label keeps the bar to one line.
                 const label = nChased === 0
                   ? `${overdue.length} overdue invoice${overdue.length !== 1 ? "s" : ""} — chasing off`
-                  : `Hielda is chasing ${nChased} invoice${nChased !== 1 ? "s" : ""}${nQuiet > 0 ? ` · ${nQuiet} not chased` : ""}`
+                  : `${isMobile ? "Chasing" : "Hielda is chasing"} ${nChased} invoice${nChased !== 1 ? "s" : ""}${nQuiet > 0 ? ` · ${nQuiet} not chased` : ""}`
                 return (
                   <>
                     {nChased > 0 && (
@@ -807,7 +809,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         <div className={s.clientSection}>
           <div className={s.clientSectionHeader}>
             <h2 className={s.invoicesTitle}>Owed by client</h2>
-            <span className={s.clientSectionSub}>Clients with several open invoices — send one email that itemises them all</span>
+            <span className={s.clientSectionSub}>
+              {isMobile
+                ? "One statement can cover all of a client's open invoices"
+                : "Clients with several open invoices — send one email that itemises them all"}
+            </span>
           </div>
           <div className={s.clientList}>
             {clientGroups.map((g) => {
