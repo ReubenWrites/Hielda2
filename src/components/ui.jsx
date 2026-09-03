@@ -243,8 +243,9 @@ export const Btn = ({ children, onClick, v = "primary", sz = "md", dis, style: u
 )
 
 // ── Card ──
-export const Card = ({ children, style, onClick, as: Tag = "div" }) => (
+export const Card = ({ children, style, onClick, as: Tag = "div", ...rest }) => (
   <Tag
+    {...rest}
     onClick={onClick}
     role={onClick ? "button" : undefined}
     tabIndex={onClick ? 0 : undefined}
