@@ -42,11 +42,18 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     if (selectMode && selected.size === 0) setSelectMode(false)
   }, [selectMode, selected])
 
-  const longPress = useRef({ timer: null, fired: false })
+  const longPress = useRef({ timer: null, fired: false, x: 0, y: 0 })
   const LONG_PRESS_MS = 450
-  const pressStart = (id) => () => {
+  // A held finger is never perfectly still — the browser reports a few
+  // pixels of pointermove jitter throughout the hold. Cancelling on any
+  // movement killed every real long-press; only a genuine travel (a
+  // scroll) should cancel it.
+  const MOVE_TOLERANCE_PX = 12
+  const pressStart = (id) => (e) => {
     if (!isMobile) return
     longPress.current.fired = false
+    longPress.current.x = e.clientX
+    longPress.current.y = e.clientY
     clearTimeout(longPress.current.timer)
     longPress.current.timer = setTimeout(() => {
       longPress.current.fired = true
@@ -56,6 +63,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     }, LONG_PRESS_MS)
   }
   const pressCancel = () => clearTimeout(longPress.current.timer)
+  const pressMove = (e) => {
+    const dx = e.clientX - longPress.current.x
+    const dy = e.clientY - longPress.current.y
+    if (Math.hypot(dx, dy) > MOVE_TOLERANCE_PX) pressCancel()
+  }
   // Card tap: swallow the click that follows a long-press, toggle in
   // select mode, otherwise open the invoice.
   const cardTap = (id) => () => {
@@ -1243,7 +1255,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                       onPointerDown={pressStart(i.id)}
                       onPointerUp={pressCancel}
                       onPointerCancel={pressCancel}
-                      onPointerMove={pressCancel}
+                      onPointerMove={pressMove}
                       onContextMenu={(e) => e.preventDefault()}
                       data-selected={selected.has(i.id) ? "true" : undefined}
                       style={{
