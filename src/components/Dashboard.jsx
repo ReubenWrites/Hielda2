@@ -30,11 +30,39 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [dismissedBanner, setDismissedBanner] = useState(false)
   const [showOverflow, setShowOverflow] = useState(false)
-  // Phones hide the per-row checkboxes until the user asks to select —
-  // they're a desktop pattern and cost every card ~30px of width.
+  // Phones hide the per-row checkboxes until the user long-presses a card
+  // (the native multi-select gesture — Gmail, Photos, Files). That enters
+  // select mode with the pressed card selected; in select mode a tap
+  // toggles a card instead of opening it; deselecting the last card, or
+  // the bulk bar's ✕, leaves the mode. No Select/Done buttons needed.
   const [selectMode, setSelectMode] = useState(false)
   const showChecks = !isMobile || selectMode
   const exitSelectMode = () => { setSelectMode(false); setSelected(new Set()) }
+  useEffect(() => {
+    if (selectMode && selected.size === 0) setSelectMode(false)
+  }, [selectMode, selected])
+
+  const longPress = useRef({ timer: null, fired: false })
+  const LONG_PRESS_MS = 450
+  const pressStart = (id) => () => {
+    if (!isMobile) return
+    longPress.current.fired = false
+    clearTimeout(longPress.current.timer)
+    longPress.current.timer = setTimeout(() => {
+      longPress.current.fired = true
+      setSelectMode(true)
+      setSelected((prev) => new Set(prev).add(id))
+      try { navigator.vibrate?.(12) } catch {}
+    }, LONG_PRESS_MS)
+  }
+  const pressCancel = () => clearTimeout(longPress.current.timer)
+  // Card tap: swallow the click that follows a long-press, toggle in
+  // select mode, otherwise open the invoice.
+  const cardTap = (id) => () => {
+    if (longPress.current.fired) { longPress.current.fired = false; return }
+    if (selectMode) toggleOne(id)
+    else navigate(`/invoice/${id}`)
+  }
 
   // One-shot celebration after marking an invoice paid (set by Detail).
   // The happiest moment in the product — and the natural moment to ask
@@ -1053,11 +1081,6 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
             />
           </div>
           <Btn sz="sm" onClick={() => navigate("/create")}><Plus size={14} strokeWidth={2.5} /> New</Btn>
-          {isMobile && invs.length > 0 && (
-            <Btn sz="sm" v="ghost" onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}>
-              {selectMode ? "Done" : "Select"}
-            </Btn>
-          )}
           {/* Overflow menu for low-frequency actions. CSV export sat in
               prime position before but most users never touch it — moving
               it here keeps the primary header clean while staying one
@@ -1216,10 +1239,22 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                   return (
                     <Card
                       key={i.id}
-                      onClick={() => navigate(`/invoice/${i.id}`)}
+                      onClick={cardTap(i.id)}
+                      onPointerDown={pressStart(i.id)}
+                      onPointerUp={pressCancel}
+                      onPointerCancel={pressCancel}
+                      onPointerMove={pressCancel}
+                      onContextMenu={(e) => e.preventDefault()}
+                      data-selected={selected.has(i.id) ? "true" : undefined}
                       style={{
                         padding: "12px 14px",
                         borderLeft: `3px solid ${i.status === "paid" ? c.gn : i.status === "overdue" ? c.or : i.status === "disputed" ? "#7c3aed" : c.am}`,
+                        // Long-press must not start a text selection or the
+                        // iOS copy callout.
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                        WebkitTouchCallout: "none",
+                        ...(selected.has(i.id) ? { background: "var(--acd)", borderColor: "var(--ac)" } : {}),
                       }}
                     >
                       <div className={s.mobileCardInner}>
