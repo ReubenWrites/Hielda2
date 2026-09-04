@@ -528,6 +528,22 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               style={{ maxWidth: "100%", height: "auto" }}
             />
           </a>
+          {/* Launchstag featured badge — free listing, badge required for
+              the listing to go live. */}
+          <a
+            href="https://launchstag.com/p/hielda"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginTop: 8, display: "inline-block" }}
+          >
+            <img
+              src="https://launchstag.com/badge-light.svg"
+              alt="Featured on Launchstag"
+              width="198"
+              height="62"
+              style={{ maxWidth: "100%", height: "auto" }}
+            />
+          </a>
         </div>
       </section>
 
