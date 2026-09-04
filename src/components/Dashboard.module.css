@@ -917,6 +917,28 @@
   gap: 8px;
 }
 
+/* On phones the bulk bar floats up from the bottom as a sheet instead
+   of being inserted above the list — inserting it pushed the whole
+   list down the moment select mode began, which read as a jolt. */
+@media (max-width: 768px) {
+  .bulkBar {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 50;
+    margin-bottom: 0;
+    background: var(--sf);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
+    animation: bulkSheetIn 0.2s ease-out;
+  }
+}
+
+@keyframes bulkSheetIn {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 .bulkCount {
   font-size: 13px;
   font-weight: 600;
@@ -938,7 +960,23 @@
 .mobileCardInner {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+}
+
+/* Checkbox slot: collapsed to nothing until select mode, then eases
+   open so the card body slides rather than jumps. */
+.checkSlot {
+  width: 0;
+  margin-right: 0;
+  opacity: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.18s ease, margin-right 0.18s ease, opacity 0.18s ease;
+}
+
+.checkSlotOpen {
+  width: 22px;
+  margin-right: 10px;
+  opacity: 1;
 }
 
 .mobileCheckbox {

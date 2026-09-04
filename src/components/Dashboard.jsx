@@ -1270,15 +1270,19 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                       }}
                     >
                       <div className={s.mobileCardInner}>
-                        {showChecks && (
+                        {/* Always mounted; the slot animates open on
+                            long-press instead of popping in and shoving
+                            every card's content sideways. */}
+                        <div className={`${s.checkSlot}${showChecks ? " " + s.checkSlotOpen : ""}`} aria-hidden={!showChecks}>
                           <input
                             type="checkbox"
                             checked={selected.has(i.id)}
                             onChange={() => toggleOne(i.id)}
                             onClick={(e) => e.stopPropagation()}
                             className={s.mobileCheckbox}
+                            tabIndex={showChecks ? 0 : -1}
                           />
-                        )}
+                        </div>
                         <div className={s.mobileCardBody}>
                           <div className={s.mobileCardTop}>
                             <span className={s.mobileClientName}>{i.client_name || "—"}</span>
