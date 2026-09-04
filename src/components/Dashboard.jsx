@@ -59,7 +59,11 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       longPress.current.fired = true
       setSelectMode(true)
       setSelected((prev) => new Set(prev).add(id))
-      try { navigator.vibrate?.(12) } catch {}
+      // Haptic tick lands with the visual change, not a beat before it:
+      // two animation frames guarantees the selected state has painted.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        try { navigator.vibrate?.(12) } catch {}
+      }))
     }, LONG_PRESS_MS)
   }
   const pressCancel = () => clearTimeout(longPress.current.timer)

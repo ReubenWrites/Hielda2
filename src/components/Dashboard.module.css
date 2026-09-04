@@ -930,7 +930,7 @@
     margin-bottom: 0;
     background: var(--sf);
     box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18);
-    animation: bulkSheetIn 0.2s ease-out;
+    animation: bulkSheetIn 0.25s cubic-bezier(0.2, 0, 0, 1);
   }
 }
 
@@ -970,7 +970,7 @@
   opacity: 0;
   overflow: hidden;
   flex-shrink: 0;
-  transition: width 0.18s ease, margin-right 0.18s ease, opacity 0.18s ease;
+  transition: width 0.25s cubic-bezier(0.2, 0, 0, 1), margin-right 0.25s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .checkSlotOpen {
