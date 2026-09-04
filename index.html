@@ -141,6 +141,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Static copies of the "featured on" badges the React footer renders.
+         Directory verifiers (Launchstag, TechBase) fetch the raw HTML and
+         look for their link; without JS the #root above is empty, so they
+         found nothing. Wrapped in noscript so browsers with JS never show a
+         duplicate — only crawlers and no-JS visitors see this block. -->
+    <noscript>
+      <div style="text-align:center;padding:16px;font-family:system-ui,sans-serif;">
+        <a href="https://www.producthunt.com/products/hielda?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hielda" target="_blank" rel="noopener noreferrer"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light" alt="Hielda on Product Hunt" width="250" height="54" /></a>
+        <a href="https://techbasedirectory.com/product/hielda?utm_source=featured_embed" target="_blank" rel="noopener noreferrer"><img src="https://techbasedirectory.com/api/featured-embed" alt="Hielda | Techbasedirectory.com" width="200" height="60" /></a>
+        <a href="https://launchstag.com/p/hielda" target="_blank" rel="noopener noreferrer"><img src="https://launchstag.com/badge-light.svg" alt="Featured on Launchstag" width="198" height="62" /></a>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
