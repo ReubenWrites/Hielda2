@@ -30,7 +30,12 @@ async function loadLiveRate() {
   }
 }
 
-const STAGE_ORDER = ['reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase', 'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11', 'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice', 'recovery_1', 'recovery_2', 'recovery_3', 'recovery_4', 'recovery_5', 'recovery_6', 'recovery_7', 'recovery_8', 'recovery_9', 'recovery_10', 'recovery_11', 'recovery_final']
+// Mirrors src/constants.js. Past day 30 the stages are generated monthly
+// rather than listed, so there is always a next one.
+const STAGE_ORDER = [
+  'reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase',
+  'third_chase', 'chase_4', 'final_notice',
+]
 
 const STAGE_COLORS = {
   reminder_1: '#1e5fa0', reminder_2: '#2d72b8', final_warning: '#b45309',
@@ -64,8 +69,12 @@ function daysLate(due) {
 }
 
 function getNextStage(currentStage) {
+  const m = /^formal_(\d+)$/.exec(currentStage || '')
+  if (m) return `formal_${Number(m[1]) + 1}`
   const idx = STAGE_ORDER.indexOf(currentStage)
-  if (idx === -1 || idx >= STAGE_ORDER.length - 1) return null
+  if (idx === -1) return null
+  // After the last informal chase comes the first monthly formal reminder.
+  if (idx >= STAGE_ORDER.length - 1) return 'formal_1'
   return STAGE_ORDER[idx + 1]
 }
 
@@ -184,6 +193,170 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
   return { subject, html, fromName }
 }
 
+/**
+ * Approve one chase covering every overdue invoice a client has.
+ *
+ * Reuses the consolidated statement builder in chase mode, so the email is
+ * itemised per invoice with the same interest engine, the same payment
+ * history and the same combined total the user sees in the app.
+ */
+async function handleGroupChase(req, res, { invoice_ids, stage, token }) {
+  const html = (title, body, color) =>
+    res.status(200).setHeader('Content-Type', 'text/html').send(respondHtml(title, body, color))
+
+  const tokenData = verifyToken(token, SUPABASE_SERVICE_KEY)
+  if (!tokenData) {
+    return html('Link Expired', `
+      <div style="font-size:36px;margin-bottom:16px;">&#9200;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">This link has expired</h2>
+      <p style="color:#64748b;margin:0 0 20px;">Check-in links are valid for 7 days. Please use your dashboard instead.</p>
+      <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+    `, '#94a3b8')
+  }
+
+  const ids = String(invoice_ids).split(',').filter(Boolean)
+  const signed = Array.isArray(tokenData.invoice_ids) ? tokenData.invoice_ids : []
+  // Every requested id must be in the signed set, and vice versa: the token
+  // is the authority on what was approved.
+  const sameSet = ids.length === signed.length && ids.every((id) => signed.includes(id))
+  if (!sameSet) {
+    return html('Invalid Link', `
+      <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Invalid Link</h2>
+      <p style="color:#64748b;margin:0;">This link doesn't match the invoices it was issued for.</p>
+    `, '#9f1239')
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  const chaseStage = tokenData.chase_stage || stage || 'first_chase'
+
+  const { data: invoices } = await supabase.from('invoices').select('*').in('id', ids)
+  if (!invoices || invoices.length === 0) {
+    return html('Invoices Not Found', `
+      <div style="font-size:36px;margin-bottom:16px;">&#128269;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Invoices not found</h2>
+    `, '#94a3b8')
+  }
+
+  // Anything already settled or parked since the check-in went out drops
+  // out — never chase a client for something they've paid.
+  const open = invoices.filter((i) => i.status !== 'paid' && i.status !== 'disputed' && !i.parked_at)
+  if (open.length === 0) {
+    return html('Nothing to Chase', `
+      <div style="font-size:48px;margin-bottom:16px;color:#16a34a;">&#10004;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Nothing left to chase</h2>
+      <p style="color:#64748b;margin:0 0 20px;">These invoices have been settled or paused since we asked. No email was sent.</p>
+      <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+    `, '#16a34a')
+  }
+
+  // Dedupe against a double click or an email client prefetching the link.
+  const { data: already } = await supabase
+    .from('chase_log').select('id')
+    .in('invoice_id', open.map((i) => i.id))
+    .eq('chase_stage', chaseStage).eq('status', 'sent').limit(1)
+  if (already && already.length > 0) {
+    return html('Already Sent', `
+      <div style="font-size:48px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase already sent</h2>
+      <p style="color:#94a3b8;font-size:12px;margin:0 0 20px;">No duplicate email was sent.</p>
+      <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+    `, '#1e5fa0')
+  }
+
+  const clientName = open[0].client_name || 'your client'
+  const clientEmail = open[0].client_email
+
+  // GET shows a confirmation button. Mail clients prefetch links, and a
+  // prefetch must never send a client-facing email.
+  if (req.method !== 'POST') {
+    return html('Confirm', `
+      <div style="font-size:36px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Send one chase for ${open.length} invoices?</h2>
+      <p style="color:#64748b;margin:0 0 18px;">It will go to <strong>${clientName}</strong> itemising each invoice and the combined total.</p>
+      <form method="POST" action="/api/check-in-response?action=chase&invoice_ids=${encodeURIComponent(ids.join(','))}&stage=${encodeURIComponent(chaseStage)}&token=${encodeURIComponent(token)}">
+        <button type="submit" style="padding:12px 28px;background:#1e5fa0;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;">Yes, send it</button>
+      </form>
+    `, '#1e5fa0')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles').select('*').eq('id', open[0].user_id).single()
+  if (!profile) {
+    return html('Profile Not Found', '<p style="color:#64748b;">Could not load your details.</p>', '#9f1239')
+  }
+
+  const { buildStatementEmail, loadLiveRate } = await import('./_sendStatement.js')
+  const { fetchLedgers } = await import('./_money.js')
+  // Pull the live BoE rate into that module before building: its interest
+  // figures come from its own module-level rate, which otherwise sits on
+  // the hard-coded fallback.
+  await loadLiveRate()
+
+  open.sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
+  const ledgers = await fetchLedgers(supabase, open.map((i) => i.id))
+  const oldestDfd = Math.max(...open.map((i) => daysLate(i.due_date)))
+
+  const email = buildStatementEmail(
+    open, profile, ledgers, [], null, ledgers, { chase: true, daysLate: oldestDfd })
+
+  const ccList = []
+  for (const inv of open) {
+    if (!inv.cc_emails) continue
+    inv.cc_emails.split(',').map((e) => e.trim()).filter(Boolean).forEach((e) => {
+      if (!ccList.includes(e)) ccList.push(e)
+    })
+  }
+
+  const payload = {
+    from: `${email.fromName} via Hielda <chase@hielda.com>`,
+    reply_to: profile.email,
+    to: [clientEmail],
+    // The freelancer is always BCC'd, never on the visible recipient list.
+    bcc: [profile.email],
+    subject: email.subject,
+    html: email.html,
+    headers: { 'List-Unsubscribe': `<mailto:unsubscribe@hielda.com?subject=Unsubscribe>` },
+  }
+  if (ccList.length) payload.cc = ccList
+
+  const sendRes = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!sendRes.ok) {
+    const err = await sendRes.json().catch(() => ({}))
+    console.error('[check-in] group chase send failed:', err?.message)
+    return html('Send Failed', `
+      <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Couldn't send the chase</h2>
+      <p style="color:#64748b;margin:0 0 20px;">Nothing was sent and nothing was logged, so you can try again from your dashboard.</p>
+      <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+    `, '#9f1239')
+  }
+
+  // Log and advance every invoice in the group.
+  await supabase.from('chase_log').insert(
+    open.map((i) => ({
+      invoice_id: i.id,
+      user_id: i.user_id,
+      chase_stage: chaseStage,
+      email_to: clientEmail,
+      status: 'sent',
+    }))
+  )
+  await supabase.from('invoices').update({ chase_stage: chaseStage }).in('id', open.map((i) => i.id))
+
+  return html('Chase Sent', `
+    <div style="font-size:48px;margin-bottom:16px;color:#16a34a;">&#10004;</div>
+    <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">One chase sent, covering ${open.length} invoices</h2>
+    <p style="color:#64748b;margin:0 0 4px;">Sent to ${clientName}, itemising each invoice and the combined total.</p>
+    <p style="color:#94a3b8;font-size:12px;margin:0 0 20px;">You're BCC'd on it.</p>
+    <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
+  `, '#16a34a')
+}
+
 export default async function handler(req, res) {
   // Accept GET (email links) and POST (confirmation button on chase action)
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -194,7 +367,14 @@ export default async function handler(req, res) {
   await loadLiveRate()
 
   try {
-    const { action, invoice_id, stage, token } = req.query
+    const { action, invoice_id, stage, token, invoice_ids } = req.query
+
+    // Grouped chase: one client, several overdue invoices, one approval,
+    // one email. Handled separately because everything below assumes a
+    // single invoice.
+    if (invoice_ids && action === 'chase') {
+      return handleGroupChase(req, res, { invoice_ids, stage, token })
+    }
 
     if (!token || !invoice_id || !action) {
       return res.status(400).setHeader('Content-Type', 'text/html').send(

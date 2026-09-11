@@ -77,8 +77,15 @@ function accruedInterest(
     return round2(owed * dailyRate * dayDiff(due, end))
   }
 
+  // A row we can't date can't be placed on the timeline: a null date parses
+  // as 1970 and silently halves the debt, an unparseable one poisons every
+  // comparison with NaN. Treat both as landing on the due date.
   const rows = payments
-    .map((p) => ({ on: p.paid_on, amount: Number(p.amount) || 0 }))
+    .map((p) => {
+      const t = new Date(p.paid_on).getTime()
+      return { on: Number.isFinite(t) ? p.paid_on : due, amount: Number(p.amount) || 0 }
+    })
+    .filter((r) => r.amount > 0)
     .sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
 
   let balance = face

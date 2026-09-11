@@ -1669,3 +1669,19 @@
   color: var(--tm);
   margin-bottom: 16px;
 }
+
+/* Decision panel: the Letter Before Action deadline has passed. */
+.decisionActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 12px;
+}
+.decisionLink {
+  font-size: 13px;
+  color: var(--ac);
+  font-weight: 600;
+  text-decoration: none;
+}
+.decisionLink:hover { text-decoration: underline; }

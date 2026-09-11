@@ -5,7 +5,7 @@ import {
   Calendar, Mail, Forward, Send, Eye, Download, Copy, Trash2, Scale,
 } from "lucide-react"
 import { supabase } from "../supabase"
-import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, FORMAL_FROM_DAYS, lbaResponseDays, stageById } from "../constants"
+import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, FORMAL_FROM_DAYS, lbaResponseDays, stageById, courtFee, MCOL_MAX } from "../constants"
 import { daysLate, calcInterest, accruedInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
 import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
@@ -179,8 +179,10 @@ function stageToMilestone(stage) {
   if (["reminder_1", "reminder_2"].includes(stage)) return 1
   if (stage === "final_warning") return 2
   if (["first_chase", "second_chase", "third_chase"].includes(stage)) return 3
-  if (["chase_4","chase_5","chase_6","chase_7","chase_8","chase_9","chase_10","chase_11","escalation_1","escalation_2","escalation_3","escalation_4","final_notice"].includes(stage)) return 4
-  if (stage.startsWith("recovery_")) return 5
+  if (["chase_4", "final_notice"].includes(stage)) return 4
+  // Generated monthly formal reminders, plus the retired recovery_* ids
+  // still sitting on older invoices.
+  if (/^formal_\d+$/.test(stage) || stage.startsWith("recovery_") || stage.startsWith("escalation_")) return 5
   return 0
 }
 
@@ -475,6 +477,37 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   // mismatch: an overpayment is blocked with an explanation, a payment
   // covering the invoice but not the charges opens the settle popup,
   // and an underpayment offers part-payment or full-and-final.
+  // Park: stop chasing without pretending the debt is gone. The invoice
+  // stays overdue and interest keeps accruing — this only silences the
+  // automated emails, which is the honest way to let something rest.
+  const [parking, setParking] = useState(false)
+  const parkDebt = async () => {
+    if (!(await confirm({
+      title: "Park this debt?",
+      message: "Hielda will stop chasing it. The debt stays owed, interest keeps accruing, and you can resume any time — the claim lasts six years from the due date.",
+      confirmLabel: "Park it",
+      cancelLabel: "Keep chasing",
+    }))) return
+    setParking(true)
+    const { error } = await supabase.from("invoices")
+      .update({ parked_at: new Date().toISOString() }).eq("id", inv.id)
+    setParking(false)
+    if (error) { toast("Couldn't park it: " + error.message, "error"); return }
+    trackEvent("debt_parked", { invoice_id: inv.id })
+    toast("Parked. The debt stays on your books.", "success")
+    onUpdate?.()
+  }
+  const unparkDebt = async () => {
+    setParking(true)
+    const { error } = await supabase.from("invoices")
+      .update({ parked_at: null }).eq("id", inv.id).select()
+    setParking(false)
+    if (error) { toast("Couldn't resume: " + error.message, "error"); return }
+    trackEvent("debt_unparked", { invoice_id: inv.id })
+    toast("Chasing resumed.", "success")
+    onUpdate?.()
+  }
+
   const markPaid = () => {
     setPartialAmount(Math.max(0, tot).toFixed(2))
     setPartialDate(todayStr())
@@ -1747,25 +1780,74 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
 
       <ChaseTimeline inv={inv} si={si} />
 
-      {/* Post-final-notice guidance */}
-      {inv.chase_stage === "recovery_final" && inv.status !== "paid" && si >= CHASE_STAGES.length - 1 && (
-        <Card className={s.finalNoticeCard} style={{ marginTop: 16, background: "#fef2f2", borderColor: "#fca5a540" }}>
-          <h3 className={s.finalNoticeTitle}>All chase stages complete</h3>
+      {/* Decision point: the Letter Before Action deadline has passed and
+          the client still hasn't paid. This is the moment the user has to
+          choose, so give them the real numbers rather than a nudge. */}
+      {inv.status !== "paid" && inv.lba_sent_at && inv.lba_deadline &&
+       Date.now() > new Date(inv.lba_deadline).getTime() + 864e5 && !inv.parked_at && (() => {
+        const fee = courtFee(tot)
+        const overMcol = tot > MCOL_MAX
+        return (
+          <Card className={s.finalNoticeCard} style={{ marginTop: 16, borderColor: "#18181b30" }}>
+            <h3 className={s.finalNoticeTitle}>Your Letter Before Action deadline has passed</h3>
+            <p className={s.finalNoticeBody}>
+              You gave {inv.client_name || "your client"} until {formatDate(inv.lba_deadline)} and
+              nothing has arrived. There's no automatic next step — this part is your decision.
+              Interest is still accruing, and the debt stays claimable for six years, so doing
+              nothing today costs you nothing.
+            </p>
+            <ul className={s.finalNoticeList}>
+              <li>
+                <strong>Make a court claim.</strong>{" "}
+                {overMcol
+                  ? `At ${fmt(tot)} this is above Money Claim Online's ${fmt(MCOL_MAX)} ceiling, so it would go through the courts directly rather than online.`
+                  : `On ${fmt(tot)} the court issue fee is about ${fmt(fee)}. You can file at gov.uk/make-money-claim without a solicitor. If you win, the court normally orders them to repay the fee and the interest on top, so it's money advanced rather than spent.`}
+              </li>
+              <li>
+                <strong>Instruct a debt recovery agent.</strong> Typically no fee up front, taking a
+                cut of what they recover. Worth it when you'd rather not deal with it at all, and
+                the threat of an agent alone often works.
+              </li>
+              <li>
+                <strong>Park it.</strong> Stop the chasing but keep the debt on the books. It stays
+                owed, interest keeps accruing, and you can pick it up any time in the next six
+                years — including after the client's cash flow improves.
+              </li>
+            </ul>
+            <div className={s.decisionActions}>
+              <a
+                href="https://www.gov.uk/make-court-claim-for-money"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={s.decisionLink}
+              >
+                Check current court fees on gov.uk
+              </a>
+              <Btn v="ghost" sz="sm" onClick={parkDebt} dis={parking}>
+                {parking ? "…" : "Park this debt"}
+              </Btn>
+            </div>
+            <p className={s.finalNoticeFooter}>
+              Hielda can't advise you on which to pick — that depends on the client, the sum, and
+              how much of your week you want back. This is general information, not legal advice.
+            </p>
+          </Card>
+        )
+      })()}
+
+      {inv.parked_at && inv.status !== "paid" && (
+        <Card style={{ marginTop: 16 }}>
+          <h3 className={s.finalNoticeTitle}>This debt is parked</h3>
           <p className={s.finalNoticeBody}>
-            Hielda has sent all automated chase emails for this invoice. If payment still hasn't been received, here are your next steps:
+            Parked on {formatDate(inv.parked_at)}. Hielda has stopped chasing, but the debt is
+            still owed, interest is still accruing, and you can claim it for six years from the
+            due date.
           </p>
-          <ul className={s.finalNoticeList}>
-            <li><strong>Contact the client directly</strong> — a phone call can sometimes resolve things faster.</li>
-            <li><strong>Send a Letter Before Action (LBA)</strong> — a formal letter giving 14 days to pay before court proceedings. Templates are available online.</li>
-            <li><strong>Small Claims Court</strong> — for debts under £10,000 in England/Wales, you can file a claim online at <span className={s.finalNoticeMono}>gov.uk/make-money-claim</span> for a small fee.</li>
-            <li><strong>Debt recovery agency</strong> — for larger amounts, consider instructing a commercial debt recovery service.</li>
-          </ul>
-          <p className={s.finalNoticeFooter}>
-            Interest and penalties continue to accrue. You can reference the total amount shown above in any formal correspondence.
-          </p>
+          <Btn v="ghost" sz="sm" onClick={unparkDebt} dis={parking}>
+            {parking ? "…" : "Resume chasing"}
+          </Btn>
         </Card>
       )}
-
 
       {/* CC / BCC recipients */}
       {inv.status !== "paid" && (

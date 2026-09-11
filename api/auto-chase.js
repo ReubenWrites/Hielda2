@@ -198,6 +198,76 @@ function buildCheckInEmail(invoice, profile, stage) {
   return { subject, html }
 }
 
+/**
+ * Check-in for a client with several overdue invoices. One approval sends
+ * one chase itemising all of them.
+ *
+ * The "they've paid" button goes to the app rather than marking anything:
+ * a lump payment across several invoices has to be allocated, and guessing
+ * the split is how money goes missing. The dashboard's split tool exists
+ * for exactly this.
+ */
+function buildGroupCheckInEmail(invoices, profile, stage, oldestDfd) {
+  const color = stageColor(stage)
+  const stageName = stageLabel(stage)
+  const fromName = profile.business_name || profile.full_name || 'Hielda User'
+  const client = invoices[0].client_name || 'your client'
+  const ids = invoices.map((i) => i.id)
+  const token = signToken({ invoice_ids: ids, chase_stage: stage, user_id: invoices[0].user_id })
+  const base = 'https://www.hielda.com/api/check-in-response'
+  const chaseUrl = `${base}?action=chase&invoice_ids=${ids.join(',')}&stage=${stage}&token=${encodeURIComponent(token)}`
+  const paidUrl = 'https://www.hielda.com/dashboard'
+
+  const total = invoices.reduce(
+    (s, i) => s + Math.max(0, Number(i.amount) - (Number(i.amount_paid) || 0)), 0)
+
+  const rows = invoices.map((i) => {
+    const dl = daysSinceDue(i.due_date)
+    const owed = Math.max(0, Number(i.amount) - (Number(i.amount_paid) || 0))
+    return `<tr>
+      <td style="padding:5px 10px 5px 0;font-size:12.5px;color:#0f172a;">${i.ref}</td>
+      <td style="padding:5px 10px 5px 0;font-size:12.5px;color:#64748b;">${dl > 0 ? `${dl} days late` : 'due'}</td>
+      <td style="padding:5px 0;font-size:12.5px;text-align:right;font-family:monospace;color:#0f172a;">${fmt(owed)}</td>
+    </tr>`
+  }).join('')
+
+  const subject = `Check-in: ${invoices.length} unpaid invoices from ${client} — ${fmt(total)}`
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f1f3f6;font-family:'DM Sans',system-ui,-apple-system,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:24px;">
+    <div style="background:#fff;border-radius:12px;border:1px solid #dce1e8;overflow:hidden;">
+      <div style="background:${color};padding:16px 24px;">
+        <div style="color:#fff;font-weight:700;font-size:14px;">Hielda</div>
+      </div>
+      <div style="padding:28px 24px;font-size:14px;line-height:1.7;color:#0f172a;">
+        <p>Hi ${fromName},</p>
+        <p><strong>${client}</strong> has <strong>${invoices.length} unpaid invoices</strong>${oldestDfd > 0 ? `, the oldest now <strong>${oldestDfd} days</strong> late` : ''}. We'd chase them as one <strong>${stageName}</strong> listing everything, rather than sending separate emails.</p>
+        <div style="background:#f1f3f6;padding:16px 18px;border-radius:8px;margin:20px 0;">
+          <table style="width:100%;border-collapse:collapse;">
+            ${rows}
+            <tr><td colspan="2" style="padding:9px 10px 0 0;font-weight:700;font-size:13px;border-top:1px solid #dce1e8;">Total outstanding</td>
+                <td style="padding:9px 0 0;font-weight:700;font-size:14px;text-align:right;font-family:monospace;border-top:1px solid #dce1e8;">${fmt(total)}</td></tr>
+          </table>
+        </div>
+        <p style="font-weight:600;margin-bottom:20px;">Shall we send it?</p>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${chaseUrl}" style="display:inline-block;padding:14px 32px;background:${color};color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;margin:0 8px 12px;">Yes, send one chase for all ${invoices.length}</a>
+        </div>
+        <p style="font-size:13px;color:#64748b;text-align:center;margin:0 0 8px;">
+          Had a payment? <a href="${paidUrl}" style="color:#1e5fa0;">Record it in Hielda</a> — if it was a lump sum we'll help you split it across these invoices in the way that costs them least.
+        </p>
+        <p style="font-size:12px;color:#94a3b8;text-align:center;">We won't send anything to your client until you give the go-ahead.</p>
+      </div>
+    </div>
+    <div style="text-align:center;padding:16px;font-size:11px;color:#94a3b8;">Sent via Hielda — Protecting your pay.</div>
+  </div>
+</body>
+</html>`
+  return { subject, html }
+}
+
 // NOTE: Chase emails are built and sent by api/send-chase-email.js (manual) or
 // via check-in-response.js (when freelancer approves from check-in link).
 // The buildChaseEmail function was removed as dead code — auto-chase only sends check-in emails.
@@ -312,6 +382,9 @@ export default async function handler(req, res) {
   }
 
   // ── Step 6: Process each invoice ─────────────────────────────────────────
+  // Invoices that need a check-in today, collected so they can be grouped
+  // by client before anything is sent.
+  const candidates = []
   for (const invoice of invoices) {
     try {
       const profile = profileMap[invoice.user_id]
@@ -397,8 +470,44 @@ export default async function handler(req, res) {
         if (daysSinceCheckIn < 3) { results.skipped++; continue }
       }
 
-      // No check-in sent yet — send one to the freelancer asking for approval
-      const checkInEmail = buildCheckInEmail(invoice, profile, nextStageId)
+      // Due a check-in. Collect rather than send: a client with several
+      // overdue invoices should get ONE chase covering all of them, not
+      // three separate ones in the same morning, and the freelancer should
+      // approve it once.
+      candidates.push({ invoice, profile, stageId: nextStageId, dfd })
+    } catch (e) {
+      console.error(`[auto-chase] Error on invoice ${invoice.id}:`, e.message)
+      errors.push({ invoice_id: invoice.id, error: e.message })
+      results.errors++
+    }
+  }
+
+  // ── Step 7: Group by client, then ask for approval ──────────────────────
+  // One client with three overdue invoices gets one check-in and, on
+  // approval, one chase itemising all three. Sending three separate emails
+  // in the same morning is what makes an automated system look automated.
+  const groups = new Map()
+  for (const cand of candidates) {
+    // Fall back to the invoice's own id when there's no usable client
+    // identity, so blank emails group alone rather than lumping unrelated
+    // clients into one chase.
+    const who = (cand.invoice.client_email || cand.invoice.client_name || '').trim().toLowerCase()
+    const key = `${cand.invoice.user_id}::${who || `solo:${cand.invoice.id}`}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(cand)
+  }
+
+  for (const group of groups.values()) {
+    try {
+      const { profile } = group[0]
+      // Oldest debt first — it drives the tone and the stage.
+      group.sort((a, b) => b.dfd - a.dfd)
+      const invoicesInGroup = group.map((g) => g.invoice)
+      const stageId = group[0].stageId
+
+      const checkInEmail = group.length === 1
+        ? buildCheckInEmail(group[0].invoice, profile, stageId)
+        : buildGroupCheckInEmail(invoicesInGroup, profile, stageId, group[0].dfd)
 
       await sendViaResend({
         from: 'Hielda <notifications@hielda.com>',
@@ -407,18 +516,23 @@ export default async function handler(req, res) {
         html: checkInEmail.html,
       })
 
-      await supabase.from('chase_log').insert({
-        invoice_id: invoice.id,
-        user_id: invoice.user_id,
-        chase_stage: nextStageId,
-        email_to: profile.email,
-        status: 'check_in_sent',
-      })
+      // Log against every invoice in the group so the per-invoice dedupe
+      // and the 3-day re-nudge keep working unchanged.
+      await supabase.from('chase_log').insert(
+        group.map((g) => ({
+          invoice_id: g.invoice.id,
+          user_id: g.invoice.user_id,
+          chase_stage: g.stageId,
+          email_to: profile.email,
+          status: 'check_in_sent',
+        }))
+      )
 
       results.check_ins_sent++
+      if (group.length > 1) results.grouped_check_ins = (results.grouped_check_ins || 0) + 1
     } catch (e) {
-      console.error(`[auto-chase] Error on invoice ${invoice.id}:`, e.message)
-      errors.push({ invoice_id: invoice.id, error: e.message })
+      console.error('[auto-chase] Group check-in failed:', e.message)
+      errors.push({ group: group.map((g) => g.invoice.ref).join(','), error: e.message })
       results.errors++
     }
   }

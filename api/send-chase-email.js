@@ -210,15 +210,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'invoice_id and chase_stage required' })
     }
 
+    // Enumerated stages, plus the generated monthly formal reminders
+    // (formal_1, formal_2, ...) which continue for as long as the debt
+    // stands. The old fixed list rejected every one of them.
     const VALID_STAGES = [
-      'reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase', 'third_chase',
-      'chase_4', 'chase_5', 'chase_6', 'chase_7', 'chase_8', 'chase_9', 'chase_10', 'chase_11',
-      'escalation_1', 'escalation_2', 'escalation_3', 'escalation_4', 'final_notice',
-      'recovery_1', 'recovery_2', 'recovery_3', 'recovery_4',
-      'recovery_5', 'recovery_6', 'recovery_7', 'recovery_8', 'recovery_9', 'recovery_10', 'recovery_11',
-      'recovery_final',
+      'reminder_1', 'reminder_2', 'final_warning', 'first_chase', 'second_chase',
+      'third_chase', 'chase_4', 'final_notice',
     ]
-    if (!VALID_STAGES.includes(chase_stage)) {
+    const isValidStage = (st) => VALID_STAGES.includes(st) || /^formal_\d{1,4}$/.test(st || '')
+    if (!isValidStage(chase_stage)) {
       return res.status(400).json({ error: 'Invalid chase stage' })
     }
 

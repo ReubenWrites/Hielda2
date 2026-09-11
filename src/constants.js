@@ -171,6 +171,31 @@ export function invoicePhase(invoice, daysPastDue) {
   return dl >= FORMAL_FROM_DAYS ? "formal" : "chasing"
 }
 
+/**
+ * Court issue fee for a money claim in England and Wales, by claim value.
+ * Source: gov.uk/make-court-claim-for-money/court-fees (checked Sep 2026).
+ *
+ * The fee is on the debt, excluding interest. If the claim succeeds the
+ * court normally orders the defendant to repay it, so it is a cost you
+ * advance rather than one you lose. Fees change: the decision panel links
+ * to the official page rather than presenting these as gospel.
+ */
+export function courtFee(claim) {
+  const c = Number(claim) || 0
+  if (c <= 300) return 35
+  if (c <= 500) return 50
+  if (c <= 1000) return 70
+  if (c <= 1500) return 80
+  if (c <= 3000) return 115
+  if (c <= 5000) return 205
+  if (c <= 10000) return 455
+  if (c <= 200000) return Math.floor(c * 5) / 100
+  return 10000
+}
+
+/** Money Claim Online's ceiling. Above this a claim goes another route. */
+export const MCOL_MAX = 99999.99
+
 export const PHASE_LABELS = {
   pre_due: "Not yet due",
   chasing: "Being chased",

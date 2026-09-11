@@ -50,7 +50,9 @@ export function friendlySubject(stage, { invoice, total, dl, poRef }) {
     recovery_11:   `Final day: Invoice ${ref}${poRef} — next steps begin tomorrow`,
     recovery_final: `Update: Invoice ${ref}${poRef} — ${t} overdue, recovery period ended`,
   }
-  return subjects[stage]
+  // Formal reminders past day 30 are generated monthly and have no
+  // hand-written entry; final_notice is the right register for them.
+  return subjects[stage] || (/^formal_\d+$/.test(stage) ? subjects.final_notice : undefined)
 }
 
 export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
@@ -325,7 +327,7 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
       <p>Kind regards,<br/>${fromName}</p>
     `,
   }
-  return bodies[stage]
+  return bodies[stage] || (/^formal_\d+$/.test(stage) ? bodies.final_notice : undefined)
 }
 
 // ── Legal tone ─────────────────────────────────────────────────────────────────
@@ -367,7 +369,9 @@ export function legalSubject(stage, { invoice, total, dl, poRef }) {
     recovery_11:   `IMMINENT PROCEEDINGS: Invoice ${ref}${poRef} — final day to comply`,
     recovery_final: `NOTICE OF REFERRAL: Invoice ${ref}${poRef} — ${t} referred for formal recovery`,
   }
-  return subjects[stage]
+  // Formal reminders past day 30 are generated monthly and have no
+  // hand-written entry; final_notice is the right register for them.
+  return subjects[stage] || (/^formal_\d+$/.test(stage) ? subjects.final_notice : undefined)
 }
 
 export function legalBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
@@ -672,5 +676,5 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
       <p>Yours faithfully,<br/>${fromName}</p>
     `,
   }
-  return bodies[stage]
+  return bodies[stage] || (/^formal_\d+$/.test(stage) ? bodies.final_notice : undefined)
 }

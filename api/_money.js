@@ -44,8 +44,17 @@ export function accruedInterest(invoice, payments, dailyRate, asOf) {
     return round2(owed * dailyRate * totalDays)
   }
 
+  // A row we can't date can't be placed on the timeline. Left raw, a null
+  // date parses as 1970 and silently halves the debt, and an unparseable one
+  // poisons every comparison with NaN and zeroes the interest outright.
+  // Treat both as landing on the due date: deterministic, and it under-states
+  // rather than over-states.
   const rows = payments
-    .map((p) => ({ on: p.paid_on, amount: Number(p.amount) || 0 }))
+    .map((p) => {
+      const t = new Date(p.paid_on).getTime()
+      return { on: Number.isFinite(t) ? p.paid_on : due, amount: Number(p.amount) || 0 }
+    })
+    .filter((r) => r.amount > 0)
     .sort((a, b) => new Date(a.on) - new Date(b.on))
 
   // Paid on or before the due date: never accrues, just lowers the balance

@@ -24,7 +24,12 @@ function esc(text) {
 let RATE = 11.75
 let DAILY_RATE = RATE / 365 / 100
 
-async function loadLiveRate() {
+// Exported because buildStatementEmail is now called from outside this
+// module (the grouped chase in check-in-response.js). Without this the
+// consolidated chase would quote the fallback 11.75% while the app quoted
+// the live BoE rate, and a client who spotted the difference would have
+// grounds to argue about all of it.
+export async function loadLiveRate() {
   try {
     const { fetchBoeRate } = await import('./boe-rate.js')
     const { rate } = await fetchBoeRate()
@@ -232,7 +237,10 @@ function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
   return notes
 }
 
-function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, settledPayments, ledgers) {
+// mode: null for a statement of account, or { chase: true, daysLate }
+// for the consolidated chase — one email covering every overdue invoice a
+// client has, instead of three separate chases landing in one morning.
+export function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, settledPayments, ledgers, mode) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const clientName = esc(invoices[0].client_name || 'there')
 
@@ -274,7 +282,11 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
     : ''
 
   const anyOverdue = invoices.some((i) => daysLate(i.due_date) > 0)
-  const subject = `Statement of account — ${fmt(grandTotal)} outstanding across ${invoices.length} invoice${invoices.length === 1 ? '' : 's'} — ${fromName}`
+  const n = invoices.length
+  const plural = n === 1 ? '' : 's'
+  const subject = mode?.chase
+    ? `OVERDUE: ${n} invoice${plural} from ${fromName} — ${fmt(grandTotal)} now owed`
+    : `Statement of account — ${fmt(grandTotal)} outstanding across ${n} invoice${plural} — ${fromName}`
 
   const settledBlocks = (settled || []).map((inv) =>
     settledBlock(inv, settledPayments ? settledPayments[inv.id] : null)
@@ -285,7 +297,9 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
 
   const body = `
     <p>Dear ${clientName},</p>
-    <p>Please find below a statement of the invoices from ${fromName} that remain outstanding, with each invoice itemised so everything is in one place.</p>
+    ${mode?.chase
+      ? `<p>We are writing about <strong>${n} unpaid invoice${plural}</strong> from ${fromName}${mode.daysLate > 0 ? `, the oldest of which is now <strong>${mode.daysLate} days</strong> past its due date` : ''}. Each one is itemised below so the full position is in one place.</p>`
+      : `<p>Please find below a statement of the invoices from ${fromName} that remain outstanding, with each invoice itemised so everything is in one place.</p>`}
     ${blocks}
     <div style="background:#eff6ff;border-left:4px solid #1e5fa0;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
       <div style="font-size:12px;color:#1e5fa0;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
@@ -295,7 +309,9 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
     ${favourSection}
     ${anyOverdue ? `<p style="font-size:12px;color:#64748b;">Late charges are applied under the Late Payment of Commercial Debts (Interest) Act 1998 and continue to accrue daily until payment is received.</p>` : ''}
     ${payBlock}
-    <p>A single payment of ${fmt(grandTotal)} settles everything above. If any of these invoices have already been paid, or you'd like to discuss them, just reply to this email.</p>
+    ${mode?.chase
+      ? `<p>A single payment of <strong>${fmt(grandTotal)}</strong> settles all of the above. If any of these have already been paid, or there is a problem we should know about, please reply to this email and we will look into it straight away.</p>`
+      : `<p>A single payment of ${fmt(grandTotal)} settles everything above. If any of these invoices have already been paid, or you'd like to discuss them, just reply to this email.</p>`}
     <p>Kind regards,<br/>${fromName}</p>`
 
   const html = `<!DOCTYPE html>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { invoicePhase, lbaResponseDays, stageForDay, stageById, FORMAL_FROM_DAYS } from '../constants'
+import { invoicePhase, lbaResponseDays, stageForDay, stageById, FORMAL_FROM_DAYS, courtFee } from '../constants'
 
 const day = (offset) => {
   const d = new Date()
@@ -76,5 +76,35 @@ describe('stageForDay and stageById agree', () => {
       expect(stageById(s.id)).not.toBeNull()
       expect(stageById(s.id).id).toBe(s.id)
     }
+  })
+})
+
+describe('courtFee', () => {
+  it('follows the gov.uk band table', () => {
+    expect(courtFee(100)).toBe(35)
+    expect(courtFee(300)).toBe(35)
+    expect(courtFee(300.01)).toBe(50)
+    expect(courtFee(500)).toBe(50)
+    expect(courtFee(1000)).toBe(70)
+    expect(courtFee(1500)).toBe(80)
+    expect(courtFee(3000)).toBe(115)
+    expect(courtFee(5000)).toBe(205)
+    expect(courtFee(10000)).toBe(455)
+  })
+  it('is 5% of the claim between £10k and £200k, floored to the penny', () => {
+    expect(courtFee(20000)).toBe(1000)
+    expect(courtFee(10000.01)).toBeCloseTo(500, 2)
+  })
+  it('caps at £10,000 above £200k', () => {
+    expect(courtFee(500000)).toBe(10000)
+  })
+  it('handles junk input without throwing', () => {
+    expect(courtFee(0)).toBe(35)
+    expect(courtFee(null)).toBe(35)
+    expect(courtFee(undefined)).toBe(35)
+  })
+  // Ted's live invoice: £1,001.68 owed sits in the £1,000.01-£1,500 band.
+  it('prices a real overdue invoice', () => {
+    expect(courtFee(1001.68)).toBe(80)
   })
 })
