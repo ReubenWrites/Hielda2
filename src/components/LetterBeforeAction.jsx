@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, Copy, Check, Printer, Send } from "lucide-react"
+import { ArrowLeft, Copy, Check, Printer, Send, Download } from "lucide-react"
 import { getRate, getDailyRate, lbaResponseDays } from "../constants"
 import { fmt, formatDate, round2, penalty, accruedInterest, outstanding, daysLate, addDays, todayStr } from "../utils"
 import { Card, Btn, useToast } from "./ui"
@@ -59,6 +59,19 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
 
   const dl = daysLate(inv.due_date)
 
+  // The letter used to inline the invoice's whole description, which on a
+  // real invoice is every line item run together and reads as a mess. Take
+  // the first item as a headline instead; the detail lives on the invoice
+  // itself, which goes out with the letter.
+  const headline = useMemo(() => {
+    const first = Array.isArray(inv.line_items) && inv.line_items.length
+      ? inv.line_items[0]?.description
+      : String(inv.description || "").split(",")[0]
+    const text = String(first || "").trim()
+    if (!text) return ""
+    return text.length > 60 ? `${text.slice(0, 57).trimEnd()}...` : text
+  }, [inv.line_items, inv.description])
+
   const letter = useMemo(() => {
     const v = (val, ph) => val || ph
     const L = []
@@ -72,11 +85,19 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
     L.push(`Re: Unpaid invoice ${inv.ref}`, "")
     L.push("Dear Sir or Madam,", "")
     L.push(
-      `I am writing regarding invoice ${inv.ref}${inv.issue_date ? `, dated ${formatDate(inv.issue_date)}` : ""}, in the sum of ${fmt(figures.face)}${inv.description ? ` in respect of ${inv.description}` : ""}. Payment fell due on ${formatDate(inv.due_date)} and the invoice remains unpaid${dl > 0 ? `, now ${dl} days beyond its due date` : ""}.`,
+      `I am writing regarding the invoice below, which remains unpaid${dl > 0 ? ` and is now ${dl} days beyond its due date` : ""}. A copy is enclosed for your reference.`,
       "",
     )
+    L.push("THE INVOICE", "")
+    L.push(`  Reference:       ${inv.ref}`)
+    if (inv.issue_date) L.push(`  Issued:          ${formatDate(inv.issue_date)}`)
+    L.push(`  Payment due:     ${formatDate(inv.due_date)}`)
+    L.push(`  Amount:          ${fmt(figures.face)}`)
+    if (headline) L.push(`  For:             ${headline}`)
+    if (inv.client_ref) L.push(`  Your reference:  ${inv.client_ref}`)
+    L.push("")
     L.push("THE SUM CLAIMED", "")
-    L.push(`  Invoice ${inv.ref}${" ".repeat(Math.max(1, 28 - inv.ref.length))}${fmt(figures.face)}`)
+    L.push(`  Invoice amount                       ${fmt(figures.face)}`)
     if (figures.paid > 0) L.push(`  Less payments received              -${fmt(figures.paid)}`)
     if (figures.fee > 0) L.push(`  Fixed debt recovery cost             ${fmt(figures.fee)}`)
     if (figures.interest > 0) L.push(`  Statutory interest to date           ${fmt(figures.interest)}`)
@@ -125,7 +146,45 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
     L.push(v(profile?.full_name, "[Your name]"))
     if (profile?.business_name) L.push(profile.business_name)
     return L.join("\n")
-  }, [inv, profile, figures, days, deadline, soleTrader, dl])
+  }, [inv, profile, figures, days, deadline, soleTrader, dl, headline])
+
+  // The letter says a copy of the invoice is enclosed, so make it one click
+  // to actually have one. Same edge function the invoice page uses.
+  const [downloading, setDownloading] = useState(false)
+  const downloadInvoice = async () => {
+    setDownloading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const apikey = import.meta.env.VITE_SUPABASE_KEY
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-invoice-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey,
+          Authorization: `Bearer ${session?.access_token || apikey}`,
+        },
+        body: JSON.stringify({ invoice_id: inv.id, rate: getRate() }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        let msg = text
+        try { msg = JSON.parse(text).error || text } catch {}
+        throw new Error(msg || `Couldn't generate the invoice (${res.status})`)
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${inv.ref}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      trackEvent("lba_invoice_downloaded", { invoice_id: inv.id })
+    } catch (e) {
+      toast(e.message, "error")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const copy = async () => {
     try {
@@ -152,6 +211,22 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
     toast(`Recorded. ${inv.client_name || "Your client"} has until ${formatDate(dueBy)} to respond.`, "success")
     onUpdate?.()
     navigate(`/invoice/${inv.id}`)
+  }
+
+  // Until the ledger lands, accruedInterest falls back to the flat model and
+  // quotes a lower figure. Fine on a dashboard; not fine in a letter someone
+  // might copy in the first half-second and send to a debtor. Hold the letter
+  // back rather than show a provisional number.
+  if (!loaded) {
+    return (
+      <div>
+        <button onClick={() => navigate(`/invoice/${inv.id}`)} className={s.back}>
+          <ArrowLeft size={14} /> Back to {inv.ref}
+        </button>
+        <h1 className={s.title}>Letter Before Action</h1>
+        <p className={s.sub}>Working out exactly what's owed…</p>
+      </div>
+    )
   }
 
   const missing = []
@@ -224,10 +299,18 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
           {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy letter</>}
         </Btn>
         <Btn onClick={() => window.print()} v="secondary"><Printer size={14} /> Print or save as PDF</Btn>
+        <Btn onClick={downloadInvoice} dis={downloading} v="secondary">
+          <Download size={14} /> {downloading ? "…" : "Download the invoice"}
+        </Btn>
         <Btn onClick={markSent} dis={saving} v="primary">
           <Send size={14} /> {saving ? "Saving…" : "I've sent it — start the clock"}
         </Btn>
       </div>
+
+      <p className={s.enclosureNote}>
+        The letter says a copy of the invoice is enclosed, so send {inv.ref} along with it.
+        Download it above, or from the invoice page.
+      </p>
 
       <pre className={s.letter}>{letter}</pre>
 
