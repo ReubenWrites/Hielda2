@@ -6,7 +6,7 @@ import {
 } from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
-import { daysLate, calcInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
+import { daysLate, calcInterest, accruedInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
 import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
 import { buildIntroText } from "../lib/introText"
@@ -299,8 +299,15 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   // the debt that goes overdue, which lowers the fixed-fee tier.
   const [partialDate, setPartialDate] = useState(todayStr())
   const [payments, setPayments] = useState([])
+  // "Loaded and empty" and "not loaded yet" are different facts: an empty
+  // ledger means interest accrued on the full amount, so using [] before
+  // the fetch lands would briefly OVER-state what the client owes. Until
+  // this flag flips, the interest engine gets undefined and falls back to
+  // the flat model, which under-states.
+  const [paymentsLoaded, setPaymentsLoaded] = useState(false)
   useEffect(() => {
     if (!inv?.id) return
+    setPaymentsLoaded(false)
     ;(async () => {
       const { data } = await supabase
         .from("invoice_payments")
@@ -308,6 +315,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         .eq("invoice_id", inv.id)
         .order("paid_on", { ascending: true })
       setPayments(data || [])
+      setPaymentsLoaded(true)
     })()
   }, [inv?.id, inv?.amount_paid])
   const [savingPartial, setSavingPartial] = useState(false)
@@ -366,13 +374,15 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   const hasVat = vatAmount > 0
   const paidSoFar = Number(inv.amount_paid) || 0
   const netOutstanding = Math.max(0, round2(netAmount - paidSoFar))
-  // Interest accrues on what's still owed — a partial payment stops the
-  // meter on the part that's been paid. The fixed sum tiers on the debt
-  // as it stood when the invoice went overdue: payments dated before the
-  // due date (paid_before_due) reduce that debt, so a mostly-pre-paid
+  // Interest accrues on whatever was outstanding on each day, so a payment
+  // only stops the meter from the day it lands — it can't wipe out interest
+  // that already built up on a larger balance. The fixed sum tiers on the
+  // debt as it stood when the invoice went overdue: payments dated before
+  // the due date (paid_before_due) reduce that debt, so a mostly-pre-paid
   // invoice earns the £40 tier, not the £70 one.
   const debtAtDue = Math.max(0, round2(netAmount - (Number(inv.paid_before_due) || 0)))
-  const interest = ov && finesEnabled ? calcInterest(netOutstanding, dl) : 0
+  const interest = ov && finesEnabled
+    ? accruedInterest(inv, paymentsLoaded ? payments : undefined) : 0
   const pen = ov && finesEnabled && netOutstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const ex = round2(interest + pen)
   const tot = round2(invoiceTotal - paidSoFar + ex)

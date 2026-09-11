@@ -9,6 +9,7 @@
 // so the dashboard can show exactly what the client will receive.
 
 import { createClient } from '@supabase/supabase-js'
+import { accruedInterest, fetchLedgers } from './_money.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -70,14 +71,14 @@ function round2(n) {
 // Same maths as send-chase-email.js: interest accrues on the outstanding
 // balance, the fixed fee tiers on the debt that went overdue (pre-due
 // payments reduce it), and no_fines invoices charge nothing extra.
-function invoiceFigures(invoice) {
+function invoiceFigures(invoice, payments) {
   const dl = daysLate(invoice.due_date)
   const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
   const amountPaid = Number(invoice.amount_paid) || 0
   const outstanding = Math.max(0, round2(Number(invoice.amount) - amountPaid))
   const debtAtDue = Math.max(0, round2(Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)))
   const overdue = dl > 0
-  const interest = overdue && finesEnabled ? round2(outstanding * DAILY_RATE * dl) : 0
+  const interest = overdue && finesEnabled ? accruedInterest(invoice, payments, DAILY_RATE) : 0
   const pen = overdue && finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const total = round2(outstanding + interest + pen)
   return { dl, amountPaid, outstanding, interest, pen, total }
@@ -143,12 +144,10 @@ function settledBlock(invoice, payments) {
   const settledOn = invoice.paid_date
   const dlSettle = settledOn ? daysBetween(invoice.due_date, settledOn) : 0
   const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
-  const paidBefore = (payments || [])
-    .filter((p) => settledOn && p.paid_on < settledOn)
-    .reduce((s, p) => s + Number(p.amount), 0)
-  const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
   const debtAtDue = Math.max(0, round2(face - (Number(invoice.paid_before_due) || 0)))
-  const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+  // Frozen at the settlement date, accrued period by period up to it.
+  const interest = dlSettle > 0 && finesEnabled
+    ? accruedInterest(invoice, payments, DAILY_RATE, settledOn) : 0
   const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const chargesCollected = Math.max(0, round2(cash - face))
   const writtenOff = Math.max(0, round2(face + interest + pen - cash))
@@ -217,11 +216,9 @@ function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
     // Same maths as the settled block, so the note's figure always
     // matches the figure shown on the invoice itself.
     const pays = (settledPayments && settledPayments[inv.id]) || []
-    const paidBefore = pays.filter((p) => settledOn && p.paid_on < settledOn)
-      .reduce((s, p) => s + Number(p.amount), 0)
-    const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
     const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
-    const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+    const interest = dlSettle > 0 && finesEnabled
+      ? accruedInterest(inv, pays, DAILY_RATE, settledOn) : 0
     const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const writtenOff = Math.max(0, round2(face + interest + pen - cash))
     // Ignore sub-5p write-offs: they're rounding artifacts, not favours,
@@ -235,7 +232,7 @@ function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
   return notes
 }
 
-function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, settledPayments) {
+function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, settledPayments, ledgers) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const clientName = esc(invoices[0].client_name || 'there')
 
@@ -244,7 +241,9 @@ function buildStatementEmail(invoices, profile, paymentsByInvoice, settled, sett
   let grandTotal = 0
 
   const blocks = invoices.map((invoice) => {
-    const f = invoiceFigures(invoice)
+    // Figures always use the ledger; paymentsByInvoice only decides whether
+    // the dated rows are rendered.
+    const f = invoiceFigures(invoice, ledgers ? ledgers[invoice.id] : null)
     grandOutstanding = round2(grandOutstanding + f.outstanding)
     grandExtras = round2(grandExtras + f.interest + f.pen)
     grandTotal = round2(grandTotal + f.total)
@@ -413,20 +412,11 @@ export async function sendStatement(req, res) {
     // Oldest debt first — the natural reading order for a statement
     open.sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
 
-    // Dated payment history, when the sender chose to include it
-    let paymentsByInvoice = null
-    if (include_payments) {
-      const { data: payRows } = await supabase
-        .from('invoice_payments')
-        .select('invoice_id, amount, paid_on')
-        .in('invoice_id', open.map((i) => i.id))
-        .order('paid_on', { ascending: true })
-      paymentsByInvoice = {}
-      for (const p of payRows || []) {
-        if (!paymentsByInvoice[p.invoice_id]) paymentsByInvoice[p.invoice_id] = []
-        paymentsByInvoice[p.invoice_id].push(p)
-      }
-    }
+    // The ledger is ALWAYS fetched, whether or not the sender chose to show
+    // the dated rows: interest accrues per balance period, so the figures
+    // are wrong without it. include_payments only controls display.
+    const ledgers = await fetchLedgers(supabase, open.map((i) => i.id))
+    const paymentsByInvoice = include_payments ? ledgers : null
 
     // Recently settled invoices for the same client (last 60 days) —
     // acknowledged on the statement so the client sees their payment
@@ -463,7 +453,7 @@ export async function sendStatement(req, res) {
       }
     }
 
-    const email = buildStatementEmail(open, profile, paymentsByInvoice, settled, settledPayments)
+    const email = buildStatementEmail(open, profile, paymentsByInvoice, settled, settledPayments, ledgers)
 
     // Preview mode: hand back exactly what would be sent, and stop.
     if (preview) {

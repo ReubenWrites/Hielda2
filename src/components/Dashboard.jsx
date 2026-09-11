@@ -144,6 +144,34 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     return `${Math.floor(hrs / 24)}d ago`
   }
 
+  // Payment ledger keyed by invoice id. Statutory interest accrues per
+  // balance period, so every figure that quotes what a client owes needs
+  // this. Until it arrives, chargeableExtras falls back to the flat model,
+  // which under-states rather than over-states — the safe direction.
+  const [ledgers, setLedgers] = useState({})
+  useEffect(() => {
+    if (!profile?.id) return
+    ;(async () => {
+      const { data } = await supabase
+        .from("invoice_payments")
+        .select("invoice_id, amount, paid_on")
+        .eq("user_id", profile.id)
+        .order("paid_on", { ascending: true })
+      const byInvoice = {}
+      for (const p of data || []) {
+        if (!byInvoice[p.invoice_id]) byInvoice[p.invoice_id] = []
+        byInvoice[p.invoice_id].push(p)
+      }
+      // An invoice with no rows needs [] (an empty ledger), not undefined
+      // (no ledger available) — those mean different things downstream.
+      for (const i of invs) if (!byInvoice[i.id]) byInvoice[i.id] = []
+      setLedgers(byInvoice)
+    })()
+  }, [profile?.id, invs])
+
+  /** Statutory extras for an invoice, using its ledger when we have it. */
+  const extrasFor = (i) => chargeableExtras(i, ledgers[i.id])
+
   const { overdue, pending, paid, disputed, totExtra, totExtraWon, totOwed, totPaid, partPaidCount } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
     const pending = invs.filter((i) => i.status === "pending")
@@ -154,9 +182,9 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     // chargeableExtras is zero for no-fines and consumer invoices and
     // computes interest on the outstanding balance — so waived fines and
     // partial payments are reflected honestly here, not just on Detail.
-    const totExtra = round2(overdue.reduce((s, i) => s + chargeableExtras(i), 0))
+    const totExtra = round2(overdue.reduce((s, i) => s + extrasFor(i), 0))
 
-    const totOwed = round2(overdue.reduce((s, i) => s + outstanding(i) + chargeableExtras(i), 0))
+    const totOwed = round2(overdue.reduce((s, i) => s + outstanding(i) + extrasFor(i), 0))
 
     // Late charges actually COLLECTED, not just claimed: any cash received
     // above an invoice's face total is money Hielda's fines and interest
@@ -185,7 +213,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     )
 
     return { overdue, pending, paid, disputed, totExtra, totExtraWon, totOwed, totPaid, partPaidCount }
-  }, [invs])
+  }, [invs, ledgers])
 
   // One client, one debt. Groups open invoices by client email (falling
   // back to name) so a client with several outstanding invoices can be
@@ -203,8 +231,8 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     return Array.from(byClient.values())
       .filter((group) => group.length >= 2)
       .map((group) => {
-        const total = round2(group.reduce((sum, i) => sum + outstanding(i) + chargeableExtras(i), 0))
-        const extras = round2(group.reduce((sum, i) => sum + chargeableExtras(i), 0))
+        const total = round2(group.reduce((sum, i) => sum + outstanding(i) + extrasFor(i), 0))
+        const extras = round2(group.reduce((sum, i) => sum + extrasFor(i), 0))
         const overdueCount = group.filter((i) => i.status === "overdue").length
         const oldestLate = Math.max(0, ...group.map((i) => (i.status === "overdue" ? daysLate(i.due_date) : 0)))
         return {
@@ -218,7 +246,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
         }
       })
       .sort((a, b) => b.total - a.total)
-  }, [invs])
+  }, [invs, ledgers])
 
   const [sendingStatement, setSendingStatement] = useState("")
 
@@ -295,7 +323,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     // What would fully close this invoice: face remaining, plus accrued
     // charges when it's already overdue relative to the payment date.
     const faceRem = Math.max(0, round2(Number(i.amount) - (Number(i.amount_paid) || 0)))
-    return paidOn <= i.due_date ? faceRem : round2(outstanding(i) + chargeableExtras(i))
+    return paidOn <= i.due_date ? faceRem : round2(outstanding(i) + extrasFor(i))
   }
 
   const suggestSplit = (group, total, paidOn) => {
@@ -600,7 +628,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
       for (const id of Array.from(selected)) {
         const i = invs.find((x) => x.id === id)
         if (!i || i.status === "paid") continue
-        const owed = round2(outstanding(i) + chargeableExtras(i))
+        const owed = round2(outstanding(i) + extrasFor(i))
         if (owed > 0) {
           const { error: ledgerErr } = await supabase.from("invoice_payments").insert({
             invoice_id: i.id,
@@ -830,7 +858,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               <span className={`${s.chaseChev}${chasingOpen ? " " + s.chaseChevOpen : ""}`} aria-hidden="true">▼</span>
             </div>
             {chasingOpen && sorted.map((i) => {
-              const ex = chargeableExtras(i)
+              const ex = extrasFor(i)
               const owed = outstanding(i)
               const stg = CHASE_STAGES.find((s) => s.id === i.chase_stage)
               // Only the serious end of the ladder gets colour — a row of
@@ -1245,7 +1273,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                 </Card>
               ) : (
                 filtered.map((i) => {
-                  const ex = chargeableExtras(i)
+                  const ex = extrasFor(i)
                   // Paid rows show what actually arrived, not the face value —
                   // charges collected sit above it, settled-short sits below.
                   const cash = Number(i.amount_paid) || 0
@@ -1358,7 +1386,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
                     </tr>
                   ) : (
                     filtered.map((i) => {
-                      const ex = chargeableExtras(i)
+                      const ex = extrasFor(i)
                       // Paid rows show what actually arrived: collected late
                       // charges appear in Extra, and Total is real cash — so
                       // a settled invoice's row matches the Paid stat card.

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { penalty, calcInterest, fmt, formatDate, addDays, generateRef, daysLate, todayStr, isValidEmail, outstanding, chargeableExtras } from '../utils'
+import { penalty, calcInterest, fmt, formatDate, addDays, generateRef, daysLate, todayStr, isValidEmail, outstanding, chargeableExtras, accruedInterest } from '../utils'
+import { getDailyRate } from '../constants'
 
 describe('penalty', () => {
   it('returns £40 for invoices under £1,000', () => {
@@ -159,5 +160,86 @@ describe('chargeableExtras', () => {
   })
   it('charges nothing once fully paid', () => {
     expect(chargeableExtras({ ...base(), amount_paid: 1639.55 })).toBe(0)
+  })
+  it('accrues period by period when the ledger is supplied', () => {
+    const inv = { ...base(), amount_paid: 1250 }
+    const ledger = [{ amount: 1250, paid_on: todayStr() }]
+    // The payment landed today, so almost the whole 30 days accrued on the
+    // full £1,639.55 — far more than the flat figure on today's balance.
+    expect(chargeableExtras(inv, ledger)).toBeGreaterThan(chargeableExtras(inv))
+  })
+})
+
+describe('accruedInterest', () => {
+  const dr = () => getDailyRate()
+
+  it('is zero before the due date', () => {
+    const inv = { amount: 1000, due_date: '2026-07-23', amount_paid: 0 }
+    expect(accruedInterest(inv, [], '2026-07-23')).toBe(0)
+    expect(accruedInterest(inv, [], '2026-07-01')).toBe(0)
+  })
+
+  it('matches the flat calculation when nothing has been paid', () => {
+    const inv = { amount: 1000, due_date: '2026-07-23', amount_paid: 0 }
+    expect(accruedInterest(inv, [], '2026-08-22')).toBeCloseTo(1000 * dr() * 30, 2)
+  })
+
+  it('falls back to the flat calculation when no ledger is supplied', () => {
+    const inv = { amount: 1000, due_date: '2026-07-23', amount_paid: 400 }
+    expect(accruedInterest(inv, undefined, '2026-08-22')).toBeCloseTo(600 * dr() * 30, 2)
+  })
+
+  // Regression: INV-0005 from the live books. A £1,418.45 invoice sat unpaid
+  // for 40 days, was part-paid twice, then settled. The old flat model
+  // charged £3.16 because it applied the FINAL £200.61 balance to all 49
+  // days. The real figure is £21.42, and the invoice closed £18 short.
+  it('does not let a late part-payment erase interest already accrued', () => {
+    const inv = { amount: 1418.45, due_date: '2026-07-23', amount_paid: 1491.61 }
+    const ledger = [
+      { amount: 217.84, paid_on: '2026-09-01' },
+      { amount: 1000, paid_on: '2026-09-09' },
+      { amount: 273.77, paid_on: '2026-09-10' },
+    ]
+    const expected = 1418.45 * dr() * 40 + 1200.61 * dr() * 8 + 200.61 * dr() * 1
+    const actual = accruedInterest(inv, ledger, '2026-09-10')
+    expect(actual).toBeCloseTo(expected, 2)
+    expect(actual).toBeCloseTo(21.42, 1)
+    // The flat model's answer, for contrast — never produce this again.
+    expect(actual).toBeGreaterThan(200.61 * dr() * 49)
+  })
+
+  it('does not accrue on payments made on or before the due date', () => {
+    const inv = { amount: 1639.55, due_date: '2026-07-25', amount_paid: 1250 }
+    const ledger = [{ amount: 1250, paid_on: '2026-07-24' }]
+    // Only the £389.55 that actually went overdue accrues.
+    expect(accruedInterest(inv, ledger, '2026-09-01')).toBeCloseTo(389.55 * dr() * 38, 2)
+  })
+
+  it('treats a payment on the due date itself as pre-due', () => {
+    const inv = { amount: 1199.97, due_date: '2026-08-12', amount_paid: 695.4 }
+    const ledger = [{ amount: 695.4, paid_on: '2026-08-12' }]
+    expect(accruedInterest(inv, ledger, '2026-09-01')).toBeCloseTo(504.57 * dr() * 20, 2)
+  })
+
+  it('stops the meter at zero when a payment covers principal and charges', () => {
+    const inv = { amount: 1000, due_date: '2026-07-23', amount_paid: 1100 }
+    const ledger = [{ amount: 1100, paid_on: '2026-08-02' }]
+    // 10 days on £1,000, then nothing — the £100 excess is paying charges,
+    // it must not push the balance negative and claw interest back.
+    expect(accruedInterest(inv, ledger, '2026-09-30')).toBeCloseTo(1000 * dr() * 10, 2)
+  })
+
+  it('ignores payments dated after the as-of date', () => {
+    const inv = { amount: 1000, due_date: '2026-07-23', amount_paid: 400 }
+    const ledger = [{ amount: 400, paid_on: '2026-09-20' }]
+    expect(accruedInterest(inv, ledger, '2026-08-22')).toBeCloseTo(1000 * dr() * 30, 2)
+  })
+
+  it('handles unsorted ledger rows', () => {
+    const inv = { amount: 1000, due_date: '2026-07-23', amount_paid: 600 }
+    const sorted = [{ amount: 300, paid_on: '2026-08-02' }, { amount: 300, paid_on: '2026-08-12' }]
+    const shuffled = [sorted[1], sorted[0]]
+    expect(accruedInterest(inv, shuffled, '2026-09-01')).toBeCloseTo(
+      accruedInterest(inv, sorted, '2026-09-01'), 2)
   })
 })

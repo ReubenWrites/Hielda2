@@ -10,6 +10,73 @@ export const penalty = (amount) => {
 /** Calculate simple interest under the Late Payment of Commercial Debts Act 1998 */
 export const calcInterest = (amount, days) => Math.round(amount * getDailyRate() * days * 100) / 100
 
+/** Whole days from a to b (negative if b is before a). Date-only values are
+ *  normalised to UTC midnight so a payment dated 2026-09-01 means the same
+ *  thing regardless of the reader's timezone. */
+const dayDiff = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTime()) / 864e5)
+
+/**
+ * Statutory interest accrued on an invoice, walked period by period.
+ *
+ * Interest is owed on whatever was actually outstanding on each day, so a
+ * payment only stops the meter from the day it lands. The previous version
+ * multiplied the CURRENT balance by the WHOLE overdue period, which
+ * retroactively erased interest that had already accrued on a larger
+ * balance — every late part-payment under-charged the client. On a real
+ * invoice (£1,418 for 40 days, then £1,200 for 8, then £200 for 1) that
+ * was the difference between £3.16 and £21.42.
+ *
+ * @param {object} inv       invoice row — needs amount, due_date, amount_paid
+ * @param {Array}  payments  ledger rows [{ amount, paid_on }] for THIS invoice.
+ *                           Omit it and this falls back to the flat
+ *                           calculation, which under-states rather than
+ *                           over-states: never claim more than we can prove.
+ * @param {Date|string} asOf accrue up to here (settlement date, or now)
+ */
+export const accruedInterest = (inv, payments, asOf) => {
+  const dailyRate = getDailyRate()
+  const due = inv.due_date
+  const end = asOf ?? Date.now()
+  const totalDays = dayDiff(due, end)
+  if (totalDays <= 0) return 0
+
+  const face = Number(inv.amount) || 0
+
+  // No ledger to hand: flat accrual on what's outstanding now.
+  if (!Array.isArray(payments)) {
+    const owed = Math.max(0, face - (Number(inv.amount_paid) || 0))
+    return round2(owed * dailyRate * totalDays)
+  }
+
+  const rows = payments
+    .map((p) => ({ on: p.paid_on, amount: Number(p.amount) || 0 }))
+    .sort((a, b) => new Date(a.on) - new Date(b.on))
+
+  // Anything paid on or before the due date never accrues: it reduces the
+  // balance the meter starts from.
+  let balance = face
+  for (const r of rows) {
+    if (dayDiff(r.on, due) >= 0) balance = Math.max(0, balance - r.amount)
+  }
+
+  let interest = 0
+  let cursor = due
+  for (const r of rows) {
+    if (dayDiff(r.on, due) >= 0) continue      // already credited above
+    if (dayDiff(r.on, end) < 0) break          // sorted, so nothing later counts
+    const days = dayDiff(cursor, r.on)
+    if (days > 0) interest += balance * dailyRate * days
+    // Payments clear principal first; anything above it is paying down
+    // charges, so the meter stops at zero rather than going negative.
+    balance = Math.max(0, balance - r.amount)
+    cursor = r.on
+  }
+  const tailDays = dayDiff(cursor, end)
+  if (tailDays > 0) interest += balance * dailyRate * tailDays
+
+  return round2(interest)
+}
+
 /** Format as GBP currency */
 export const fmt = (amount) =>
   new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(amount)
@@ -60,7 +127,7 @@ export const outstanding = (inv) =>
  * payments stop the meter on what's been paid. The fixed sum tier stays
  * based on the invoiced amount — that's the size of the debt that arose.
  */
-export const chargeableExtras = (inv) => {
+export const chargeableExtras = (inv, payments) => {
   if (inv.status !== "overdue") return 0
   if (inv.no_fines || inv.client_type === "consumer") return 0
   const owed = outstanding(inv)
@@ -70,5 +137,5 @@ export const chargeableExtras = (inv) => {
   // £390 pre-due earns the £40 tier, not £70).
   const debtAtDue = round2(Math.max(0, Number(inv.amount) - (Number(inv.paid_before_due) || 0)))
   const pen = debtAtDue > 0 ? penalty(debtAtDue) : 0
-  return round2(calcInterest(owed, daysLate(inv.due_date)) + pen)
+  return round2(accruedInterest(inv, payments) + pen)
 }

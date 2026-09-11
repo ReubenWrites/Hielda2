@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
+import { accruedInterest, fetchLedgers } from './_money.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -290,8 +291,12 @@ export default async function handler(req, res) {
       const debtAtDue = Math.max(0, face - (Number(invoice.paid_before_due) || 0))
       const pen = dl > 0 && finesEnabled && outstandingNow > 0 && debtAtDue > 0
         ? (debtAtDue < 1000 ? 40 : debtAtDue < 10000 ? 70 : 100) : 0
+      // Accrued per balance period off the ledger — this figure becomes a
+      // real payment row, so a flat approximation would bake an error into
+      // the books.
+      const ledger = (await fetchLedgers(supabase, [invoice_id]))[invoice_id] ?? null
       const interest = dl > 0 && finesEnabled
-        ? Math.round(outstandingNow * (RATE / 365 / 100) * dl * 100) / 100 : 0
+        ? accruedInterest(invoice, ledger, RATE / 365 / 100) : 0
       const owedNow = Math.round((outstandingNow + pen + interest) * 100) / 100
 
       if (owedNow > 0) {
@@ -473,12 +478,20 @@ export default async function handler(req, res) {
         )
       }
 
-      // Build and send the chase email to the client (respect no_fines flag)
+      // Build and send the chase email to the client (respect no_fines flag).
+      // This used to charge interest and the fixed fee on the FULL invoice
+      // amount regardless of what had already been paid, which over-charged
+      // any part-paid client. Same engine as every other surface now.
       const dl = daysLate(invoice.due_date)
       const finesEnabled = !invoice.no_fines
-      const interest = finesEnabled ? Math.round(Number(invoice.amount) * DAILY_RATE * dl * 100) / 100 : 0
-      const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-      const total = Math.round((Number(invoice.amount) + interest + pen) * 100) / 100
+      const outstandingNow = Math.max(0, Math.round(
+        (Number(invoice.amount) - (Number(invoice.amount_paid) || 0)) * 100) / 100)
+      const debtAtDue = Math.max(0, Math.round(
+        (Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)) * 100) / 100)
+      const ledger = (await fetchLedgers(supabase, [invoice.id]))[invoice.id] ?? null
+      const interest = finesEnabled ? accruedInterest(invoice, ledger, DAILY_RATE) : 0
+      const pen = finesEnabled && outstandingNow > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
+      const total = Math.round((outstandingNow + interest + pen) * 100) / 100
 
       const tone = profile.chase_tone || 'firm'
       const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total, tone)

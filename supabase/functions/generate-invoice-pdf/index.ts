@@ -52,6 +52,65 @@ function safeSplit(v: unknown): string[] {
   return typeof v === "string" ? v.split("\n") : []
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function dayDiff(a: string | number | Date, b: string | number | Date): number {
+  return Math.floor((new Date(b).getTime() - new Date(a).getTime()) / 864e5)
+}
+
+/**
+ * Statutory interest accrued period by period. Mirrors accruedInterest()
+ * in src/utils.js, api/_money.js and the statement PDF — every surface
+ * that tells a client what they owe must agree to the penny.
+ *
+ * Interest is owed on whatever was actually outstanding on each day. The
+ * old model multiplied the CURRENT balance by the WHOLE overdue period,
+ * so a late part-payment retroactively erased interest that had already
+ * accrued on a larger balance. No ledger falls back to that flat model,
+ * which under-states rather than over-states.
+ */
+function accruedInterest(
+  invoice: any, payments: any[] | null, dailyRate: number,
+  asOf?: string | number | Date,
+): number {
+  const due = invoice.due_date
+  const end = asOf ?? Date.now()
+  if (dayDiff(due, end) <= 0) return 0
+
+  const face = Number(invoice.amount) || 0
+
+  if (!Array.isArray(payments)) {
+    const owed = Math.max(0, face - (Number(invoice.amount_paid) || 0))
+    return round2(owed * dailyRate * dayDiff(due, end))
+  }
+
+  const rows = payments
+    .map((p) => ({ on: p.paid_on, amount: Number(p.amount) || 0 }))
+    .sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
+
+  let balance = face
+  for (const r of rows) {
+    if (dayDiff(r.on, due) >= 0) balance = Math.max(0, balance - r.amount)
+  }
+
+  let interest = 0
+  let cursor: string | number | Date = due
+  for (const r of rows) {
+    if (dayDiff(r.on, due) >= 0) continue
+    if (dayDiff(r.on, end) < 0) break
+    const days = dayDiff(cursor, r.on)
+    if (days > 0) interest += balance * dailyRate * days
+    balance = Math.max(0, balance - r.amount)
+    cursor = r.on
+  }
+  const tailDays = dayDiff(cursor, end)
+  if (tailDays > 0) interest += balance * dailyRate * tailDays
+
+  return round2(interest)
+}
+
 // Page geometry. A4 portrait is 297mm tall; the footer sits at y=280
 // (and footer subtext at y=285). PAGE_BOTTOM_LIMIT is the floor for
 // content above the footer — anything that would render below it
@@ -133,6 +192,19 @@ serve(async (req) => {
       return jsonError("Profile not found", 404)
     }
 
+    // Payment ledger: interest accrues per balance period, so the invoice
+    // PDF needs the dated payments, not just the amount_paid total. A
+    // failed fetch degrades to the flat model, which under-states.
+    let ledger: any[] | null = null
+    {
+      const { data: payRows, error: payErr } = await supabase
+        .from("invoice_payments")
+        .select("amount, paid_on")
+        .eq("invoice_id", invoice.id)
+        .order("paid_on", { ascending: true })
+      if (!payErr) ledger = payRows || []
+    }
+
     // Calculate overdue amounts
     const dueDate = new Date(invoice.due_date)
     const now = new Date()
@@ -154,7 +226,9 @@ serve(async (req) => {
     const debtAtDue = Math.max(0, netAmount - (Number(invoice.paid_before_due) || 0))
     // Interest requires fines enabled for B2B; consumer invoices keep their
     // contractual interest (they always have no_fines set at creation).
-    const interest = isOverdue && (finesEnabled || isConsumer) ? netOutstanding * DAILY_RATE * daysOverdue : 0
+    // Accrued per balance period off the ledger fetched above.
+    const interest = isOverdue && (finesEnabled || isConsumer)
+      ? accruedInterest(invoice, ledger, DAILY_RATE) : 0
     const pen = isOverdue && !isConsumer && finesEnabled && netOutstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const total = Math.max(0, invoiceTotal - amountPaid) + interest + pen
 

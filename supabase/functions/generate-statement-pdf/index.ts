@@ -47,6 +47,61 @@ function daysBetween(from: string, to: string): number {
   return d > 0 ? d : 0
 }
 
+function dayDiff(a: string | number | Date, b: string | number | Date): number {
+  return Math.floor((new Date(b).getTime() - new Date(a).getTime()) / 864e5)
+}
+
+/**
+ * Statutory interest accrued period by period. Mirrors accruedInterest()
+ * in src/utils.js and api/_money.js — every surface that tells a client
+ * what they owe must agree to the penny.
+ *
+ * Interest is owed on whatever was actually outstanding on each day. The
+ * old model multiplied the CURRENT balance by the WHOLE overdue period,
+ * which let a late part-payment retroactively erase interest that had
+ * already accrued on a larger balance. Passing no ledger falls back to
+ * that flat model, which under-states rather than over-states.
+ */
+function accruedInterest(
+  invoice: any, payments: any[] | null, dailyRate: number,
+  asOf?: string | number | Date,
+): number {
+  const due = invoice.due_date
+  const end = asOf ?? Date.now()
+  if (dayDiff(due, end) <= 0) return 0
+
+  const face = Number(invoice.amount) || 0
+
+  if (!Array.isArray(payments)) {
+    const owed = Math.max(0, face - (Number(invoice.amount_paid) || 0))
+    return round2(owed * dailyRate * dayDiff(due, end))
+  }
+
+  const rows = payments
+    .map((p) => ({ on: p.paid_on, amount: Number(p.amount) || 0 }))
+    .sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
+
+  let balance = face
+  for (const r of rows) {
+    if (dayDiff(r.on, due) >= 0) balance = Math.max(0, balance - r.amount)
+  }
+
+  let interest = 0
+  let cursor: string | number | Date = due
+  for (const r of rows) {
+    if (dayDiff(r.on, due) >= 0) continue
+    if (dayDiff(r.on, end) < 0) break
+    const days = dayDiff(cursor, r.on)
+    if (days > 0) interest += balance * dailyRate * days
+    balance = Math.max(0, balance - r.amount)
+    cursor = r.on
+  }
+  const tailDays = dayDiff(cursor, end)
+  if (tailDays > 0) interest += balance * dailyRate * tailDays
+
+  return round2(interest)
+}
+
 function safe(v: unknown, fallback = "—"): string {
   if (v === null || v === undefined) return fallback
   return String(v)
@@ -105,18 +160,23 @@ serve(async (req) => {
       .sort((a: any, b: any) => (a.due_date < b.due_date ? -1 : 1))
     if (open.length === 0) return jsonError("No open invoices", 400)
 
-    // Dated payment ledger for the open invoices
-    let paymentsByInvoice: Record<string, any[]> = {}
-    if (include_payments) {
+    // The ledger is ALWAYS fetched, whether or not the dated rows are shown:
+    // interest accrues per balance period, so the figures are wrong without
+    // it. include_payments only controls display.
+    const ledgers: Record<string, any[]> = {}
+    {
       const { data: payRows } = await supabase
         .from("invoice_payments").select("invoice_id, amount, paid_on")
         .in("invoice_id", open.map((i: any) => i.id))
         .order("paid_on", { ascending: true })
       for (const p of payRows || []) {
-        if (!paymentsByInvoice[p.invoice_id]) paymentsByInvoice[p.invoice_id] = []
-        paymentsByInvoice[p.invoice_id].push(p)
+        if (!ledgers[p.invoice_id]) ledgers[p.invoice_id] = []
+        ledgers[p.invoice_id].push(p)
       }
+      // [] (empty ledger) and undefined (no ledger) mean different things.
+      for (const i of open) if (!ledgers[i.id]) ledgers[i.id] = []
     }
+    const paymentsByInvoice: Record<string, any[]> = include_payments ? ledgers : {}
 
     // Recently settled invoices for the same client (last 60 days)
     let settled: any[] = []
@@ -150,7 +210,8 @@ serve(async (req) => {
       const amountPaid = Number(invoice.amount_paid) || 0
       const outstanding = Math.max(0, round2(Number(invoice.amount) - amountPaid))
       const debtAtDue = Math.max(0, round2(Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)))
-      const interest = dl > 0 && finesEnabled ? round2(outstanding * DAILY_RATE * dl) : 0
+      const interest = dl > 0 && finesEnabled
+        ? accruedInterest(invoice, ledgers[invoice.id] ?? null, DAILY_RATE) : 0
       const pen = dl > 0 && finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
       return { dl, amountPaid, outstanding, interest, pen, total: round2(outstanding + interest + pen) }
     }
@@ -348,11 +409,10 @@ serve(async (req) => {
         const dlSettle = settledOn ? daysBetween(inv.due_date, settledOn) : 0
         const finesEnabled = !inv.no_fines && inv.client_type !== "consumer"
         const pays = settledPayments[inv.id] || []
-        const paidBefore = pays.filter((p: any) => settledOn && p.paid_on < settledOn)
-          .reduce((s: number, p: any) => s + Number(p.amount), 0)
-        const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
         const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
-        const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+        // Frozen at the settlement date, accrued period by period up to it.
+        const interest = dlSettle > 0 && finesEnabled
+          ? accruedInterest(inv, pays, DAILY_RATE, settledOn) : 0
         const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
         const chargesCollected = Math.max(0, round2(cash - face))
         const writtenOff = Math.max(0, round2(face + interest + pen - cash))
@@ -406,11 +466,9 @@ serve(async (req) => {
       const dlSettle = settledOn ? daysBetween(inv.due_date, settledOn) : 0
       const finesEnabled = !inv.no_fines && inv.client_type !== "consumer"
       const pays = settledPayments[inv.id] || []
-      const paidBefore = pays.filter((p: any) => settledOn && p.paid_on < settledOn)
-        .reduce((s: number, p: any) => s + Number(p.amount), 0)
-      const outstandingAtSettle = Math.max(0, round2(face - paidBefore))
       const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
-      const interest = dlSettle > 0 && finesEnabled ? round2(outstandingAtSettle * DAILY_RATE * dlSettle) : 0
+      const interest = dlSettle > 0 && finesEnabled
+        ? accruedInterest(inv, pays, DAILY_RATE, settledOn) : 0
       const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
       const writtenOff = Math.max(0, round2(face + interest + pen - cash))
       // Ignore sub-5p write-offs: rounding artifacts, not favours.

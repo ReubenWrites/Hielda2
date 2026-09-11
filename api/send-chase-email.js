@@ -5,6 +5,7 @@ import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 
 import { createClient } from '@supabase/supabase-js'
 import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
+import { accruedInterest, fetchLedgers } from './_money.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -317,7 +318,11 @@ export default async function handler(req, res) {
     // Fixed fee tiers on the debt that went overdue — pre-due payments
     // (paid_before_due) reduce it.
     const debtAtDue = Math.max(0, Math.round((Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)) * 100) / 100)
-    const interest = finesEnabled ? Math.round(outstanding * DAILY_RATE * dl * 100) / 100 : 0
+    // Interest accrues per balance period, so the ledger is required to get
+    // it right. If the fetch fails we fall back to the flat model, which
+    // under-states: never chase for more than we can evidence.
+    const ledger = (await fetchLedgers(supabase, [invoice.id]))[invoice.id] ?? null
+    const interest = finesEnabled ? accruedInterest(invoice, ledger, DAILY_RATE) : 0
     const pen = finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const total = Math.round((outstanding + interest + pen) * 100) / 100
 
