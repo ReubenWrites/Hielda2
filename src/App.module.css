@@ -431,6 +431,15 @@
   position: relative;
 }
 
+/* Printing a Letter Before Action should produce the letter, not a
+   screenshot of the app. Drop the chrome and let the page breathe. */
+@media print {
+  .sidebar, .header, .overlay, .dotPattern { display: none !important; }
+  .layout { display: block; }
+  .content { padding: 0; overflow: visible; }
+  .mainCol { max-height: none; }
+}
+
 /* ── Data error banner ── */
 .errorBanner {
   padding: 12px 16px;

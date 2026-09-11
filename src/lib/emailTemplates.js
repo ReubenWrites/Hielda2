@@ -1,4 +1,4 @@
-import { getRate, CHASE_STAGES } from "../constants"
+import { getRate, CHASE_STAGES, stageForDay, stageById } from "../constants"
 import { fmt, formatDate, daysLate, calcInterest, penalty, round2 } from "../utils"
 import { friendlySubject, friendlyBody, legalSubject, legalBody } from "./toneModifiers"
 
@@ -15,7 +15,9 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
   const total = round2(Number(invoice.amount) + interest + pen)
 
-  const stageConfig = CHASE_STAGES.find((s) => s.id === stage)
+  // stageById covers the generated formal_N stages, which have no entry
+  // in CHASE_STAGES — wrapInLayout needs a colour and label either way.
+  const stageConfig = stageById(stage) || CHASE_STAGES[0]
   const fromName = profile.business_name || profile.full_name || "Hielda User"
   const lineBlock = lineItemsBlock(invoice)
   const payBlock = paymentDetailsBlock(invoice, profile)
@@ -373,6 +375,23 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     body = bodies[stage]
   }
 
+  // Formal reminders past day 30 are generated monthly, so they have no
+  // hand-written entry. One sober template covers them all: the point of
+  // this phase is that the tone stops changing and the debt simply keeps
+  // being on the record.
+  if ((!subject || !body) && /^formal_\d+$/.test(stage)) {
+    subject = `Outstanding debt: Invoice ${invoice.ref}${poRef} — ${fmt(total)} (${dl} days overdue)`
+    body = `
+      <p>Dear ${invoice.client_name},</p>
+      <p>Invoice <strong>${invoice.ref}</strong> remains unpaid and is now <strong>${dl} days</strong> past its due date of ${formatDate(invoice.due_date)}.</p>
+      ${totalBlock}
+      <p>Statutory interest continues to accrue daily under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>, and the debt remains recoverable for six years from the date it fell due.</p>
+      ${payBlock}
+      <p>If you believe this invoice has been settled, or you wish to discuss payment, please reply to this email.</p>
+      <p>Regards,<br/>${fromName}</p>
+    `
+  }
+
   if (!subject || !body) return null
 
   return {
@@ -456,11 +475,9 @@ function wrapInLayout(bodyHtml, stageConfig) {
  * Returns the highest stage whose dfd (days from due) is <= daysOverdue.
  */
 export function getChaseStageForDays(daysOverdue) {
-  // Walk stages in reverse to find the first stage whose trigger day has been reached
-  for (let i = CHASE_STAGES.length - 1; i >= 0; i--) {
-    if (CHASE_STAGES[i].dfd <= daysOverdue) return CHASE_STAGES[i].id
-  }
-  // If before the earliest stage trigger, return the earliest stage
-  if (daysOverdue <= CHASE_STAGES[0].dfd) return CHASE_STAGES[0].id
-  return null
+  // Delegates to the shared ladder so the generated formal stages past day
+  // 30 (formal_1 at day 60, formal_2 at day 90, ...) are covered too. The
+  // old reverse-walk ran off the end of the array and returned the last
+  // enumerated stage forever.
+  return stageForDay(daysOverdue).id
 }

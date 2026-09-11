@@ -1,0 +1,139 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--tm);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 14px;
+}
+.back:hover { color: var(--ac); }
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--tx);
+  margin: 0;
+}
+
+.sub {
+  color: var(--tm);
+  margin: 6px 0 22px;
+  font-size: 14px;
+  max-width: 70ch;
+}
+
+.explainer { margin-bottom: 14px; }
+
+.explainerGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 768px) {
+  .explainerGrid { grid-template-columns: 1fr; gap: 16px; }
+}
+
+.explainerHead {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ac);
+  margin-bottom: 6px;
+}
+
+.explainerBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--tm);
+}
+
+.optCard { margin-bottom: 14px; }
+
+.optRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--tx);
+}
+.optRow input { margin-top: 3px; flex-shrink: 0; }
+
+.optHint {
+  display: block;
+  color: var(--tm);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin-top: 4px;
+  max-width: 75ch;
+}
+
+.warn {
+  background: var(--amd);
+  color: var(--am);
+  border-radius: 8px;
+  padding: 11px 15px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.warnLink { color: inherit; font-weight: 600; }
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+@media (max-width: 768px) {
+  .actions > * { flex: 1 1 100%; justify-content: center; }
+}
+
+/* The letter itself: monospace so the aligned money columns hold, and
+   wrapped so nothing runs off a narrow screen. */
+.letter {
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 28px 30px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--tx);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .letter { padding: 18px 16px; font-size: 11.5px; }
+}
+
+.disclaimer {
+  font-size: 12px;
+  color: var(--td);
+  margin: 14px 0 0;
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+/* Printing gives the letter the whole page and drops the app chrome. */
+@media print {
+  .back, .sub, .explainer, .optCard, .warn, .actions, .disclaimer, .title {
+    display: none !important;
+  }
+  .letter {
+    border: none;
+    background: #fff;
+    padding: 0;
+    font-size: 11pt;
+    color: #000;
+  }
+}

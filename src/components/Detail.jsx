@@ -2,10 +2,10 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Check, Pencil, Wallet, Flag, RotateCcw, MoreHorizontal,
-  Calendar, Mail, Forward, Send, Eye, Download, Copy, Trash2,
+  Calendar, Mail, Forward, Send, Eye, Download, Copy, Trash2, Scale,
 } from "lucide-react"
 import { supabase } from "../supabase"
-import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate } from "../constants"
+import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, FORMAL_FROM_DAYS, lbaResponseDays } from "../constants"
 import { daysLate, calcInterest, accruedInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
 import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
@@ -1081,6 +1081,18 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         {inv.status !== "paid" && (
           <Btn v="successAction" onClick={markPaid} dis={marking} sz={isMobile ? "sm" : undefined}>
             {marking ? "..." : <><Check size={14} strokeWidth={2.5} /> Paid</>}
+          </Btn>
+        )}
+        {/* Past 30 days this is the next real step, so it gets a real
+            button rather than a line in the More menu. */}
+        {inv.status !== "paid" && dl >= FORMAL_FROM_DAYS && !inv.lba_sent_at && (
+          <Btn
+            v="ghost"
+            onClick={() => navigate(`/invoice/${inv.id}/letter-before-action`)}
+            sz={isMobile ? "sm" : undefined}
+            style={{ color: "#18181b", borderColor: "#18181b40", fontWeight: 600 }}
+          >
+            <Scale size={13} /> {isMobile ? "Letter" : "Letter Before Action"}
           </Btn>
         )}
         {!isMobile && inv.status !== "paid" && (

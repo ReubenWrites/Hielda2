@@ -26,6 +26,7 @@ const Referrals = lazy(() => import("./components/Referrals"))
 const NotificationDropdown = lazy(() => import("./components/NotificationDropdown"))
 const OnboardingTour = lazy(() => import("./components/OnboardingTour"))
 const LetterTemplate = lazy(() => import("./components/LetterTemplate"))
+const LbaDraft = lazy(() => import("./components/LetterBeforeAction"))
 const GuidesIndex = lazy(() => import("./components/guides/GuidesIndex"))
 const LatePaymentActExplained = lazy(() => import("./components/guides/LatePaymentActExplained"))
 const HowToChaseLateInvoices = lazy(() => import("./components/guides/HowToChaseLateInvoices"))
@@ -92,6 +93,26 @@ function DetailRoute({ invs, profile, onUpdate, isMobile }) {
       onEditChaseDone={() => setSearchParams({}, { replace: true })}
     />
   )
+}
+
+/** Handles /invoice/:id/letter-before-action */
+function LbaRoute({ invs, profile, onUpdate }) {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const inv = invs.find((i) => i.id === id)
+
+  if (!inv) {
+    return (
+      <div className={s.notFound}>
+        <p className={s.notFoundText}>Invoice not found.</p>
+        <button onClick={() => navigate("/dashboard")} className={s.notFoundBtn}>
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  return <LbaDraft inv={inv} profile={profile} onUpdate={onUpdate} />
 }
 
 /** Handles /ref/:code — stores referral code and redirects to home */
@@ -509,6 +530,7 @@ export default function App() {
               <Routes>
                 <Route path="/dashboard" element={<Dashboard invs={invs} onUpdate={loadData} isMobile={isMobile} profile={profile} />} />
                 <Route path="/invoice/:id" element={<DetailRoute invs={invs} profile={profile} onUpdate={loadData} isMobile={isMobile} />} />
+                <Route path="/invoice/:id/letter-before-action" element={<LbaRoute invs={invs} profile={profile} onUpdate={loadData} />} />
                 <Route path="/create" element={<Create profile={profile} userId={user?.id} onCreated={loadData} isMobile={isMobile} invs={invs} />} />
                 <Route path="/settings" element={<Settings profile={profile} onUpdate={loadData} isMobile={isMobile} />} />
                 <Route path="/how" element={<HowItWorks isMobile={isMobile} />} />

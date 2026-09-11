@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
-import { colors as c, CHASE_STAGES, getRate } from "../constants"
+import { colors as c, CHASE_STAGES, getRate, FORMAL_FROM_DAYS, lbaResponseDays } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras, todayStr } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm, useToast } from "./ui"
 import { supabase } from "../supabase"
@@ -171,6 +171,29 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
 
   /** Statutory extras for an invoice, using its ledger when we have it. */
   const extrasFor = (i) => chargeableExtras(i, ledgers[i.id])
+
+  // Letter Before Action prompt. The day-30 email is the primary nudge, but
+  // email is email — this catches anyone who missed it. Shown once per
+  // invoice, then it lives on the invoice page instead of nagging.
+  const [lbaPrompt, setLbaPrompt] = useState(null)
+  useEffect(() => {
+    const due = invs.find((i) =>
+      i.status === "overdue" && !i.lba_sent_at && !i.parked_at &&
+      daysLate(i.due_date) >= FORMAL_FROM_DAYS)
+    if (!due) return
+    try {
+      if (localStorage.getItem(`hielda_lba_seen_${due.id}`)) return
+    } catch { /* private mode — show it, better than never */ }
+    setLbaPrompt(due)
+    trackEvent("lba_prompt_shown", { invoice_id: due.id, days_late: daysLate(due.due_date) })
+  }, [invs])
+
+  const dismissLbaPrompt = () => {
+    if (lbaPrompt) {
+      try { localStorage.setItem(`hielda_lba_seen_${lbaPrompt.id}`, "1") } catch {}
+    }
+    setLbaPrompt(null)
+  }
 
   const { overdue, pending, paid, disputed, totExtra, totExtraWon, totOwed, totPaid, partPaidCount } = useMemo(() => {
     const overdue = invs.filter((i) => i.status === "overdue")
@@ -690,6 +713,53 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           Your payment overview for {formatDate(new Date())}
         </p>
       </div>
+
+      {lbaPrompt && (() => {
+        const dl = daysLate(lbaPrompt.due_date)
+        const owed = round2(outstanding(lbaPrompt) + extrasFor(lbaPrompt))
+        const days = lbaResponseDays(lbaPrompt)
+        return (
+          <div className={s.lbaOverlay} onClick={dismissLbaPrompt}>
+            <div className={s.lbaBox} onClick={(e) => e.stopPropagation()}>
+              <div className={s.lbaHead}>{dl} days overdue</div>
+              <div className={s.lbaBody}>
+                <p>
+                  <strong>{lbaPrompt.ref}</strong> is now more than 30 days overdue and{" "}
+                  {lbaPrompt.client_name || "your client"} still hasn't paid. You're entitled to
+                  begin taking legal action to recover it.
+                </p>
+                <div className={s.lbaInv}>
+                  <div className={s.lbaInvRow}><span>Client</span><strong>{lbaPrompt.client_name || "—"}</strong></div>
+                  <div className={s.lbaInvRow}><span>Overdue by</span><strong>{dl} days</strong></div>
+                  <div className={s.lbaInvRow}><span>Now owed</span><strong>{fmt(owed)}</strong></div>
+                </div>
+                <p>
+                  The first step is a <strong>Letter Before Action</strong> — a formal notice
+                  setting out what's owed and giving them {days} more days to pay.
+                </p>
+                <p className={s.lbaNote}>
+                  Sending it doesn't commit you to anything, and you can stop at any point. But if
+                  you ever do want to make a claim, the court expects you to have sent one first.
+                  We'll draft it from this invoice, and the option stays on the invoice page for
+                  whenever you're ready.
+                </p>
+              </div>
+              <div className={s.lbaActions}>
+                <Btn
+                  onClick={() => {
+                    const id = lbaPrompt.id
+                    dismissLbaPrompt()
+                    navigate(`/invoice/${id}/letter-before-action`)
+                  }}
+                >
+                  Draft my letter
+                </Btn>
+                <Btn v="ghost" onClick={dismissLbaPrompt}>Not now</Btn>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {celebration && (
         <div className={s.banner} data-celebrate="true">

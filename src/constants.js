@@ -56,46 +56,129 @@ export const TERMS = [
   { l: "Custom", d: -1 },
 ]
 
+// ── Chase ladder ──
+//
+// Escalation is by WEIGHT, not frequency. The old ladder fired 19 emails
+// between day 1 and day 45, tightening to daily — which reads as an
+// automated system to be filtered, not as mounting pressure — and then
+// stopped dead, leaving the debt to sit in silence forever. Now the
+// spacing widens as the debt ages, the informal phase ends at day 30,
+// and everything past that is formal and monthly, indefinitely.
 export const CHASE_STAGES = [
   // Pre-due reminders
-  { id: "reminder_1", label: "Friendly Reminder", dfd: -5, col: "#1e5fa0" },
-  { id: "reminder_2", label: "Second Reminder", dfd: -1, col: "#2d72b8" },
-  { id: "final_warning", label: "Final Warning", dfd: 0, col: "#b45309" },
-  // Overdue: fines & interest applied
-  { id: "first_chase", label: "First Chase", dfd: 1, col: "#d97706" },
-  { id: "second_chase", label: "Second Chase", dfd: 6, col: "#c2410c" },
-  { id: "third_chase", label: "Third Chase", dfd: 9, col: "#b91c1c" },
-  // Every 2 days
-  { id: "chase_4", label: "Chase 4", dfd: 11, col: "#9f1239" },
-  { id: "chase_5", label: "Chase 5", dfd: 13, col: "#9f1239" },
-  { id: "chase_6", label: "Chase 6", dfd: 15, col: "#9f1239" },
-  { id: "chase_7", label: "Chase 7", dfd: 17, col: "#9f1239" },
-  { id: "chase_8", label: "Chase 8", dfd: 19, col: "#9f1239" },
-  { id: "chase_9", label: "Chase 9", dfd: 21, col: "#9f1239" },
-  { id: "chase_10", label: "Chase 10", dfd: 23, col: "#9f1239" },
-  { id: "chase_11", label: "Chase 11", dfd: 25, col: "#9f1239" },
-  // Daily escalation warnings
-  { id: "escalation_1", label: "Escalation Warning 1", dfd: 26, col: "#7f1d1d" },
-  { id: "escalation_2", label: "Escalation Warning 2", dfd: 27, col: "#7f1d1d" },
-  { id: "escalation_3", label: "Escalation Warning 3", dfd: 28, col: "#7f1d1d" },
-  { id: "escalation_4", label: "Escalation Warning 4", dfd: 29, col: "#7f1d1d" },
-  { id: "final_notice", label: "Final Notice", dfd: 30, col: "#7f1d1d" },
-  // Final recovery period — every 2 days
-  { id: "recovery_1", label: "Recovery Notice 1", dfd: 31, col: "#450a0a" },
-  { id: "recovery_2", label: "Recovery Notice 2", dfd: 33, col: "#450a0a" },
-  { id: "recovery_3", label: "Recovery Notice 3", dfd: 35, col: "#450a0a" },
-  { id: "recovery_4", label: "Recovery Notice 4", dfd: 37, col: "#450a0a" },
-  // Imminent escalation — daily
-  { id: "recovery_5", label: "Imminent Escalation 1", dfd: 38, col: "#27272a" },
-  { id: "recovery_6", label: "Imminent Escalation 2", dfd: 39, col: "#27272a" },
-  { id: "recovery_7", label: "Imminent Escalation 3", dfd: 40, col: "#27272a" },
-  { id: "recovery_8", label: "Imminent Escalation 4", dfd: 41, col: "#27272a" },
-  { id: "recovery_9", label: "Imminent Escalation 5", dfd: 42, col: "#27272a" },
-  { id: "recovery_10", label: "Imminent Escalation 6", dfd: 43, col: "#27272a" },
-  { id: "recovery_11", label: "Imminent Escalation 7", dfd: 44, col: "#27272a" },
-  // Final recovery notice
-  { id: "recovery_final", label: "Final Recovery Notice", dfd: 45, col: "#18181b" },
+  { id: "reminder_1", label: "Friendly Reminder", dfd: -5, phase: "pre_due", col: "#1e5fa0" },
+  { id: "reminder_2", label: "Second Reminder", dfd: -1, phase: "pre_due", col: "#2d72b8" },
+  { id: "final_warning", label: "Final Warning", dfd: 0, phase: "pre_due", col: "#b45309" },
+  // Chasing — statutory charges apply from day 1, spacing widens
+  { id: "first_chase", label: "First Chase", dfd: 1, phase: "chasing", col: "#d97706" },
+  { id: "second_chase", label: "Second Chase", dfd: 7, phase: "chasing", col: "#c2410c" },
+  { id: "third_chase", label: "Third Chase", dfd: 14, phase: "chasing", col: "#b91c1c" },
+  { id: "chase_4", label: "Fourth Chase", dfd: 21, phase: "chasing", col: "#9f1239" },
+  // The last informal email. Day 30 also triggers the Letter Before Action
+  // prompt to the user — the point where this stops being a chase and
+  // starts being a legal process.
+  { id: "final_notice", label: "Final Notice", dfd: 30, phase: "chasing", col: "#7f1d1d" },
 ]
+
+/** Day the informal ladder ends and the formal phase begins. */
+export const FORMAL_FROM_DAYS = 30
+
+/** Formal reminders repeat on this cadence, forever, until paid or parked. */
+export const FORMAL_INTERVAL_DAYS = 30
+
+/**
+ * Stage id for a given day past due, including beyond the enumerated
+ * ladder. Past day 30 the stages are generated — formal_1 at day 60,
+ * formal_2 at day 90 and so on — so a debt is never left without a next
+ * step, and each id stays unique for the chase_log's one-send-per-stage
+ * index.
+ */
+export function stageForDay(daysPastDue) {
+  if (daysPastDue > FORMAL_FROM_DAYS) {
+    const cycle = Math.floor((daysPastDue - FORMAL_FROM_DAYS) / FORMAL_INTERVAL_DAYS)
+    if (cycle >= 1) {
+      return {
+        id: `formal_${cycle}`,
+        label: `Formal Reminder ${cycle}`,
+        dfd: FORMAL_FROM_DAYS + cycle * FORMAL_INTERVAL_DAYS,
+        phase: "formal",
+        col: "#18181b",
+      }
+    }
+  }
+  let match = CHASE_STAGES[0]
+  for (const s of CHASE_STAGES) if (s.dfd <= daysPastDue) match = s
+  return match
+}
+
+/** Look up any stage id, enumerated or generated. */
+export function stageById(id) {
+  const known = CHASE_STAGES.find((s) => s.id === id)
+  if (known) return known
+  const m = /^formal_(\d+)$/.exec(id || "")
+  if (m) {
+    const cycle = Number(m[1])
+    return {
+      id, label: `Formal Reminder ${cycle}`,
+      dfd: FORMAL_FROM_DAYS + cycle * FORMAL_INTERVAL_DAYS,
+      phase: "formal", col: "#18181b",
+    }
+  }
+  return null
+}
+
+/**
+ * Response window for a Letter Before Action.
+ *
+ * Company-to-company sits outside any pre-action protocol and 14 days is
+ * the usual reasonable period — the common case here, since the Act is
+ * B2B. But the Pre-Action Protocol for Debt Claims governs a business
+ * claiming against an INDIVIDUAL, and that includes sole traders: there
+ * the window is 30 days, and giving less can make a claim procedurally
+ * defective. So 14 by default, 30 whenever we know the debtor is a sole
+ * trader, and the letter says so where it matters.
+ */
+export function lbaResponseDays(invoice) {
+  return invoice?.client_entity === "sole_trader" ? 30 : 14
+}
+
+/**
+ * Where an invoice sits in its life, which is what the user needs to act
+ * on. Derived rather than stored, so it can never drift out of sync.
+ *
+ *  pre_due  — not yet due
+ *  chasing  — 1 to 30 days late, informal emails, charges accruing
+ *  formal   — 30+ days: a Letter Before Action is available or has been
+ *             sent and its clock is still running
+ *  decision — the LBA window has expired; the user must choose whether to
+ *             claim, instruct someone, or let it lie
+ *  parked   — user stopped the chasing; still owed, still accruing
+ *  settled  — paid or written off
+ */
+export function invoicePhase(invoice, daysPastDue) {
+  if (!invoice) return "pre_due"
+  if (invoice.status === "paid") return "settled"
+  if (invoice.parked_at) return "parked"
+  const dl = typeof daysPastDue === "number"
+    ? daysPastDue
+    : Math.floor((Date.now() - new Date(invoice.due_date).getTime()) / 864e5)
+  if (dl <= 0) return "pre_due"
+  if (invoice.lba_sent_at) {
+    const deadline = invoice.lba_deadline
+    if (deadline && Date.now() > new Date(deadline).getTime() + 864e5) return "decision"
+    return "formal"
+  }
+  return dl >= FORMAL_FROM_DAYS ? "formal" : "chasing"
+}
+
+export const PHASE_LABELS = {
+  pre_due: "Not yet due",
+  chasing: "Being chased",
+  formal: "Formal recovery",
+  decision: "Decision needed",
+  parked: "Parked",
+  settled: "Settled",
+}
 
 export const FONT = `'DM Sans',system-ui,-apple-system,sans-serif`
 export const MONO = `'JetBrains Mono','Fira Code',monospace`

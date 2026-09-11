@@ -14,6 +14,8 @@
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { friendlySubject, friendlyBody, legalSubject, legalBody } from './_toneModifiers.js'
+import { buildLbaPromptEmail } from './_lbaEmails.js'
+import { accruedInterest, fetchLedgers } from './_money.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -21,39 +23,43 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const CRON_SECRET = process.env.CRON_SECRET
 
 // Chase stage timing — days from due date (negative = before due)
+// Chase ladder — mirrors src/constants.js. Escalation is by WEIGHT, not
+// frequency: the spacing widens as the debt ages, the informal phase ends
+// at day 30, and everything past that is formal and monthly, generated
+// rather than enumerated so a debt is never left without a next step.
 const CHASE_STAGES = [
-  { id: 'reminder_1',   dfd: -5 },
-  { id: 'reminder_2',   dfd: -1 },
-  { id: 'final_warning',dfd:  0 },
-  { id: 'first_chase',  dfd:  1 },
-  { id: 'second_chase', dfd:  6 },
-  { id: 'third_chase',  dfd:  9 },
-  { id: 'chase_4',      dfd: 11 },
-  { id: 'chase_5',      dfd: 13 },
-  { id: 'chase_6',      dfd: 15 },
-  { id: 'chase_7',      dfd: 17 },
-  { id: 'chase_8',      dfd: 19 },
-  { id: 'chase_9',      dfd: 21 },
-  { id: 'chase_10',     dfd: 23 },
-  { id: 'chase_11',     dfd: 25 },
-  { id: 'escalation_1', dfd: 26 },
-  { id: 'escalation_2', dfd: 27 },
-  { id: 'escalation_3', dfd: 28 },
-  { id: 'escalation_4', dfd: 29 },
-  { id: 'final_notice', dfd: 30 },
-  { id: 'recovery_1',  dfd: 31 },
-  { id: 'recovery_2',  dfd: 33 },
-  { id: 'recovery_3',  dfd: 35 },
-  { id: 'recovery_4',  dfd: 37 },
-  { id: 'recovery_5',  dfd: 38 },
-  { id: 'recovery_6',  dfd: 39 },
-  { id: 'recovery_7',  dfd: 40 },
-  { id: 'recovery_8',  dfd: 41 },
-  { id: 'recovery_9',  dfd: 42 },
-  { id: 'recovery_10', dfd: 43 },
-  { id: 'recovery_11', dfd: 44 },
-  { id: 'recovery_final', dfd: 45 },
+  { id: 'reminder_1',   dfd: -5, phase: 'pre_due' },
+  { id: 'reminder_2',   dfd: -1, phase: 'pre_due' },
+  { id: 'final_warning',dfd:  0, phase: 'pre_due' },
+  { id: 'first_chase',  dfd:  1, phase: 'chasing' },
+  { id: 'second_chase', dfd:  7, phase: 'chasing' },
+  { id: 'third_chase',  dfd: 14, phase: 'chasing' },
+  { id: 'chase_4',      dfd: 21, phase: 'chasing' },
+  { id: 'final_notice', dfd: 30, phase: 'chasing' },
 ]
+
+const FORMAL_FROM_DAYS = 30
+const FORMAL_INTERVAL_DAYS = 30
+
+// The stage that should be current for a given lateness. Past day 30 these
+// are generated (formal_1 at day 60, formal_2 at day 90, ...) so the ladder
+// never runs out; each id stays unique for chase_log's one-send-per-stage
+// index.
+function stageForDay(dfd) {
+  if (dfd > FORMAL_FROM_DAYS) {
+    const cycle = Math.floor((dfd - FORMAL_FROM_DAYS) / FORMAL_INTERVAL_DAYS)
+    if (cycle >= 1) {
+      return {
+        id: `formal_${cycle}`,
+        dfd: FORMAL_FROM_DAYS + cycle * FORMAL_INTERVAL_DAYS,
+        phase: 'formal',
+      }
+    }
+  }
+  let match = CHASE_STAGES[0]
+  for (const st of CHASE_STAGES) if (st.dfd <= dfd) match = st
+  return match
+}
 
 const STAGE_ORDER = CHASE_STAGES.map(s => s.id)
 
@@ -61,30 +67,23 @@ const STAGE_LABELS = {
   reminder_1: 'Friendly Reminder', reminder_2: 'Second Reminder',
   final_warning: 'Final Warning', first_chase: 'First Chase',
   second_chase: 'Second Chase', third_chase: 'Third Chase',
-  chase_4: 'Chase 4', chase_5: 'Chase 5', chase_6: 'Chase 6',
-  chase_7: 'Chase 7', chase_8: 'Chase 8', chase_9: 'Chase 9',
-  chase_10: 'Chase 10', chase_11: 'Chase 11',
-  escalation_1: 'Escalation Notice 1', escalation_2: 'Escalation Notice 2',
-  escalation_3: 'Escalation Notice 3', escalation_4: 'Escalation Notice 4',
-  final_notice: 'Final Notice',
-  recovery_1: 'Recovery Notice 1', recovery_2: 'Recovery Notice 2',
-  recovery_3: 'Recovery Notice 3', recovery_4: 'Recovery Notice 4',
-  recovery_5: 'Imminent Escalation 1', recovery_6: 'Imminent Escalation 2',
-  recovery_7: 'Imminent Escalation 3', recovery_8: 'Imminent Escalation 4',
-  recovery_9: 'Imminent Escalation 5', recovery_10: 'Imminent Escalation 6',
-  recovery_11: 'Imminent Escalation 7', recovery_final: 'Final Recovery Notice',
+  chase_4: 'Fourth Chase', final_notice: 'Final Notice',
 }
 
 const STAGE_COLORS = {
   reminder_1: '#1e5fa0', reminder_2: '#2d72b8', final_warning: '#b45309',
   first_chase: '#d97706', second_chase: '#c2410c', third_chase: '#b91c1c',
-  chase_4: '#9f1239', chase_5: '#9f1239', chase_6: '#9f1239', chase_7: '#9f1239',
-  chase_8: '#9f1239', chase_9: '#9f1239', chase_10: '#9f1239', chase_11: '#9f1239',
-  escalation_1: '#7f1d1d', escalation_2: '#7f1d1d', escalation_3: '#7f1d1d',
-  escalation_4: '#7f1d1d', final_notice: '#7f1d1d',
-  recovery_1: '#450a0a', recovery_2: '#450a0a', recovery_3: '#450a0a', recovery_4: '#450a0a',
-  recovery_5: '#27272a', recovery_6: '#27272a', recovery_7: '#27272a', recovery_8: '#27272a',
-  recovery_9: '#27272a', recovery_10: '#27272a', recovery_11: '#27272a', recovery_final: '#18181b',
+  chase_4: '#9f1239', final_notice: '#7f1d1d',
+}
+
+// Generated formal stages have no entry in the maps above.
+function stageLabel(id) {
+  if (STAGE_LABELS[id]) return STAGE_LABELS[id]
+  const m = /^formal_(\d+)$/.exec(id || '')
+  return m ? `Formal Reminder ${m[1]}` : (id || 'Chase')
+}
+function stageColor(id) {
+  return STAGE_COLORS[id] || '#18181b'
 }
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -121,7 +120,13 @@ function formatDate(d) {
 
 function getNextStageId(stageId) {
   const idx = STAGE_ORDER.indexOf(stageId)
-  if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null
+  // Past the enumerated ladder the next stage is the next monthly formal
+  // reminder, so there is always one.
+  if (idx < 0) {
+    const m = /^formal_(\d+)$/.exec(stageId || '')
+    return m ? `formal_${Number(m[1]) + 1}` : null
+  }
+  if (idx >= STAGE_ORDER.length - 1) return 'formal_1'
   return STAGE_ORDER[idx + 1]
 }
 
@@ -148,8 +153,8 @@ async function sendViaResend({ from, to, cc, bcc, subject, html }) {
 // ── Check-in email (to the freelancer) ───────────────────────────────────────
 
 function buildCheckInEmail(invoice, profile, stage) {
-  const color = STAGE_COLORS[stage] || '#1e5fa0'
-  const stageLabel = STAGE_LABELS[stage] || stage
+  const color = stageColor(stage)
+  const stageName = stageLabel(stage)
   const fromName = profile.business_name || profile.full_name || 'Hielda User'
   const token = signToken({ invoice_id: invoice.id, chase_stage: stage, user_id: invoice.user_id })
   const base = 'https://www.hielda.com/api/check-in-response'
@@ -167,7 +172,7 @@ function buildCheckInEmail(invoice, profile, stage) {
       </div>
       <div style="padding:28px 24px;font-size:14px;line-height:1.7;color:#0f172a;">
         <p>Hi ${fromName},</p>
-        <p>Before we send a <strong>${stageLabel}</strong> to <strong>${invoice.client_name}</strong>, we wanted to check in with you first.</p>
+        <p>Before we send a <strong>${stageName}</strong> to <strong>${invoice.client_name}</strong>, we wanted to check in with you first.</p>
         <div style="background:#f1f3f6;padding:16px 18px;border-radius:8px;margin:20px 0;font-size:13px;">
           <div style="font-weight:600;color:#0f172a;margin-bottom:8px;">Invoice Details</div>
           <table style="width:100%;border-collapse:collapse;">
@@ -175,7 +180,7 @@ function buildCheckInEmail(invoice, profile, stage) {
             <tr><td style="padding:3px 0;color:#64748b;">Client</td><td style="padding:3px 0;font-weight:500;text-align:right;">${invoice.client_name}</td></tr>
             <tr><td style="padding:3px 0;color:#64748b;">Amount</td><td style="padding:3px 0;font-weight:500;text-align:right;">${fmt(invoice.amount)}</td></tr>
             <tr><td style="padding:3px 0;color:#64748b;">Due Date</td><td style="padding:3px 0;font-weight:500;text-align:right;">${formatDate(invoice.due_date)}</td></tr>
-            <tr><td style="padding:3px 0;color:#64748b;">Pending Stage</td><td style="padding:3px 0;font-weight:600;color:${color};text-align:right;">${stageLabel}</td></tr>
+            <tr><td style="padding:3px 0;color:#64748b;">Pending Stage</td><td style="padding:3px 0;font-weight:600;color:${color};text-align:right;">${stageName}</td></tr>
           </table>
         </div>
         <p style="font-weight:600;margin-bottom:20px;">Has ${invoice.client_name} paid this invoice?</p>
@@ -316,55 +321,67 @@ export default async function handler(req, res) {
       // check-in re-send cadence.
       const invoiceLogs = logsByInvoice[invoice.id] || []
 
-      // Determine the next stage to send
-      let nextStageId = invoice.chase_stage || 'reminder_1'
       const dfd = daysSinceDue(invoice.due_date)
 
-      let currentIdx = CHASE_STAGES.findIndex(s => s.id === nextStageId)
-      if (currentIdx < 0) { results.skipped++; continue }
+      // Parked: the user chose to stop chasing without writing the debt
+      // off. Still owed, still accruing, just quiet.
+      if (invoice.parked_at) { results.skipped++; continue }
 
-      // Reconcile chase_stage with chase_log. The log is the source of truth
-      // for what's actually been sent. If something sent a chase without
-      // updating invoice.chase_stage (e.g. a manual dashboard send path that
-      // skipped the advance, or a prior buggy run), we'd otherwise re-send
-      // stages that have already gone out. Find the latest sent stage; if it
-      // is at or past our current stage, advance to the stage after it.
-      let maxSentIdx = -1
-      for (const l of invoiceLogs) {
-        if (l.status !== 'sent') continue
-        const idx = CHASE_STAGES.findIndex(s => s.id === l.chase_stage)
-        if (idx > maxSentIdx) maxSentIdx = idx
-      }
-      if (maxSentIdx >= currentIdx) {
-        const reconciledIdx = Math.min(maxSentIdx + 1, CHASE_STAGES.length - 1)
-        if (reconciledIdx > currentIdx) {
-          currentIdx = reconciledIdx
-          nextStageId = CHASE_STAGES[currentIdx].id
-          await supabase.from('invoices').update({ chase_stage: nextStageId }).eq('id', invoice.id)
+      // Day 30 is where this stops being a chase and becomes a legal
+      // process. Tell the user once, whatever else happens today.
+      if (dfd >= FORMAL_FROM_DAYS && !invoice.lba_sent_at) {
+        const alreadyPrompted = invoiceLogs.some(l => l.status === 'lba_prompt_sent')
+        if (!alreadyPrompted) {
+          try {
+            // Quote the real figure including accrued charges, so the
+            // letter and the email can't disagree.
+            const ledger = (await fetchLedgers(supabase, [invoice.id]))[invoice.id] ?? null
+            const finesOn = !invoice.no_fines && invoice.client_type !== 'consumer'
+            const outstandingNow = Math.max(0, Math.round(
+              (Number(invoice.amount) - (Number(invoice.amount_paid) || 0)) * 100) / 100)
+            const debtAtDue = Math.max(0, Math.round(
+              (Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)) * 100) / 100)
+            const owed = finesOn
+              ? Math.round((outstandingNow
+                  + accruedInterest(invoice, ledger, DAILY_RATE)
+                  + (outstandingNow > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0)) * 100) / 100
+              : outstandingNow
+            const lba = buildLbaPromptEmail(invoice, profile, dfd, owed)
+            await sendViaResend({
+              from: 'Hielda <notifications@hielda.com>',
+              to: [profile.email],
+              subject: lba.subject,
+              html: lba.html,
+            })
+            await supabase.from('chase_log').insert({
+              invoice_id: invoice.id,
+              user_id: invoice.user_id,
+              chase_stage: 'lba_prompt',
+              email_to: profile.email,
+              status: 'lba_prompt_sent',
+            })
+            results.lba_prompts_sent = (results.lba_prompts_sent || 0) + 1
+          } catch (e) {
+            console.error(`[auto-chase] LBA prompt failed for ${invoice.id}:`, e.message)
+          }
         }
       }
 
-      // Skip forward to the correct stage if we've fallen behind on dfd.
-      // Without this, an invoice stuck at 'reminder_1' would still get a
-      // "friendly reminder" even if it's already overdue — one stale stage
-      // per day until it catches up, causing excessive emails.
-      let correctIdx = currentIdx
-      for (let i = currentIdx + 1; i < CHASE_STAGES.length; i++) {
-        if (CHASE_STAGES[i].dfd <= dfd) {
-          correctIdx = i
-        } else {
-          break
-        }
-      }
-      if (correctIdx !== currentIdx) {
-        nextStageId = CHASE_STAGES[correctIdx].id
-        await supabase.from('invoices').update({ chase_stage: nextStageId }).eq('id', invoice.id)
-      }
-
-      const nextStage = CHASE_STAGES[correctIdx]
+      // The stage this invoice's lateness calls for. Past day 30 these are
+      // generated monthly, so there is always a next step — the old
+      // index-based walk ran off the end of the array at day 45 and left
+      // the debt in permanent silence.
+      const nextStage = stageForDay(dfd)
+      let nextStageId = nextStage.id
 
       // Is this stage due to fire today?
       if (nextStage.dfd > dfd) { results.skipped++; continue }
+
+      // Keep the denormalised chase_stage in step. chase_log is the source
+      // of truth for what actually went out; this column is for display.
+      if (invoice.chase_stage !== nextStageId) {
+        await supabase.from('invoices').update({ chase_stage: nextStageId }).eq('id', invoice.id)
+      }
 
       // If a chase has already been sent for this stage, we're done.
       const sentLog = invoiceLogs.find(l => l.chase_stage === nextStageId && l.status === 'sent')

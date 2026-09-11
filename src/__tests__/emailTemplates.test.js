@@ -91,42 +91,39 @@ describe('getChaseStageForDays', () => {
     expect(getChaseStageForDays(5)).toBe('first_chase')
   })
 
-  it('returns second_chase for days 6-8', () => {
-    expect(getChaseStageForDays(6)).toBe('second_chase')
-    expect(getChaseStageForDays(8)).toBe('second_chase')
+  it('returns second_chase from day 7', () => {
+    expect(getChaseStageForDays(7)).toBe('second_chase')
+    expect(getChaseStageForDays(13)).toBe('second_chase')
   })
 
-  it('returns third_chase for days 9-10', () => {
-    expect(getChaseStageForDays(9)).toBe('third_chase')
-    expect(getChaseStageForDays(10)).toBe('third_chase')
+  it('returns third_chase from day 14', () => {
+    expect(getChaseStageForDays(14)).toBe('third_chase')
+    expect(getChaseStageForDays(20)).toBe('third_chase')
   })
 
-  it('returns chase_4 through chase_11 for days 11-25', () => {
-    expect(getChaseStageForDays(11)).toBe('chase_4')
-    expect(getChaseStageForDays(13)).toBe('chase_5')
-    expect(getChaseStageForDays(15)).toBe('chase_6')
-    expect(getChaseStageForDays(17)).toBe('chase_7')
-    expect(getChaseStageForDays(19)).toBe('chase_8')
-    expect(getChaseStageForDays(21)).toBe('chase_9')
-    expect(getChaseStageForDays(23)).toBe('chase_10')
-    expect(getChaseStageForDays(25)).toBe('chase_11')
+  it('returns chase_4 from day 21', () => {
+    expect(getChaseStageForDays(21)).toBe('chase_4')
+    expect(getChaseStageForDays(29)).toBe('chase_4')
   })
 
-  it('returns escalation stages for days 26-29', () => {
-    expect(getChaseStageForDays(26)).toBe('escalation_1')
-    expect(getChaseStageForDays(27)).toBe('escalation_2')
-    expect(getChaseStageForDays(28)).toBe('escalation_3')
-    expect(getChaseStageForDays(29)).toBe('escalation_4')
-  })
-
-  it('returns final_notice for 30 days overdue', () => {
+  it('returns final_notice from day 30 — the last informal chase', () => {
     expect(getChaseStageForDays(30)).toBe('final_notice')
+    // Days 31-59 stay on final_notice: it has already been sent, so nothing
+    // new fires until the first monthly formal reminder.
+    expect(getChaseStageForDays(45)).toBe('final_notice')
+    expect(getChaseStageForDays(59)).toBe('final_notice')
   })
 
-  it('returns recovery stages for 31-45 days overdue', () => {
-    expect(getChaseStageForDays(31)).toBe('recovery_1')
-    expect(getChaseStageForDays(38)).toBe('recovery_5')
-    expect(getChaseStageForDays(45)).toBe('recovery_final')
-    expect(getChaseStageForDays(60)).toBe('recovery_final')
+  // Regression: the ladder used to end at day 45 and the invoice then went
+  // permanently silent. Formal reminders are generated monthly instead, so
+  // there is always a next step.
+  it('generates monthly formal reminders past day 30, indefinitely', () => {
+    expect(getChaseStageForDays(60)).toBe('formal_1')
+    expect(getChaseStageForDays(89)).toBe('formal_1')
+    expect(getChaseStageForDays(90)).toBe('formal_2')
+    expect(getChaseStageForDays(120)).toBe('formal_3')
+    expect(getChaseStageForDays(365)).toBe('formal_11')
+    // Still producing a stage years later, within the six-year claim window.
+    expect(getChaseStageForDays(1800)).toBe('formal_59')
   })
 })
