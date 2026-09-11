@@ -5,7 +5,7 @@ import {
   Calendar, Mail, Forward, Send, Eye, Download, Copy, Trash2, Scale,
 } from "lucide-react"
 import { supabase } from "../supabase"
-import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, FORMAL_FROM_DAYS, lbaResponseDays } from "../constants"
+import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, FORMAL_FROM_DAYS, lbaResponseDays, stageById } from "../constants"
 import { daysLate, calcInterest, accruedInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
 import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
@@ -15,15 +15,10 @@ import DisputeModal from "./DisputeModal"
 import ResolveDisputeModal from "./ResolveDisputeModal"
 import s from "./Detail.module.css"
 
-const STAGE_ORDER = ["reminder_1", "reminder_2", "final_warning", "first_chase", "second_chase", "third_chase", "chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11", "escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice", "recovery_1", "recovery_2", "recovery_3", "recovery_4", "recovery_5", "recovery_6", "recovery_7", "recovery_8", "recovery_9", "recovery_10", "recovery_11", "recovery_final"]
-
-function getNextStage(currentStage) {
-  if (!currentStage) return "reminder_1"
-  const idx = STAGE_ORDER.indexOf(currentStage)
-  if (idx === -1) return "reminder_1"
-  if (idx >= STAGE_ORDER.length - 1) return null
-  return STAGE_ORDER[idx + 1]
-}
+// getNextStage is unused since the ladder moved to src/constants.js —
+// stageForDay() decides what fires next, and past day 30 the formal
+// stages are generated rather than listed. Keeping a second hard-coded
+// copy of the ladder here is what broke the timeline when it changed.
 
 function getStageToBeSent(invoice) {
   if (!invoice.chase_stage) return "reminder_1"
@@ -31,10 +26,13 @@ function getStageToBeSent(invoice) {
 }
 
 function getStageLabel(stageId) {
-  const stage = CHASE_STAGES.find((s) => s.id === stageId)
+  const stage = stageById(stageId)
   return stage ? stage.label : stageId
 }
 
+// Mirrors the chase ladder. The formal group covers the generated
+// formal_N stages, which continue monthly for as long as the debt stands
+// — the timeline shows the first few to make the shape clear.
 const TIMELINE_GROUPS = [
   {
     label: "Friendly Reminders",
@@ -49,34 +47,23 @@ const TIMELINE_GROUPS = [
     stages: ["final_warning"],
   },
   {
-    label: "Overdue — Fines Applied",
-    desc: "Statutory interest and penalties now accruing",
+    label: "Overdue — Charges Applied",
+    desc: "Statutory interest and the fixed recovery cost now accruing",
     col: "#d97706",
-    stages: ["first_chase", "second_chase", "third_chase"],
+    stages: ["first_chase", "second_chase", "third_chase", "chase_4"],
   },
   {
-    label: "Persistent Chasing",
-    desc: "Every 2 days — amount growing with each notice",
-    col: "#9f1239",
-    stages: ["chase_4", "chase_5", "chase_6", "chase_7", "chase_8", "chase_9", "chase_10", "chase_11"],
-  },
-  {
-    label: "Daily Escalation",
-    desc: "Countdown to formal recovery — one email per day",
+    label: "Final Notice",
+    desc: "The last informal chase. From here it becomes a legal process, and we'll offer to draft a Letter Before Action.",
     col: "#7f1d1d",
-    stages: ["escalation_1", "escalation_2", "escalation_3", "escalation_4", "final_notice"],
+    stages: ["final_notice"],
   },
   {
-    label: "Final Recovery",
-    desc: "Last chance — updated amount every 2 days",
-    col: "#450a0a",
-    stages: ["recovery_1", "recovery_2", "recovery_3", "recovery_4"],
-  },
-  {
-    label: "Imminent Referral",
-    desc: "Daily countdown to formal recovery referral",
-    col: "#27272a",
-    stages: ["recovery_5", "recovery_6", "recovery_7", "recovery_8", "recovery_9", "recovery_10", "recovery_11", "recovery_final"],
+    label: "Formal Recovery",
+    desc: "Monthly formal notices, continuing for as long as the debt stands. The claim survives six years.",
+    col: "#18181b",
+    stages: ["formal_1", "formal_2", "formal_3"],
+    openEnded: true,
   },
 ]
 
@@ -86,17 +73,25 @@ function ChaseTimeline({ inv, si }) {
   const toggle = (label) => setExpanded((prev) => ({ ...prev, [label]: !prev[label] }))
 
   const currentGroup = TIMELINE_GROUPS.find((g) => g.stages.includes(inv.chase_stage))
+  // Compare by days-from-due rather than array position: the formal stages
+  // are generated and have no index in CHASE_STAGES.
+  const currentDfd = stageById(inv.chase_stage)?.dfd
+  const reached = (stg) => typeof currentDfd === "number" && stg.dfd <= currentDfd
 
   return (
     <Card>
       <h3 className={s.timelineSectionHeading}>Chase Timeline</h3>
       <p className={s.timelineDesc}>We check in with you before every step. Click a section to see details.</p>
       {TIMELINE_GROUPS.map((group) => {
-        const groupStages = CHASE_STAGES.filter((s) => group.stages.includes(s.id))
+        // stageById resolves the generated formal_N stages too; filter
+        // guards against a stage id disappearing from the ladder, which
+        // used to leave the group empty and crash on groupStages[0].dfd.
+        const groupStages = group.stages.map((id) => stageById(id)).filter(Boolean)
+        if (groupStages.length === 0) return null
         const isCurrentGroup = currentGroup?.label === group.label
         const isOpen = expanded[group.label] ?? isCurrentGroup
-        const allPast = groupStages.every((s) => si >= 0 && CHASE_STAGES.indexOf(s) <= si)
-        const somePast = groupStages.some((s) => si >= 0 && CHASE_STAGES.indexOf(s) <= si)
+        const allPast = groupStages.every((s) => reached(s))
+        const somePast = groupStages.some((s) => reached(s))
         const firstStage = groupStages[0]
         const lastStage = groupStages[groupStages.length - 1]
         const dateRange = firstStage.dfd === lastStage.dfd
@@ -127,9 +122,9 @@ function ChaseTimeline({ inv, si }) {
                 <div className={s.timelineGroupHeader}>
                   <span className={s.timelineGroupLabel} style={{ color: allPast ? c.gn : somePast ? c.tx : c.td }}>{group.label}</span>
                   {isCurrentGroup && <Badge color={group.col}>Active</Badge>}
-                  <span className={s.timelineGroupCount}>{groupStages.length} {groupStages.length === 1 ? "email" : "emails"}</span>
+                  <span className={s.timelineGroupCount}>{group.openEnded ? "monthly, ongoing" : `${groupStages.length} ${groupStages.length === 1 ? "email" : "emails"}`}</span>
                 </div>
-                <div className={s.timelineGroupDate}>{dateRange}</div>
+                <div className={s.timelineGroupDate}>{group.openEnded ? `from ${formatDate(addDays(inv.due_date, groupStages[0].dfd))}` : dateRange}</div>
               </div>
               <span className={isOpen ? s.timelineGroupArrowOpen : s.timelineGroupArrow}>▼</span>
             </button>
@@ -139,7 +134,7 @@ function ChaseTimeline({ inv, si }) {
                 <p className={s.timelineStageDesc}>{group.desc}</p>
                 {groupStages.map((stg) => {
                   const act = stg.id === inv.chase_stage
-                  const past = si >= 0 && CHASE_STAGES.indexOf(stg) <= si
+                  const past = reached(stg)
                   return (
                     <div key={stg.id} className={s.timelineStageRow}>
                       <div
