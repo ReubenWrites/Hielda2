@@ -61,6 +61,20 @@ export default async function handler(req, res) {
         .eq('id', invoice_id)
         .eq('user_id', user.id)
         .single()
+      if (!inv) {
+        // A bogus or foreign invoice id must not degrade into a text-only
+        // email that still reaches a client.
+        return res.status(404).json({ error: 'Invoice not found' })
+      }
+      // The user's choice to send this invoice themselves is recorded on
+      // the invoice. Honour it here whatever the browser asked for: a gate
+      // in the UI is a courtesy, this is the guarantee.
+      if (inv.send_method === 'download') {
+        return res.status(409).json({
+          error: 'This invoice is marked as sent by you, so Hielda will not email your client.',
+          code: 'send_method_download',
+        })
+      }
       invoice = inv
     }
 

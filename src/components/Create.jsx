@@ -7,6 +7,7 @@ import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail,
 import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection, useToast } from "./ui"
 import { trackEvent } from "../posthog"
 import { buildIntroText as buildIntroTextLib } from "../lib/introText"
+import { shouldEmailClientOnCreate } from "../lib/sendDecision"
 import s from "./Create.module.css"
 
 const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
@@ -420,6 +421,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const hasValidLineItems = lineItems.some(li => li.description.trim() && parseFloat(li.amount) > 0) && !lineItemErrors.some(Boolean)
   const canProceed = cn && ce && !emailError && hasValidLineItems && !customDaysError && effectiveDays > 0
 
+  // Single source of truth for whether Hielda emails the client. The send,
+  // the "Hielda will…" card and the confirmation screen all read this; the
+  // three controls that feed it can no longer disagree.
+  const emailClient = shouldEmailClientOnCreate({ sendIntro, introMethod, meth })
+
   const buildIntroText = () => buildIntroTextLib(profile, cn, termsUnagreed ? effectiveDays : null)
 
   // Pre-fill the intro textarea so users see what'll be sent to the client
@@ -511,7 +517,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       // surface the failure there so the user can retry/download instead of
       // silently believing the client received it.
       setIntroSendError("")
-      if (sendIntro && introMethod === "hielda") {
+      if (emailClient) {
         try {
           const { data: { session } } = await supabase.auth.getSession()
           // Belt-and-braces fallback in case introText somehow isn't
@@ -649,10 +655,10 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         <p className={s.successRef}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
         <p className={s.subtextSmall}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
 
-        {sendIntro && introMethod === "hielda" && !introSendError && (
+        {emailClient && !introSendError && (
           <div className={s.introSentBadge}>✓ Introduction email sent to {cn}</div>
         )}
-        {sendIntro && introMethod === "hielda" && introSendError && (
+        {emailClient && introSendError && (
           <div role="alert" className={s.introSendErrorBanner}>
             <strong>⚠ Email to {cn} failed:</strong> {introSendError}
             <div className={s.introSendErrorHint}>
@@ -661,9 +667,9 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           </div>
         )}
 
-        {sendIntro && introMethod === "self" && (
+        {sendIntro && !emailClient && (
           <div className={s.introSelfWrap}>
-            <div className={s.sectionLabel}>Copy and send this to {cn}</div>
+            <div className={s.sectionLabel}>Nothing was sent to {cn} — copy and send this yourself</div>
             <textarea readOnly value={introText} className={s.introTextarea} />
             <button
               onClick={() => { navigator.clipboard.writeText(introText); setIntroCopied(true) }}
@@ -951,10 +957,27 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               {[
                 {
                   key: "intro",
-                  on: sendIntro,
-                  toggle: () => setSendIntro(v => !v),
+                  // Reflects the real decision, not just this one switch —
+                  // ticking "I'll send the PDF myself" further down turns
+                  // this off too, visibly, because it turns the send off.
+                  on: emailClient,
+                  toggle: () => {
+                    if (emailClient) {
+                      setSendIntro(false)
+                    } else {
+                      setSendIntro(true)
+                      setIntroMethod("hielda")
+                      if (meth === "download") setMeth("portal")
+                    }
+                  },
                   label: "Email the invoice to your client",
-                  sub: sendIntro ? "An introduction + the invoice PDF, sent when you create it" : "Off — you'll send the invoice yourself",
+                  sub: meth === "download"
+                    ? "Off — you've chosen to send the PDF yourself, so nothing goes to your client"
+                    : emailClient
+                      ? "An introduction + the invoice PDF, sent when you create it"
+                      : sendIntro
+                        ? "Off — you'll copy the introduction and send it yourself"
+                        : "Off — you'll send the invoice yourself",
                 },
                 {
                   key: "chase",
@@ -1159,7 +1182,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
               {sendIntro && (
                 <div className={s.introEditWrap}>
-                  <div className={s.sectionLabel}>Hielda will send the message below — edit if you want to</div>
+                  <div className={s.sectionLabel}>
+                    {emailClient
+                      ? "Hielda will send the message below — edit if you want to"
+                      : "You're sending this yourself — the text below will be shown for you to copy"}
+                  </div>
                   <textarea
                     value={introText}
                     onChange={(e) => { setIntroText(e.target.value); setIntroTextEdited(true) }}
