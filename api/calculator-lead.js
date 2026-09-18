@@ -195,11 +195,19 @@ export default async function handler(req, res) {
   // but their drip opt-out is never reset.
   const { data: existing } = await supabase
     .from('calculator_leads')
-    .select('unsubscribe_token, unsubscribed')
+    .select('unsubscribe_token, unsubscribed, last_email_at')
     .eq('email', email)
     .maybeSingle()
 
   const token = existing?.unsubscribe_token || newUnsubscribeToken()
+
+  // One capture email per address per day. This is a public endpoint that
+  // takes any address; without a cooldown Hielda could be used to pepper a
+  // third party. A genuine returning user still gets the drip on schedule.
+  const lastAt = existing?.last_email_at ? new Date(existing.last_email_at).getTime() : 0
+  if (lastAt && Date.now() - lastAt < 24 * 60 * 60 * 1000) {
+    return res.status(200).json({ success: true, throttled: true })
+  }
 
   let emailId = null
   if (RESEND_API_KEY) {

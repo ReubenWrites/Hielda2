@@ -4,8 +4,9 @@
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
-import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
+import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody, plainSubject, plainBody } from './_toneModifiers.js'
 import { accruedInterest, fetchLedgers } from './_money.js'
+import { clientSendBlock } from './_sendGuard.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -117,7 +118,7 @@ function respondHtml(title, body, color = '#1e5fa0') {
 </html>`
 }
 
-function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
+function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, tone = 'firm', finesEnabled = true) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const poRef = invoice.client_ref ? ` (${esc(invoice.client_ref)})` : ''
@@ -159,7 +160,12 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
   }
 
   let subject, body
-  if (tone === 'friendly') {
+  if (!finesEnabled) {
+    // Consumer client, or fines waived: the toned templates all cite the
+    // 1998 Act and a fixed recovery fee, neither of which applies.
+    subject = plainSubject(stage, toneCtx)
+    body = plainBody(stage, toneCtx)
+  } else if (tone === 'friendly') {
     subject = friendlySubject(stage, toneCtx)
     body = friendlyBody(stage, toneCtx)
   } else if (tone === 'legal') {
@@ -238,9 +244,10 @@ async function handleGroupChase(req, res, { invoice_ids, stage, token }) {
     `, '#94a3b8')
   }
 
-  // Anything already settled or parked since the check-in went out drops
-  // out — never chase a client for something they've paid.
-  const open = invoices.filter((i) => i.status !== 'paid' && i.status !== 'disputed' && !i.parked_at)
+  // Anything settled, parked, disputed, switched off or inside a Letter
+  // Before Action window since the check-in went out drops out — the same
+  // guard every client-facing send uses.
+  let open = invoices.filter((i) => !clientSendBlock(i, 'chase'))
   if (open.length === 0) {
     return html('Nothing to Chase', `
       <div style="font-size:48px;margin-bottom:16px;color:#16a34a;">&#10004;</div>
@@ -250,12 +257,17 @@ async function handleGroupChase(req, res, { invoice_ids, stage, token }) {
     `, '#16a34a')
   }
 
-  // Dedupe against a double click or an email client prefetching the link.
+  // Dedupe against a double click or a mail client prefetching the link.
+  // Per invoice, not per group: if one invoice's chase went out on an
+  // earlier attempt, the rest must still be sent rather than the whole
+  // group being reported as done.
   const { data: already } = await supabase
-    .from('chase_log').select('id')
+    .from('chase_log').select('invoice_id')
     .in('invoice_id', open.map((i) => i.id))
-    .eq('chase_stage', chaseStage).eq('status', 'sent').limit(1)
-  if (already && already.length > 0) {
+    .eq('chase_stage', chaseStage).eq('status', 'sent')
+  const alreadySent = new Set((already || []).map((r) => r.invoice_id))
+  open = open.filter((i) => !alreadySent.has(i.id))
+  if (open.length === 0) {
     return html('Already Sent', `
       <div style="font-size:48px;margin-bottom:16px;color:#1e5fa0;">&#9993;</div>
       <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Chase already sent</h2>
@@ -325,9 +337,9 @@ async function handleGroupChase(req, res, { invoice_ids, stage, token }) {
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+  const sendData = await sendRes.json().catch(() => ({}))
   if (!sendRes.ok) {
-    const err = await sendRes.json().catch(() => ({}))
-    console.error('[check-in] group chase send failed:', err?.message)
+    console.error('[check-in] group chase send failed:', sendData?.message)
     return html('Send Failed', `
       <div style="font-size:36px;margin-bottom:16px;">&#9888;</div>
       <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Couldn't send the chase</h2>
@@ -336,7 +348,9 @@ async function handleGroupChase(req, res, { invoice_ids, stage, token }) {
     `, '#9f1239')
   }
 
-  // Log and advance every invoice in the group.
+  // Log and advance every invoice in the group. resend_id is what the
+  // bounce/complaint webhook matches on — without it a hard bounce on the
+  // main automated path was invisible.
   await supabase.from('chase_log').insert(
     open.map((i) => ({
       invoice_id: i.id,
@@ -344,6 +358,8 @@ async function handleGroupChase(req, res, { invoice_ids, stage, token }) {
       chase_stage: chaseStage,
       email_to: clientEmail,
       status: 'sent',
+      resend_id: sendData?.id || null,
+      delivery_status: 'pending',
     }))
   )
   await supabase.from('invoices').update({ chase_stage: chaseStage }).in('id', open.map((i) => i.id))
@@ -456,6 +472,24 @@ export default async function handler(req, res) {
         )
       }
 
+      // GET = confirmation page. Mail clients prefetch links: a prefetch of
+      // "Yes, they've paid" used to record a payment and mark the invoice
+      // paid without anyone clicking. Only POST acts — same as the chase.
+      if (req.method !== 'POST') {
+        return res.status(200).setHeader('Content-Type', 'text/html').send(
+          respondHtml('Confirm Payment', `
+            <div style="font-size:48px;margin-bottom:16px;color:#16a34a;">&#10003;</div>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Mark ${esc(invoice.ref)} as paid?</h2>
+            <p style="color:#0f172a;margin:0 0 4px;"><strong>${fmt(invoice.amount)}</strong> from ${esc(invoice.client_name)}</p>
+            <p style="color:#64748b;margin:0 0 20px;">Hielda will record the payment and stop chasing. If they paid a different amount, record it from the invoice page instead.</p>
+            <form method="POST" action="/api/check-in-response?action=paid&invoice_id=${encodeURIComponent(invoice_id)}&token=${encodeURIComponent(token)}">
+              <button type="submit" style="display:inline-block;padding:14px 32px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">Yes, they've paid in full</button>
+            </form>
+            <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;">Changed your mind? Just close this tab.</p>
+          `, '#16a34a')
+        )
+      }
+
       // Mark as paid — and record the money. A bare status flip left the
       // cash out of the ledger, which misreported part-paid invoices as
       // "settled short". The check-in flow can't ask how much arrived, so
@@ -521,6 +555,21 @@ export default async function handler(req, res) {
 
     // ── ACTION: SKIP (don't chase this invoice) ──
     if (action === 'skip') {
+      // GET = confirmation page; a prefetch must not silently switch
+      // chasing off. Only POST acts.
+      if (req.method !== 'POST') {
+        return res.status(200).setHeader('Content-Type', 'text/html').send(
+          respondHtml('Confirm', `
+            <div style="font-size:48px;margin-bottom:16px;color:#64748b;">&#10074;&#10074;</div>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">Stop chasing ${esc(invoice.ref)}?</h2>
+            <p style="color:#64748b;margin:0 0 20px;">Automatic chasing will be switched off for this invoice. You can turn it back on from the invoice page.</p>
+            <form method="POST" action="/api/check-in-response?action=skip&invoice_id=${encodeURIComponent(invoice_id)}&token=${encodeURIComponent(token)}">
+              <button type="submit" style="display:inline-block;padding:14px 32px;background:#64748b;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;">Yes, stop chasing</button>
+            </form>
+          `, '#64748b')
+        )
+      }
+
       // Turn off auto-chase so the system stops sending check-ins
       await supabase
         .from('invoices')
@@ -646,13 +695,17 @@ export default async function handler(req, res) {
         }
       }
 
-      // Guard: if invoice was already paid or chase paused, don't send
-      if (invoice.status === 'paid') {
+      // Same gate as every client-facing send. This link was emailed days
+      // ago and stays valid for a week; whatever changed since — paid,
+      // disputed, parked, auto-chase switched off, a Letter Before Action
+      // sent — is checked now, at the moment of sending.
+      const block = clientSendBlock(invoice, 'chase')
+      if (block) {
         return res.status(200).setHeader('Content-Type', 'text/html').send(
-          respondHtml('Already Paid', `
+          respondHtml('Nothing Sent', `
             <div style="font-size:48px;margin-bottom:16px;color:#16a34a;">&#10003;</div>
-            <h2 style="margin:0 0 8px;font-size:18px;color:#16a34a;">Already Marked as Paid</h2>
-            <p style="color:#64748b;margin:0 0 20px;">Invoice <strong>${invoice.ref}</strong> was already marked as paid. No chase sent.</p>
+            <h2 style="margin:0 0 8px;font-size:18px;color:#0f172a;">No chase was sent</h2>
+            <p style="color:#64748b;margin:0 0 20px;">${esc(block.message)}</p>
             <a href="https://www.hielda.com" style="display:inline-block;padding:10px 24px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Go to Dashboard</a>
           `, '#16a34a')
         )
@@ -663,7 +716,9 @@ export default async function handler(req, res) {
       // amount regardless of what had already been paid, which over-charged
       // any part-paid client. Same engine as every other surface now.
       const dl = daysLate(invoice.due_date)
-      const finesEnabled = !invoice.no_fines
+      // The 1998 Act is business-to-business only: a consumer is never
+      // charged statutory interest or the fixed fee, whatever no_fines says.
+      const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
       const outstandingNow = Math.max(0, Math.round(
         (Number(invoice.amount) - (Number(invoice.amount_paid) || 0)) * 100) / 100)
       const debtAtDue = Math.max(0, Math.round(
@@ -674,7 +729,7 @@ export default async function handler(req, res) {
       const total = Math.round((outstandingNow + interest + pen) * 100) / 100
 
       const tone = profile.chase_tone || 'firm'
-      const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total, tone)
+      const email = buildChaseEmailHtml(invoice, profile, chaseStage, dl, interest, pen, total, tone, finesEnabled)
 
       // Attach the invoice PDF. Best-effort — chase still sends without
       // the attachment if PDF generation fails.
@@ -714,12 +769,17 @@ export default async function handler(req, res) {
 
       // Log the chase send (unique index on (invoice_id, chase_stage) WHERE status='sent'
       // catches race conditions where two requests slip through the app-level dedup)
+      // resend_id is what the bounce/complaint webhook matches on. Without
+      // it every cron-approved chase — the main automated path — was
+      // invisible to delivery tracking.
       const { error: logErr } = await supabase.from('chase_log').insert({
         invoice_id,
         user_id: invoice.user_id,
         chase_stage: chaseStage,
         email_to: invoice.client_email,
         status: 'sent',
+        resend_id: resendData?.id || null,
+        delivery_status: 'pending',
       })
 
       if (logErr?.code === '23505') {

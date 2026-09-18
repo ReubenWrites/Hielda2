@@ -3,6 +3,7 @@
 // action = 'resolve': notifies client that dispute has been resolved with outcome
 
 import { createClient } from '@supabase/supabase-js'
+import { clientSendBlock } from './_sendGuard.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -113,12 +114,26 @@ export default async function handler(req, res) {
   // Get invoice
   const { data: invoice, error: invErr } = await supabase
     .from('invoices')
-    .select('ref, client_name, client_email, amount, due_date, user_id')
+    .select('id, ref, client_name, client_email, amount, due_date, user_id, parked_at, status')
     .eq('id', invoice_id)
     .single()
 
   if (invErr || !invoice || invoice.user_id !== user.id) {
     return res.status(404).json({ error: 'Invoice not found' })
+  }
+
+  const block = clientSendBlock(invoice, 'dispute')
+  if (block) {
+    return res.status(409).json({ error: block.message, code: block.code })
+  }
+
+  // One notice per event. A second click, a second tab or a retry after a
+  // timeout must not send the client the same letter twice.
+  const logStatus = action === 'resolve' ? `dispute_resolved_${outcome}` : 'dispute_acknowledged'
+  const { data: dupe } = await supabase
+    .from('chase_log').select('id').eq('invoice_id', invoice_id).eq('status', logStatus).limit(1)
+  if (dupe && dupe.length > 0) {
+    return res.status(200).json({ sent: false, duplicate: true })
   }
 
   // Get profile
@@ -145,13 +160,15 @@ export default async function handler(req, res) {
       from: `${fromName} via Hielda <chase@hielda.com>`,
       reply_to: user.email,
       to: [invoice.client_email],
-      cc: [user.email],
+      // The freelancer is BCC'd, never on the visible recipient list —
+      // the convention every other client email follows.
+      bcc: [user.email],
       subject: email.subject,
       html: email.html,
     }
     if (pdfAttachment) payload.attachments = [pdfAttachment]
 
-    await fetch('https://api.resend.com/emails', {
+    const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
@@ -159,8 +176,25 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(payload),
     })
+    const resendData = await resendRes.json().catch(() => ({}))
 
-    return res.status(200).json({ sent: true })
+    // This used to return { sent: true } without looking at the response,
+    // so a rejected send reported success. Surface it.
+    if (!resendRes.ok) {
+      return res.status(502).json({ error: resendData?.message || 'Email provider rejected the message' })
+    }
+
+    await supabase.from('chase_log').insert({
+      invoice_id,
+      user_id: user.id,
+      chase_stage: action === 'resolve' ? 'dispute_resolution' : 'dispute_ack',
+      email_to: invoice.client_email,
+      status: logStatus,
+      resend_id: resendData?.id || null,
+      delivery_status: 'pending',
+    })
+
+    return res.status(200).json({ sent: true, email_to: invoice.client_email })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }

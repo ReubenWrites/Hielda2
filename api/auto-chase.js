@@ -16,6 +16,7 @@ import crypto from 'crypto'
 import { friendlySubject, friendlyBody, legalSubject, legalBody } from './_toneModifiers.js'
 import { buildLbaPromptEmail } from './_lbaEmails.js'
 import { accruedInterest, fetchLedgers } from './_money.js'
+import { inLbaWindow } from './_sendGuard.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -399,6 +400,12 @@ export default async function handler(req, res) {
       // Parked: the user chose to stop chasing without writing the debt
       // off. Still owed, still accruing, just quiet.
       if (invoice.parked_at) { results.skipped++; continue }
+
+      // A Letter Before Action is out and its response window is running.
+      // The letter is the communication; asking the user to approve a
+      // "formal reminder" on top of it would be contradictory, and for a
+      // sole-trader debtor arguably prejudicial. Resume after the deadline.
+      if (inLbaWindow(invoice)) { results.skipped++; continue }
 
       // Day 30 is where this stops being a chase and becomes a legal
       // process. Tell the user once, whatever else happens today.

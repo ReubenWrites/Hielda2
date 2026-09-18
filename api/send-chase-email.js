@@ -4,8 +4,9 @@
 import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 
 import { createClient } from '@supabase/supabase-js'
-import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody } from './_toneModifiers.js'
+import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody, plainSubject, plainBody } from './_toneModifiers.js'
 import { accruedInterest, fetchLedgers } from './_money.js'
+import { clientSendBlock } from './_sendGuard.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -104,7 +105,7 @@ function paymentDetailsBlock(invoice, profile) {
   `
 }
 
-function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'firm') {
+function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'firm', finesEnabled = true) {
   const fromName = esc(profile.business_name || profile.full_name || 'Hielda')
   const color = STAGE_COLORS[stage] || '#1e5fa0'
   const payBlock = paymentDetailsBlock(invoice, profile)
@@ -145,7 +146,13 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
   }
 
   let subject, body
-  if (tone === 'friendly') {
+  if (!finesEnabled) {
+    // Consumer client, or fines waived: the toned templates all cite the
+    // 1998 Act and a fixed recovery fee, neither of which applies. Use the
+    // plain letter, whatever the tone.
+    subject = plainSubject(stage, toneCtx)
+    body = plainBody(stage, toneCtx)
+  } else if (tone === 'friendly') {
     subject = friendlySubject(stage, toneCtx)
     body = friendlyBody(stage, toneCtx)
   } else if (tone === 'legal') {
@@ -258,6 +265,16 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'You do not own this invoice' })
     }
 
+    // Same gate as every client-facing send. This endpoint used to check
+    // nothing about the invoice's state — a paid, disputed or parked
+    // invoice could be chased if the button was reachable. manual: the
+    // user is pressing a button now, so auto-chase being off is not a bar.
+    const resend = req.body?.resend === true
+    const block = clientSendBlock(invoice, 'chase', { manual: true })
+    if (block) {
+      return res.status(409).json({ error: block.message, code: block.code })
+    }
+
     if (profErr || !profile) {
       return res.status(404).json({ error: 'Profile not found' })
     }
@@ -294,17 +311,21 @@ export default async function handler(req, res) {
       return res.status(429).json({ error: 'Too many emails sent recently. Please wait before sending more.' })
     }
 
-    // Idempotency: check if this stage was already sent
-    const { data: existingSend } = await supabase
-      .from('chase_log')
-      .select('id')
-      .eq('invoice_id', invoice_id)
-      .eq('chase_stage', chase_stage)
-      .eq('status', 'sent')
-      .limit(1)
+    // Idempotency: check if this stage was already sent. A deliberate
+    // resend (the "Resend last email" button) skips this by design and is
+    // logged as 'resent' so it doesn't collide with the unique index.
+    if (!resend) {
+      const { data: existingSend } = await supabase
+        .from('chase_log')
+        .select('id')
+        .eq('invoice_id', invoice_id)
+        .eq('chase_stage', chase_stage)
+        .eq('status', 'sent')
+        .limit(1)
 
-    if (existingSend && existingSend.length > 0) {
-      return res.status(409).json({ error: 'This chase stage has already been sent for this invoice' })
+      if (existingSend && existingSend.length > 0) {
+        return res.status(409).json({ error: 'This chase stage has already been sent for this invoice' })
+      }
     }
 
     // Calculate amounts (respect no_fines flag), rounded to avoid floating-point display issues.
@@ -312,7 +333,9 @@ export default async function handler(req, res) {
     // the meter on what's been paid, and the email must reflect that or the
     // client is being over-charged (and will rightly push back).
     const dl = daysLate(invoice.due_date)
-    const finesEnabled = !invoice.no_fines
+    // The 1998 Act is business-to-business only: a consumer client is never
+    // charged statutory interest or the fixed fee, whatever no_fines says.
+    const finesEnabled = !invoice.no_fines && invoice.client_type !== 'consumer'
     const amountPaid = Number(invoice.amount_paid) || 0
     const outstanding = Math.max(0, Math.round((Number(invoice.amount) - amountPaid) * 100) / 100)
     // Fixed fee tiers on the debt that went overdue — pre-due payments
@@ -328,7 +351,7 @@ export default async function handler(req, res) {
 
     // Build email (use profile's chase_tone, default to 'firm')
     const tone = profile.chase_tone || 'firm'
-    const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total, tone)
+    const email = buildEmail(invoice, profile, chase_stage, dl, interest, pen, total, tone, finesEnabled)
 
     // The freelancer always gets a private copy via BCC — the client should
     // never see them on the recipient list. Custom CC/BCC entries on the
@@ -382,7 +405,7 @@ export default async function handler(req, res) {
       user_id: invoice.user_id,
       chase_stage,
       email_to: invoice.client_email,
-      status: 'sent',
+      status: resend ? 'resent' : 'sent',
       resend_id: resendData.id || null,
       delivery_status: 'pending',
     })

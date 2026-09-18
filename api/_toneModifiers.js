@@ -1014,3 +1014,48 @@ export function firmBody(stage, { invoice, profile, dl, total, interest, pen, fr
   }
   return bodies[stage] || (/^formal_\d+$/.test(stage) ? bodies.final_notice : bodies.first_chase)
 }
+
+// ── Plain chase: no statutory language at all ──────────────────────────────
+//
+// Used whenever fines are OFF — the user waived them, or the client is a
+// consumer, to whom the Late Payment of Commercial Debts (Interest) Act 1998
+// does not apply. Every toned template above hard-codes the Act and the
+// fixed recovery fee into its prose, so the safe move is not to gate forty
+// sentences but to use a different, simpler letter that never mentions
+// them. Same across all tones: when there are no charges, tone is just
+// register, and a polite firm note is right for everyone.
+export function plainSubject(stage, { invoice, total, dl, poRef }) {
+  const ref = invoice.ref
+  const t = fmt(total)
+  if (['reminder_1', 'reminder_2'].includes(stage)) return `Payment reminder: Invoice ${ref}${poRef} — ${t}`
+  if (stage === 'final_warning') return `Invoice ${ref}${poRef} is due today — ${t}`
+  if (/^formal_\d+$/.test(stage)) return `Outstanding: Invoice ${ref}${poRef} — ${t} (${dl} days overdue)`
+  return `Overdue: Invoice ${ref}${poRef} — ${t}`
+}
+
+export function plainBody(stage, { invoice, total, dl, fromName, payBlock, lineBlock }) {
+  const ref = invoice.ref
+  const t = fmt(total)
+  const due = formatDate(invoice.due_date)
+  const greeting = `<p>Dear ${invoice.client_name},</p>`
+  const signoff = `<p>Kind regards,<br/>${fromName}</p>`
+  if (['reminder_1', 'reminder_2'].includes(stage)) {
+    return `${greeting}
+      <p>A quick reminder that invoice <strong>${ref}</strong> for <strong>${t}</strong> is due on <strong>${due}</strong>.</p>
+      ${lineBlock}${payBlock}
+      <p>If you've already arranged payment, please disregard this message.</p>
+      ${signoff}`
+  }
+  if (stage === 'final_warning') {
+    return `${greeting}
+      <p>Invoice <strong>${ref}</strong> for <strong>${t}</strong> is due <strong>today</strong>, ${due}.</p>
+      ${lineBlock}${payBlock}
+      <p>Thank you for settling it promptly.</p>
+      ${signoff}`
+  }
+  return `${greeting}
+    <p>Invoice <strong>${ref}</strong> for <strong>${t}</strong> was due on <strong>${due}</strong> and is now <strong>${dl} day${dl === 1 ? '' : 's'}</strong> overdue.</p>
+    ${lineBlock}${payBlock}
+    <p>If there's a problem with this invoice, or you've already paid, please reply to this email so we can sort it out.</p>
+    ${signoff}`
+}

@@ -816,7 +816,10 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       const res = await fetch("/api/send-chase-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoice_id: inv.id, chase_stage: stage, user_token: session?.access_token }),
+        // A deliberate resend of a stage that already went out; the server
+        // skips its one-per-stage dedupe for this and logs it as 'resent'.
+        // Restarting from day one is a fresh send, not a resend.
+        body: JSON.stringify({ invoice_id: inv.id, chase_stage: stage, user_token: session?.access_token, resend: !resetChase }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to send")
@@ -1048,21 +1051,29 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
         .eq("id", inv.id)
       if (err) throw err
 
-      // Send resolution email to client
-      try {
-        const session = await supabase.auth.getSession()
-        await fetch("/api/send-dispute-ack", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            invoice_id: inv.id,
-            user_token: session.data.session?.access_token,
-            action: "resolve",
-            outcome,
-          }),
-        })
-      } catch (_) {
-        // Non-critical: don't block resolution if email fails
+      // Tell the client the dispute is closed — except for a write-off,
+      // which is the user's own decision and not something to announce to
+      // the debtor. And say so if it fails, rather than swallowing it: this
+      // used to report nothing either way.
+      if (outcome !== "written_off") {
+        try {
+          const session = await supabase.auth.getSession()
+          const r = await fetch("/api/send-dispute-ack", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              invoice_id: inv.id,
+              user_token: session.data.session?.access_token,
+              action: "resolve",
+              outcome,
+            }),
+          })
+          const d = await r.json().catch(() => ({}))
+          if (!r.ok) toast.error(`Dispute resolved, but the email to ${inv.client_name} failed: ${d.error || r.status}`)
+          else if (d.sent) toast.success(`Resolution notice sent to ${inv.client_name}`)
+        } catch (e) {
+          toast.error(`Dispute resolved, but the email to ${inv.client_name} failed: ${e.message}`)
+        }
       }
 
       setShowResolveModal(false)

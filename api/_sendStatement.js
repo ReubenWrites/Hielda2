@@ -398,7 +398,9 @@ export async function sendStatement(req, res) {
     if (invoices.some((i) => i.user_id !== user.id)) {
       return res.status(403).json({ error: 'You do not own all of these invoices' })
     }
-    const open = invoices.filter((i) => i.status !== 'paid' && i.status !== 'disputed')
+    // Parked debts are still owed but the user asked for silence; they
+    // don't belong on a statement that is being sent to the client.
+    const open = invoices.filter((i) => i.status !== 'paid' && i.status !== 'disputed' && !i.parked_at)
     if (open.length === 0) {
       return res.status(400).json({ error: 'No open invoices to include' })
     }

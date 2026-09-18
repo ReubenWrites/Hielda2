@@ -1,6 +1,6 @@
 import { getRate, CHASE_STAGES, stageForDay, stageById } from "../constants"
 import { fmt, formatDate, daysLate, calcInterest, penalty, round2 } from "../utils"
-import { friendlySubject, friendlyBody, legalSubject, legalBody } from "./toneModifiers"
+import { friendlySubject, friendlyBody, legalSubject, legalBody, plainSubject, plainBody } from "./toneModifiers"
 
 /**
  * Generate chase email HTML for a given stage.
@@ -10,7 +10,8 @@ import { friendlySubject, friendlyBody, legalSubject, legalBody } from "./toneMo
  */
 export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const dl = daysLate(invoice.due_date)
-  const finesEnabled = !invoice.no_fines
+  // The 1998 Act is business-to-business only: consumers are never charged.
+  const finesEnabled = !invoice.no_fines && invoice.client_type !== "consumer"
   const interest = finesEnabled ? calcInterest(Number(invoice.amount), dl) : 0
   const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
   const total = round2(Number(invoice.amount) + interest + pen)
@@ -364,7 +365,13 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   }
 
   let subject, body
-  if (tone === 'friendly') {
+  if (!finesEnabled) {
+    // Consumer client, or fines waived: the toned templates cite the 1998
+    // Act and a fixed fee that don't apply. Plain letter, whatever the tone,
+    // so the preview matches what the server sends.
+    subject = plainSubject(stage, toneCtx)
+    body = plainBody(stage, toneCtx)
+  } else if (tone === 'friendly') {
     subject = friendlySubject(stage, toneCtx)
     body = friendlyBody(stage, toneCtx)
   } else if (tone === 'legal') {
