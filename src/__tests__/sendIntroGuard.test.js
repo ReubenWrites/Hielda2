@@ -4,8 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // the browser asks for, an invoice the user marked as "I'll send it myself"
 // must never produce an email to the client from this endpoint.
 
-const invoiceRow = { id: 'inv-1', user_id: 'u1', ref: 'INV-0011', send_method: 'download', line_items: [], amount: 150 }
+const invoiceRow = { id: 'inv-1', user_id: 'u1', ref: 'INV-0011', send_method: 'download', line_items: [], amount: 150, client_email: 'matthew@example.com' }
 let sendMethod = 'download'
+let inserts = []
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
@@ -16,6 +17,7 @@ vi.mock('@supabase/supabase-js', () => ({
         single: async () => table === 'invoices'
           ? { data: { ...invoiceRow, send_method: sendMethod }, error: null }
           : { data: { full_name: 'Reuben', email: 'me@example.com' }, error: null },
+        insert: async (row) => { inserts.push({ table, row }); return { error: null } },
       }
       return chain
     },
@@ -54,6 +56,7 @@ describe('send-intro-email honours the invoice send method', () => {
   let resendCalls
   beforeEach(() => {
     resendCalls = []
+    inserts = []
     global.fetch = vi.fn(async (url) => {
       resendCalls.push(String(url))
       return { ok: true, json: async () => ({ id: 'email-1' }) }
@@ -77,6 +80,10 @@ describe('send-intro-email honours the invoice send method', () => {
     await handler(req(), r)
     expect(r.code).toBe(200)
     expect(resendCalls.some((u) => u.includes('resend.com'))).toBe(true)
+    // Logged like every other client email, with the Resend id the bounce
+    // webhook matches on. It used to be logged nowhere.
+    const log = inserts.find((i) => i.table === 'chase_log')
+    expect(log?.row).toMatchObject({ invoice_id: 'inv-1', chase_stage: 'intro', status: 'intro_sent', resend_id: 'email-1' })
   })
 
   it('404s rather than emailing off a bogus invoice id', async () => {

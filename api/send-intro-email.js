@@ -209,16 +209,21 @@ export default async function handler(req, res) {
     // history showed nothing for the introduction, and the bounce webhook
     // had no row to match a Resend id against.
     if (invoice) {
-      const { error: logErr } = await supabase.from('chase_log').insert({
-        invoice_id: invoice.id,
-        user_id: user.id,
-        chase_stage: 'intro',
-        status: 'intro_sent',
-        email_to: client_email,
-        resend_id: resendData?.id || null,
-        delivery_status: 'pending',
-      })
-      if (logErr) console.error('send-intro-email: chase_log insert failed', logErr.message)
+      try {
+        const { error: logErr } = await supabase.from('chase_log').insert({
+          invoice_id: invoice.id,
+          user_id: user.id,
+          chase_stage: 'intro',
+          status: 'intro_sent',
+          email_to: client_email,
+          resend_id: resendData?.id || null,
+          delivery_status: 'pending',
+        })
+        if (logErr) console.error('send-intro-email: chase_log insert failed', logErr.message)
+      } catch (e) {
+        // The email has gone; a logging failure must not turn into "send failed".
+        console.error('send-intro-email: chase_log insert threw', e?.message)
+      }
     }
 
     return res.status(200).json({ success: true })
