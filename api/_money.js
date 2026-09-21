@@ -55,7 +55,14 @@ export function accruedInterest(invoice, payments, dailyRate, asOf) {
       return { on: Number.isFinite(t) ? p.paid_on : due, amount: Number(p.amount) || 0 }
     })
     .filter((r) => r.amount > 0)
-    .sort((a, b) => new Date(a.on) - new Date(b.on))
+  // amount_paid can exceed what the ledger accounts for (rows that predate
+  // the ledger, an import that set the total without dated rows). Credit
+  // the difference at the due date: it lowers the starting balance, so it
+  // under-states rather than accruing on money already received.
+  const ledgered = rows.reduce((s, r) => s + r.amount, 0)
+  const unledgered = round2((Number(invoice.amount_paid) || 0) - ledgered)
+  if (unledgered > 0) rows.push({ on: due, amount: unledgered })
+  rows.sort((a, b) => new Date(a.on) - new Date(b.on))
 
   // Paid on or before the due date: never accrues, just lowers the balance
   // the meter starts from.

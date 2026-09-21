@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { ShieldLogo } from "../ui"
 import { trackEvent } from "../../posthog"
 import s from "./guides.module.css"
@@ -17,28 +17,29 @@ export default function GuideLayout({
   schema,
   children,
 }) {
-  // Bake the Article (+ optional FAQPage) JSON-LD into the page on mount.
-  // Prerender builds the same schema into the static HTML for first crawl;
-  // this useEffect is a defence-in-depth for any client-side navigation.
-  useEffect(() => {
-    if (!schema) return
-    const tag = document.createElement("script")
-    tag.type = "application/ld+json"
-    tag.id = `guide-schema-${canonicalPath}`
-    tag.text = JSON.stringify(schema)
-    document.head.appendChild(tag)
-    return () => document.getElementById(`guide-schema-${canonicalPath}`)?.remove()
-  }, [schema, canonicalPath])
-
   const [openFaq, setOpenFaq] = useState(null)
+
+  // Real hrefs on every navigation element. The prerender renders this
+  // component to static HTML for crawlers, and an <a> without an href is
+  // not a link to a crawler; the onClick keeps in-app navigation snappy.
+  const go = (fn) => (e) => { e.preventDefault(); fn() }
 
   return (
     <main className={s.page}>
+      {/* Article (+ optional FAQPage) JSON-LD, rendered inline so it's in
+          the prerendered HTML on first crawl, not added by an effect after
+          JS runs. Google accepts JSON-LD anywhere in the document. */}
+      {schema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }}
+        />
+      )}
       <nav className={s.nav}>
-        <div className={s.navLogo} onClick={onBack}>
+        <a href="/" className={s.navLogo} onClick={go(onBack)} style={{ textDecoration: "none", color: "inherit" }}>
           <ShieldLogo size={28} />
           <span className={s.navLogoText}>Hielda</span>
-        </div>
+        </a>
         <button onClick={() => { trackEvent("guide_cta_clicked", { guide: canonicalPath, placement: "nav" }); onGetStarted() }} className={s.navTrialBtn}>
           Start Free Trial
         </button>
@@ -46,9 +47,9 @@ export default function GuideLayout({
 
       <article className={s.article}>
         <nav className={s.breadcrumbs} aria-label="Breadcrumb">
-          <a onClick={onBack} style={{ cursor: "pointer" }}>Home</a>
+          <a href="/" onClick={go(onBack)}>Home</a>
           {" · "}
-          <a onClick={() => (window.location.href = "/guides")} style={{ cursor: "pointer" }}>Guides</a>
+          <a href="/guides">Guides</a>
           {" · "}
           <span>{title}</span>
         </nav>
@@ -93,6 +94,20 @@ export default function GuideLayout({
             </div>
           </section>
         )}
+
+        <section className={s.related}>
+          <div className={s.relatedTitle}>Free tools</div>
+          <div className={s.relatedList}>
+            <a href="/calculator" className={s.relatedCard}>
+              <h3 className={s.relatedCardTitle}>Late payment interest calculator</h3>
+              <p className={s.relatedCardDesc}>Exactly what you can add to an overdue invoice today: statutory interest at the current rate plus the fixed recovery cost.</p>
+            </a>
+            <a href="/late-payment-letter-template" className={s.relatedCard}>
+              <h3 className={s.relatedCardTitle}>Late payment letter generator</h3>
+              <p className={s.relatedCardDesc}>A ready-to-send demand letter citing the Act, with your figures filled in.</p>
+            </a>
+          </div>
+        </section>
 
         <div className={s.cta}>
           <div className={s.ctaTitle}>Let Hielda handle this for you</div>

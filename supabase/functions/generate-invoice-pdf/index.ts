@@ -95,7 +95,14 @@ function accruedInterest(
       return { on: Number.isFinite(t) ? p.paid_on : due, amount: Number(p.amount) || 0 }
     })
     .filter((r) => r.amount > 0)
-    .sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
+  // amount_paid can exceed what the ledger accounts for (rows that predate
+  // the ledger, an import that set the total without dated rows). Credit
+  // the difference at the due date: it lowers the starting balance, so it
+  // under-states rather than accruing on money already received.
+  const ledgered = rows.reduce((s, r) => s + r.amount, 0)
+  const unledgered = round2((Number(invoice.amount_paid) || 0) - ledgered)
+  if (unledgered > 0) rows.push({ on: due, amount: unledgered })
+  rows.sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
 
   let balance = face
   for (const r of rows) {
@@ -222,7 +229,13 @@ serve(async (req) => {
     const vatAmount = Number(invoice.vat_amount) || 0
     const invoiceTotal = Number(invoice.total_with_vat) || netAmount
     const hasVat = vatAmount > 0
-    const finesEnabled = !invoice.no_fines
+    // The 1998 Act is business-to-business only, and no_fines is the user's
+    // waiver. Same rule as chargeableExtras() in the app, the API and the
+    // statement PDF: no interest and no fixed fee for either. (This PDF used
+    // to charge consumers "contractual" interest on the strength of a footer
+    // line — the only surface that did, so the invoice, the emails and the
+    // dashboard disagreed on what a consumer owed.)
+    const finesEnabled = !invoice.no_fines && !isConsumer
     // Partial payments: credit what's been received and accrue interest on
     // the outstanding balance only — the PDF must agree with the app and
     // the chase emails or the client has grounds to dispute the lot.
@@ -231,12 +244,10 @@ serve(async (req) => {
     // Fixed fee tiers on the debt that went overdue — pre-due payments
     // (paid_before_due) reduce it.
     const debtAtDue = Math.max(0, netAmount - (Number(invoice.paid_before_due) || 0))
-    // Interest requires fines enabled for B2B; consumer invoices keep their
-    // contractual interest (they always have no_fines set at creation).
     // Accrued per balance period off the ledger fetched above.
-    const interest = isOverdue && (finesEnabled || isConsumer)
+    const interest = isOverdue && finesEnabled
       ? accruedInterest(invoice, ledger, DAILY_RATE) : 0
-    const pen = isOverdue && !isConsumer && finesEnabled && netOutstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
+    const pen = isOverdue && finesEnabled && netOutstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const total = Math.max(0, invoiceTotal - amountPaid) + interest + pen
 
     const lineItems = coerceLineItems(invoice.line_items)
@@ -396,10 +407,13 @@ serve(async (req) => {
       doc.text(invoice.client_email, 20, billToY + 2)
     }
 
-    // Dates column. Values render in a narrow column from x=160 to x=190,
-    // so long values (especially user-entered Client Ref strings) need
-    // wrapping — without the cap, a long ref would run off the page edge.
-    const DETAILS_VALUE_WIDTH = 30
+    // Dates column. Values render from x=148 to the 190 margin, so long
+    // values (especially user-entered Client Ref strings) need wrapping —
+    // without the cap, a long ref would run off the page edge. 42mm fits a
+    // ~20-character token at 9pt; at the old 30mm a purchase-order ref
+    // broke into three ragged lines.
+    const DETAILS_VALUE_X = 148
+    const DETAILS_VALUE_WIDTH = 42
     const details: string[][] = [
       ...(invoice.work_date ? [["Work Date", formatDate(invoice.work_date)]] : []),
       ["Issue Date", formatDate(invoice.issue_date)],
@@ -415,7 +429,7 @@ serve(async (req) => {
       doc.text(k, 120, detailsY)
       doc.setTextColor(dark)
       const valueLines = doc.splitTextToSize(safe(v), DETAILS_VALUE_WIDTH)
-      doc.text(valueLines, 160, detailsY)
+      doc.text(valueLines, DETAILS_VALUE_X, detailsY)
       // 6mm per row, plus extra for any wrapped lines
       detailsY += 6 + Math.max(0, valueLines.length - 1) * 4
     })
@@ -597,7 +611,13 @@ serve(async (req) => {
       rawPayLines.push(`Account Name: ${profile.account_name}`)
     }
     if (hasBankDetails) {
-      rawPayLines.push(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Acct: ${profile.account_number || "—"}`)
+      // Only the fields the user filled in; a "Bank: —" placeholder on a
+      // document a client pays from looks like something is missing.
+      rawPayLines.push([
+        profile.bank_name ? `Bank: ${profile.bank_name}` : null,
+        profile.sort_code ? `Sort Code: ${profile.sort_code}` : null,
+        profile.account_number ? `Acct: ${profile.account_number}` : null,
+      ].filter(Boolean).join("    "))
     }
     if (hasIntlDetails) {
       const intlParts: string[] = []
@@ -735,11 +755,11 @@ serve(async (req) => {
     doc.text("Generated by Hielda — automatic invoice chasing & statutory late fees for UK businesses · hielda.com", 105, footerY, { align: "center" })
 
     if (isConsumer) {
-      // The 1998 Act doesn't apply to consumers — this is contractual
-      // interest, so don't call it statutory.
+      // The 1998 Act doesn't apply to consumers and Hielda charges them
+      // nothing extra, so promise nothing.
       doc.setFontSize(7)
-      doc.text(`Swift payment is always appreciated. If still outstanding after ${invoice.payment_term_days || 30} days, interest at ${RATE}% per annum will start to accrue until settled in full.`, 105, footerY + 5, { align: "center" })
-    } else if (isOverdue) {
+      doc.text("Swift payment is always appreciated — thank you.", 105, footerY + 5, { align: "center" })
+    } else if (isOverdue && finesEnabled) {
       doc.setFontSize(7)
       doc.text("Late payment charges applied under the Late Payment of Commercial Debts (Interest) Act 1998.", 105, footerY + 5, { align: "center" })
     }

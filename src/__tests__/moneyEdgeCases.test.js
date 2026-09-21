@@ -30,6 +30,19 @@ describe('accruedInterest survives malformed ledgers', () => {
     expect(bad).toBeGreaterThan(0)
   })
 
+  // amount_paid says £500 was received but the ledger has no row for it.
+  // An empty ledger used to accrue on the full £1,000 — over-charging.
+  it('credits amount_paid the ledger cannot account for at the due date', () => {
+    const asOf = '2026-01-21'
+    const withRow = accruedInterest(inv({ amount_paid: 500 }), [{ amount: 500, paid_on: '2026-01-01' }], asOf)
+    const noRows = accruedInterest(inv({ amount_paid: 500 }), [], asOf)
+    expect(noRows).toBe(withRow)
+    expect(noRows).toBe(round2(500 * dr() * 20))
+    // A ledger that already covers amount_paid is left alone.
+    const late = accruedInterest(inv({ amount_paid: 500 }), [{ amount: 500, paid_on: '2026-01-11' }], asOf)
+    expect(late).toBe(round2(1000 * dr() * 10 + 500 * dr() * 10))
+  })
+
   it('treats a missing or non-numeric amount as zero', () => {
     const a = accruedInterest(inv(), [{ amount: null, paid_on: '2026-01-15' }], '2026-02-01')
     const b = accruedInterest(inv(), [{ amount: 'abc', paid_on: '2026-01-15' }], '2026-02-01')

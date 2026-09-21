@@ -19,6 +19,7 @@ const Settings = lazy(() => import("./components/Settings"))
 const HowItWorks = lazy(() => import("./components/HowItWorks"))
 const Billing = lazy(() => import("./components/Billing"))
 const LandingPage = lazy(() => import("./components/LandingPage"))
+const NotFound = lazy(() => import("./components/NotFound"))
 const Calculator = lazy(() => import("./components/Calculator"))
 const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"))
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"))
@@ -346,7 +347,13 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
           <Route path="/ref/:code" element={<ReferralRedirect />} />
-          <Route path="*" element={<LandingPage onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} onPrivacy={() => { trackPageView("privacy"); navigate("/privacy") }} onCalculator={() => { trackPageView("calculator"); navigate("/calculator") }} isMobile={isMobile} />} />
+          {/* /how is in the sitemap and prerendered; without a public route a
+              logged-out visitor was silently shown the home page instead. */}
+          <Route path="/how" element={<HowItWorks isMobile={isMobile} />} />
+          <Route path="/" element={<LandingPage onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} onPrivacy={() => { trackPageView("privacy"); navigate("/privacy") }} onCalculator={() => { trackPageView("calculator"); navigate("/calculator") }} isMobile={isMobile} />} />
+          {/* Anything else is a not-found page marked noindex, not a second
+              copy of the home page for Google to flag as a soft 404. */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     )

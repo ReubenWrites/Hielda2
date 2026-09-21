@@ -86,7 +86,14 @@ function accruedInterest(
       return { on: Number.isFinite(t) ? p.paid_on : due, amount: Number(p.amount) || 0 }
     })
     .filter((r) => r.amount > 0)
-    .sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
+  // amount_paid can exceed what the ledger accounts for (rows that predate
+  // the ledger, an import that set the total without dated rows). Credit
+  // the difference at the due date: it lowers the starting balance, so it
+  // under-states rather than accruing on money already received.
+  const ledgered = rows.reduce((s, r) => s + r.amount, 0)
+  const unledgered = round2((Number(invoice.amount_paid) || 0) - ledgered)
+  if (unledgered > 0) rows.push({ on: due, amount: unledgered })
+  rows.sort((a, b) => new Date(a.on).getTime() - new Date(b.on).getTime())
 
   let balance = face
   for (const r of rows) {
@@ -276,11 +283,16 @@ serve(async (req) => {
     doc.setFontSize(11)
     doc.setTextColor(dark)
     doc.setFont("helvetica", "bold")
-    doc.text(safe(open[0].client_name, "Client"), 20, y)
+    // The name column runs from x=20 to the SUMMARY column at 120; a long
+    // company name has to wrap there or it prints straight through
+    // "Invoices outstanding".
+    const nameLines: string[] = doc.splitTextToSize(safe(open[0].client_name, "Client"), 92)
+    doc.text(nameLines, 20, y)
+    const nameExtra = (nameLines.length - 1) * 5
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(gray)
-    if (open[0].client_email) doc.text(safe(open[0].client_email), 20, y + 5)
+    if (open[0].client_email) doc.text(safe(open[0].client_email), 20, y + nameExtra + 5)
 
     const grandTotal = round2(open.reduce((s: number, i: any) => s + figures(i).total, 0))
     doc.text("Invoices outstanding", 120, y)
@@ -292,7 +304,7 @@ serve(async (req) => {
     doc.setFont("helvetica", "bold")
     doc.text(fmt(grandTotal), 190, y + 5, { align: "right" })
 
-    y += 14
+    y += 14 + nameExtra
 
     // ── Block renderer ──
     const drawBlock = (
@@ -515,7 +527,11 @@ serve(async (req) => {
     const rawPayLines: string[] = []
     if (profile.account_name) rawPayLines.push(`Account Name: ${profile.account_name}`)
     if (profile.bank_name || profile.sort_code || profile.account_number) {
-      rawPayLines.push(`Bank: ${profile.bank_name || "—"}    Sort Code: ${profile.sort_code || "—"}    Acct: ${profile.account_number || "—"}`)
+      rawPayLines.push([
+        profile.bank_name ? `Bank: ${profile.bank_name}` : null,
+        profile.sort_code ? `Sort Code: ${profile.sort_code}` : null,
+        profile.account_number ? `Acct: ${profile.account_number}` : null,
+      ].filter(Boolean).join("    "))
     }
     rawPayLines.push("Reference: please quote the invoice number(s) you are paying")
     doc.setFontSize(9)
