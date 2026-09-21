@@ -70,7 +70,7 @@ function LiveInterest() {
 }
 
 // Verbatim from users (their Product Hunt reviews never surfaced, so they
-// sent them directly). First names only unless they've okayed more.
+// sent them directly). Unattributed by request.
 const USER_QUOTES = [
   { text: "Hielda helped me claim hundreds of extra pounds I was owed from a client who paid late. It paid for itself many times over.", name: "Kyle" },
   { text: "Hielda helped me keep track of how much I was owed when an invoice became overdue and it helped me get paid much more quickly as a result.", name: "Tom" },
@@ -203,9 +203,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <h2 className={s.quotesTitle}>What users say</h2>
         <div className={s.quoteGrid}>
           {USER_QUOTES.map((q) => (
-            <figure key={q.name} className={s.quoteFigure}>
+            <figure key={q.text} className={s.quoteFigure}>
               <blockquote className={s.quoteBubble}>{q.text}</blockquote>
-              <figcaption className={s.quoteName}>{q.name}</figcaption>
+              <figcaption className={s.quoteName}>Hielda user</figcaption>
             </figure>
           ))}
         </div>
