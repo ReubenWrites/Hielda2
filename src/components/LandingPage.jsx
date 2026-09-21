@@ -44,7 +44,7 @@ const FEATURES = [
 
 /**
  * The number that moves. £3,000 at the statutory rate earns about 97p a
- * day; shown to six places it visibly ticks every second, which is the
+ * day; shown to four places it visibly ticks every few seconds, which is the
  * whole emotional argument for the product in one line. Starts at zero on
  * the server and on first paint, so the prerendered HTML matches.
  */
@@ -62,7 +62,7 @@ function LiveInterest() {
       <Timer size={14} />
       <span>
         Since you opened this page, this invoice has earned another{" "}
-        <strong className={s.liveInterestNum}>£{earned.toFixed(6)}</strong> in interest.
+        <strong className={s.liveInterestNum}>£{earned.toFixed(4)}</strong> in interest.
         It never stops.
       </span>
     </p>
