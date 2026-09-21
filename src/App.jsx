@@ -12,10 +12,6 @@ const shouldShowTour = (userId) => { try { return !localStorage.getItem(`hielda_
 import s from "./App.module.css"
 
 // Lazy-loaded routes
-const Onboarding = lazyRetry(() => import("./components/Onboarding"))
-const Detail = lazyRetry(() => import("./components/Detail"))
-const Create = lazyRetry(() => import("./components/Create"))
-const Settings = lazyRetry(() => import("./components/Settings"))
 // Every deploy renames the hashed chunks. A tab opened before a deploy
 // still holds the old names, and the next lazy route fails with "Failed to
 // fetch dynamically imported module" and lands on the error boundary -
@@ -35,6 +31,10 @@ const lazyRetry = (factory) => lazy(() =>
       throw err
     }))
 
+const Onboarding = lazyRetry(() => import("./components/Onboarding"))
+const Detail = lazyRetry(() => import("./components/Detail"))
+const Create = lazyRetry(() => import("./components/Create"))
+const Settings = lazyRetry(() => import("./components/Settings"))
 const HowItWorks = lazyRetry(() => import("./components/HowItWorks"))
 const Billing = lazyRetry(() => import("./components/Billing"))
 const LandingPage = lazyRetry(() => import("./components/LandingPage"))
