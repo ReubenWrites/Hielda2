@@ -27,8 +27,8 @@ const FEATURES = [
   },
   {
     Ico: CalendarClock,
-    title: "19-Stage Chase Timeline",
-    desc: "From 5 days before the due date to 30 days overdue. The pressure builds gradually, giving your client every chance to pay.",
+    title: "Escalating Chase Timeline",
+    desc: "Eight weighted chases from 5 days before the due date to 30 days overdue, then monthly formal reminders until it's paid. The pressure builds, and it never goes quiet.",
   },
   {
     Ico: Coins,
@@ -260,7 +260,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         {[
           { val: `${getRate()}%`, label: "Statutory interest rate" },
           { val: "£40–100", label: "Fixed recovery cost per invoice" },
-          { val: "19", label: "Chase stages over 30 days" },
+          { val: "8", label: "Chases in the first 30 days" },
           { val: "6 years", label: "To claim what you're owed" },
         ].map((stat) => (
           <div key={stat.label} className={s.statItem}>
@@ -394,7 +394,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <div className={s.includedTitle}>Everything included in both plans:</div>
           <div className={s.includedGrid}>
             {[
-              "19-stage automated chase sequence",
+              "Automated chase sequence that never goes quiet",
               "Statutory interest & penalty enforcement",
               "PDF invoice generation",
               "Chase history & audit trail",
