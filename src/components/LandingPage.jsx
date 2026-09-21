@@ -47,9 +47,9 @@ const TIMELINE_PREVIEW = [
   { day: "Day -1", label: "Second Reminder", col: "#2d72b8" },
   { day: "Day 0", label: "Final Warning", col: "#b45309" },
   { day: "Day +1", label: "Fines Applied", col: "#d97706" },
-  { day: "Day +6–25", label: "Regular Chasing", col: "#c2410c" },
-  { day: "Day +26–29", label: "Daily Escalation", col: "#7f1d1d" },
-  { day: "Day +30", label: "Final Notice", col: "#7f1d1d" },
+  { day: "Day +7 / +14 / +21", label: "Escalating Chases", col: "#c2410c" },
+  { day: "Day +30", label: "Final Notice + Letter Before Action", col: "#7f1d1d" },
+  { day: "Monthly", label: "Formal Reminders Until Paid", col: "#18181b" },
 ]
 
 export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isMobile }) {
@@ -73,9 +73,10 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <button onClick={onCalculator} className={s.navCalcBtn}>
             Calculator
           </button>
-          <button onClick={onGetStarted} className={s.navLoginBtn}>
+          {/* A real link to the plain login form: onGetStarted opens sign-up. */}
+          <a href="/auth" className={s.navLoginBtn} style={{ textDecoration: "none", display: "inline-block" }}>
             Log In
-          </button>
+          </a>
           <button onClick={onGetStarted} className={s.navTrialBtn}>
             Start Free Trial
           </button>

@@ -173,7 +173,8 @@ export default function Billing({ subscription, userId, onUpdate, isMobile }) {
         </h3>
         {[
           "Hielda chases on your behalf \u2014 you stay the good guy",
-          "19-stage escalation from friendly reminder to final notice",
+          "Escalating chases to a final notice at 30 days, then monthly formal reminders",
+          "Letter Before Action drafted from the invoice",
           "Statutory interest & penalty calculations (UK Late Payment Act 1998)",
           "Automatic chase emails at every stage",
           "Check-in before every step \u2014 you stay in full control",

@@ -6,7 +6,14 @@ import { trackEvent } from "../posthog"
 import s from "./AuthScreen.module.css"
 
 export default function AuthScreen({ onAuth, onBack }) {
-  const [mode, setMode] = useState("login")
+  // Every "Start Free Trial" button lands here. It used to open the LOGIN
+  // form regardless, leaving a new visitor to find the small "Create an
+  // account" link. The CTAs pass ?mode=signup; "Log In" comes bare.
+  // Read from window rather than the router: this screen is also rendered
+  // outside a <Router> in tests.
+  const [mode, setMode] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login" } catch { return "login" }
+  })
   const [email, setEmail] = useState("")
   const [pass, setPass] = useState("")
   const [name, setName] = useState("")

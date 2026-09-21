@@ -15,9 +15,9 @@ const TIMELINE_STEPS = [
   { day: "Day -1", title: "Second Reminder", desc: "Another check-in with you. If still unpaid, a firmer reminder goes out.", col: "#2d72b8", ico: "📬" },
   { day: "Day 0", title: "Final Warning", desc: "Due date. Last chance to settle at the original amount — warns that fines and interest start tomorrow.", col: "#b45309", ico: "⚠️" },
   { day: "Day +1", title: "First Chase", desc: "Fines and interest now applied. Formal notice citing the Act with the new total owed.", col: "#d97706", ico: "⚡" },
-  { day: "Day +6–25", title: "Regular Chasing", desc: "Chase emails every 2 days, each with updated interest. The amount grows daily — pressure builds.", col: "#c2410c", ico: "📊" },
-  { day: "Day +26–29", title: "Daily Escalation Warnings", desc: "Daily countdown emails warning that formal recovery (debt agency / County Court) begins in X days.", col: "#7f1d1d", ico: "🔴" },
-  { day: "Day +30", title: "Final Notice", desc: "Last formal demand. If still unpaid, we'll support you to escalate to County Court if you choose to.", col: "#7f1d1d", ico: "⚖️" },
+  { day: "Day +7, +14, +21", title: "Escalating Chases", desc: "Three further chases, each firmer than the last and each with the updated total. Weight, not frequency — nobody is spammed, and the amount grows daily.", col: "#c2410c", ico: "📊" },
+  { day: "Day +30", title: "Final Notice + Letter Before Action", desc: "Last formal demand. Hielda also drafts a Letter Before Action from the invoice — the step the court expects before a claim — with a 14-day deadline (30 for sole traders). Sending it commits you to nothing.", col: "#7f1d1d", ico: "⚖️" },
+  { day: "Monthly", title: "Formal Reminders Until Paid", desc: "It never goes quiet: a formal reminder goes out every month with the growing total. If the letter's deadline passes, Hielda sets out your options — court claim, recovery agent, or park it with interest still running.", col: "#18181b", ico: "🔁" },
 ]
 
 export default function HowItWorks() {

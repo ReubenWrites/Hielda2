@@ -347,25 +347,25 @@ export default function App() {
     return (
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/calculator" element={<Calculator onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} isMobile={isMobile} />} />
-          <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides" element={<GuidesIndex onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/late-payment-act-1998-explained" element={<LatePaymentActExplained onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/how-to-chase-late-invoices" element={<HowToChaseLateInvoices onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/client-not-paying-invoice" element={<ClientNotPayingInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/letter-before-action" element={<LetterBeforeAction onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/small-claims-court-unpaid-invoice" element={<SmallClaimsCourtUnpaidInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/how-much-interest-late-invoice" element={<HowMuchInterestLateInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/invoice-payment-terms-uk" element={<InvoicePaymentTermsUk onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/freelancer-rights-late-payment" element={<FreelancerRightsLatePayment onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
-          <Route path="/guides/debt-collection-agency-vs-diy" element={<DebtCollectionAgencyVsDiy onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} />} />
+          <Route path="/calculator" element={<Calculator onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} isMobile={isMobile} />} />
+          <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides" element={<GuidesIndex onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/late-payment-act-1998-explained" element={<LatePaymentActExplained onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/how-to-chase-late-invoices" element={<HowToChaseLateInvoices onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/client-not-paying-invoice" element={<ClientNotPayingInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/letter-before-action" element={<LetterBeforeAction onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/small-claims-court-unpaid-invoice" element={<SmallClaimsCourtUnpaidInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/how-much-interest-late-invoice" element={<HowMuchInterestLateInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/invoice-payment-terms-uk" element={<InvoicePaymentTermsUk onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/freelancer-rights-late-payment" element={<FreelancerRightsLatePayment onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/debt-collection-agency-vs-diy" element={<DebtCollectionAgencyVsDiy onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
           <Route path="/ref/:code" element={<ReferralRedirect />} />
           {/* /how is in the sitemap and prerendered; without a public route a
               logged-out visitor was silently shown the home page instead. */}
           <Route path="/how" element={<HowItWorks isMobile={isMobile} />} />
-          <Route path="/" element={<LandingPage onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} onPrivacy={() => { trackPageView("privacy"); navigate("/privacy") }} onCalculator={() => { trackPageView("calculator"); navigate("/calculator") }} isMobile={isMobile} />} />
+          <Route path="/" element={<LandingPage onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} onPrivacy={() => { trackPageView("privacy"); navigate("/privacy") }} onCalculator={() => { trackPageView("calculator"); navigate("/calculator") }} isMobile={isMobile} />} />
           {/* App URLs reached without a session (a bookmark, a link from a
               Hielda email after the session expired) go to sign-in, not to
               a not-found page. */}
