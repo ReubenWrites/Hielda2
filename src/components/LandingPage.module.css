@@ -244,11 +244,34 @@
   max-width: 1040px;
   margin: 0 auto;
 }
+.quotesTitle {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm);
+  margin: 0 0 18px;
+}
 .quoteGrid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
-  align-items: center;
+  align-items: start;
+}
+.quoteFigure {
+  margin: 0;
+}
+.quoteName {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx);
+}
+.quoteName::before {
+  content: "4  ";
+  color: var(--tm);
 }
 .quoteBubble {
   position: relative;

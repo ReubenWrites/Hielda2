@@ -69,11 +69,12 @@ function LiveInterest() {
   )
 }
 
-// From the MarketSpy piece, unattributed by request.
-const PRESS_QUOTES = [
-  "It automates the uncomfortable part of getting paid while making use of legal protections that already exist.",
-  "It doesn't simply send payment reminders.",
-  "It could help freelancers recover income they have already earned — without having to send one more awkward reminder email.",
+// Verbatim from users (their Product Hunt reviews never surfaced, so they
+// sent them directly). First names only unless they've okayed more.
+const USER_QUOTES = [
+  { text: "Hielda helped me claim hundreds of extra pounds I was owed from a client who paid late. It paid for itself many times over.", name: "Kyle" },
+  { text: "Hielda helped me keep track of how much I was owed when an invoice became overdue and it helped me get paid much more quickly as a result.", name: "Tom" },
+  { text: "I find it's actually a really useful way of organising all my invoices and knowing when they're due, as well as helping me chase up if I need to.", name: "Louise" },
 ]
 
 const TIMELINE_PREVIEW = [
@@ -197,11 +198,15 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         </section>
       </div>
 
-      {/* What the press said — speech bubbles, no names. */}
-      <section className={s.quotesSection} aria-label="What the press said">
+      {/* What users say — speech bubbles with the speaker underneath. */}
+      <section className={s.quotesSection} aria-label="What users say">
+        <h2 className={s.quotesTitle}>What users say</h2>
         <div className={s.quoteGrid}>
-          {PRESS_QUOTES.map((q) => (
-            <blockquote key={q} className={s.quoteBubble}>{q}</blockquote>
+          {USER_QUOTES.map((q) => (
+            <figure key={q.name} className={s.quoteFigure}>
+              <blockquote className={s.quoteBubble}>{q.text}</blockquote>
+              <figcaption className={s.quoteName}>{q.name}</figcaption>
+            </figure>
           ))}
         </div>
       </section>
