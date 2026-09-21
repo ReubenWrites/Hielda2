@@ -800,6 +800,16 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
   }
 
   const resendEmail = async (stage, resetChase) => {
+    // Rule (21 Sep 2026): no email reaches a client without a confirm step.
+    // These one-tap buttons sent straight away.
+    if (!(await confirm({
+      title: resetChase
+        ? `Restart chasing from day 1 for ${inv.client_name}?`
+        : `Resend "${getStageLabel(stage)}" to ${inv.client_name}?`,
+      message: `An email will be sent to ${inv.client_email}. You'll be BCC'd a copy.`,
+      confirmLabel: "Send email",
+      cancelLabel: "Cancel",
+    }))) return
     setResending(true)
     setError("")
     try {
@@ -2013,8 +2023,10 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
             />
             <div className={s.modalFooter}>
               <Btn v="ghost" onClick={() => setPreviewHtml(null)} sz="sm">Close</Btn>
+              {/* Seeing the preview is not consent to send it. Every client
+                  email goes through the same confirm dialog. */}
               <Btn
-                onClick={() => { setPreviewHtml(null); sendChaseEmail({ skipConfirm: true }) }}
+                onClick={() => { setPreviewHtml(null); sendChaseEmail() }}
                 dis={sending}
                 sz="sm"
               >
