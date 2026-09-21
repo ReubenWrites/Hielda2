@@ -46,7 +46,10 @@ const CALC_FAQS = [
   },
 ]
 
-export default function Calculator({ onBack, onGetStarted, isMobile }) {
+export default function Calculator({ onBack, onGetStarted, isMobile, inApp = false }) {
+  // Logged-in users reach this page from the sidebar; "Start Free Trial"
+  // makes no sense to them and the deep link should read as what it does.
+  const ctaLabel = inApp ? "New invoice" : "Start Free Trial"
   const initial = paramsFromUrl()
   const [amount, setAmount] = useState(initial.amount)
   const [daysOverdue, setDaysOverdue] = useState(initial.days)
@@ -147,7 +150,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
           <span className={s.navLogoText}>Hielda</span>
         </div>
         <button onClick={onGetStarted} className={s.navTrialBtn}>
-          Start Free Trial
+          {ctaLabel}
         </button>
       </nav>
 
@@ -277,7 +280,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 <div className={s.leadSuccess}>
                   <span className={s.leadSuccessText}><Check size={14} strokeWidth={2.5} style={{ verticalAlign: "-2px", marginRight: 4 }} /> Saved! Check your inbox.</span>
                   <button onClick={onGetStarted} className={s.leadBtn} style={{ marginTop: 12, width: "100%" }}>
-                    Start your free trial — chase this invoice now
+                    {inApp ? "Chase this invoice now" : "Start your free trial — chase this invoice now"}
                   </button>
                 </div>
               )}
@@ -384,7 +387,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
             Hielda chases late invoices and enforces penalties automatically — so you don't have to.
           </p>
           <button onClick={onGetStarted} className={s.ctaBtn}>
-            Start Free Trial
+            {ctaLabel}
           </button>
           <p className={s.ctaSmall}>
             No credit card required · 6-week free trial
