@@ -1277,3 +1277,38 @@
     font-size: 22px;
   }
 }
+
+/* ── Directory badge strip ── */
+.badgeStrip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 4px 48px 28px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.badgeStrip a {
+  display: block;
+  line-height: 0;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+.badgeStrip a:hover {
+  opacity: 1;
+}
+.badgeImg {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+@media (max-width: 480px) {
+  .badgeStrip {
+    padding: 4px 16px 24px;
+    gap: 10px 16px;
+  }
+  .badgeImg {
+    height: 26px;
+  }
+}

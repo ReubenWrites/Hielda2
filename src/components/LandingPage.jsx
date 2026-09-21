@@ -546,73 +546,27 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <a href="/guides" className={s.footerNavLink}>All guides</a>
           <a href="/privacy" className={s.footerNavLink}>Privacy policy</a>
           <a href="mailto:support@hielda.com" className={s.footerNavLink}>support@hielda.com</a>
-          {/* Product Hunt badge — launched 2 Sep 2026 */}
-          <a
-            href="https://www.producthunt.com/products/hielda?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hielda"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginTop: 10, display: "inline-block" }}
-          >
-            <img
-              alt="Hielda - Winning interest & fees for freelancers on late invoices | Product Hunt"
-              width="250"
-              height="54"
-              style={{ maxWidth: "100%", height: "auto" }}
-              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light&t=1787929808370"
-            />
-          </a>
-          {/* TechBase Directory featured badge — paid listing, their
-              listing page links back dofollow; the embed keeps the
-              featured status valid. */}
-          <a
-            href="https://techbasedirectory.com/product/hielda?utm_source=featured_embed"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginTop: 8, display: "inline-block" }}
-          >
-            <img
-              src="https://techbasedirectory.com/api/featured-embed"
-              alt="Hielda | Techbasedirectory.com"
-              width="200"
-              height="60"
-              style={{ maxWidth: "100%", height: "auto" }}
-            />
-          </a>
-          {/* Launchstag featured badge — free listing, badge required for
-              the listing to go live. */}
-          <a
-            href="https://launchstag.com/p/hielda"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginTop: 8, display: "inline-block" }}
-          >
-            <img
-              src="https://launchstag.com/badge-light.svg"
-              alt="Featured on Launchstag"
-              width="198"
-              height="62"
-              style={{ maxWidth: "100%", height: "auto" }}
-            />
-          </a>
-          {/* Launchpadly listed-on badge. */}
-          <a
-            href="https://launchpadly.co/startup/hielda?ref=badge"
-            target="_blank"
-            rel="noopener noreferrer"
-            data-launchpadly-badge="hielda"
-            data-launchpadly-badge-variant="listed-on"
-            style={{ marginTop: 8, display: "inline-block" }}
-          >
-            <img
-              src="https://launchpadly.co/embed/badges/startup/hielda.svg?variant=listed-on"
-              alt="Launchpadly Startup Directory"
-              width="260"
-              height="48"
-              style={{ display: "block", border: 0, maxWidth: "100%", height: "auto" }}
-            />
-          </a>
         </div>
       </section>
+
+      {/* Directory badges — one small horizontal strip, uniform height, so
+          they read as a "featured on" row rather than four mismatched
+          images stacked in a footer column. The images keep their real
+          width/height attributes for the directories' verifiers. */}
+      <div className={s.badgeStrip} aria-label="Featured on">
+        <a href="https://www.producthunt.com/products/hielda?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hielda" target="_blank" rel="noopener noreferrer">
+          <img className={s.badgeImg} alt="Hielda - Winning interest & fees for freelancers on late invoices | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light&t=1787929808370" />
+        </a>
+        <a href="https://techbasedirectory.com/product/hielda?utm_source=featured_embed" target="_blank" rel="noopener noreferrer">
+          <img className={s.badgeImg} src="https://techbasedirectory.com/api/featured-embed" alt="Hielda | Techbasedirectory.com" width="200" height="60" />
+        </a>
+        <a href="https://launchstag.com/p/hielda" target="_blank" rel="noopener noreferrer">
+          <img className={s.badgeImg} src="https://launchstag.com/badge-light.svg" alt="Featured on Launchstag" width="198" height="62" />
+        </a>
+        <a href="https://launchpadly.co/startup/hielda?ref=badge" target="_blank" rel="noopener noreferrer" data-launchpadly-badge="hielda" data-launchpadly-badge-variant="listed-on">
+          <img className={s.badgeImg} src="https://launchpadly.co/embed/badges/startup/hielda.svg?variant=listed-on" alt="Launchpadly Startup Directory" width="260" height="48" />
+        </a>
+      </div>
 
       {/* Footer */}
       <footer className={s.footer}>
