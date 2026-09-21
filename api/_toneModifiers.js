@@ -25,7 +25,7 @@ const formatDate = (d) =>
 
 export function friendlySubject(stage, { invoice, total, dl, poRef }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const subjects = {
     reminder_1:    `Just a heads-up: Invoice ${ref}${poRef} for ${amt} is coming up`,
@@ -67,7 +67,7 @@ export function friendlySubject(stage, { invoice, total, dl, poRef }) {
 
 export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const dueDate = formatDate(invoice.due_date)
 
@@ -344,7 +344,7 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
 
 export function legalSubject(stage, { invoice, total, dl, poRef }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const subjects = {
     reminder_1:    `FORMAL REMINDER: Invoice ${ref}${poRef} — ${amt} due shortly`,
@@ -386,7 +386,7 @@ export function legalSubject(stage, { invoice, total, dl, poRef }) {
 
 export function legalBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const dueDate = formatDate(invoice.due_date)
   const creditor = profile.business_name || profile.full_name || "the creditor"
@@ -692,10 +692,12 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
 // ── Firm tone (default) ────────────────────────────────────────────────────────
 
 export function firmSubject(stage, { invoice, total, dl, poRef }) {
+  // What they owe now, not the face value: a part-paid client must not be asked for the full amount.
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const subjects = {
-    reminder_1:    `Payment reminder: Invoice ${invoice.ref}${poRef} — ${fmt(invoice.amount)}`,
-    reminder_2:    `Upcoming: Invoice ${invoice.ref}${poRef} due tomorrow — ${fmt(invoice.amount)}`,
-    final_warning: `URGENT: Invoice ${invoice.ref}${poRef} — last chance to settle at ${fmt(invoice.amount)}`,
+    reminder_1:    `Payment reminder: Invoice ${invoice.ref}${poRef} — ${amt}`,
+    reminder_2:    `Upcoming: Invoice ${invoice.ref}${poRef} due tomorrow — ${amt}`,
+    final_warning: `URGENT: Invoice ${invoice.ref}${poRef} — last chance to settle at ${amt}`,
     first_chase:   `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} now owed`,
     second_chase:  `OVERDUE: Invoice ${invoice.ref}${poRef} — ${dl} days late, ${fmt(total)} owed`,
     third_chase:   `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} outstanding`,
@@ -729,12 +731,14 @@ export function firmSubject(stage, { invoice, total, dl, poRef }) {
 }
 
 export function firmBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
+  // What they owe now, not the face value: a part-paid client must not be asked for the full amount.
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const bodies = {
     reminder_1: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
+      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${amt}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
-        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${amt}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
       </div>
       ${lineBlock}
       ${payBlock}
@@ -743,9 +747,9 @@ export function firmBody(stage, { invoice, profile, dl, total, interest, pen, fr
     `,
     reminder_2: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
+      <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${amt}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
-        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${amt}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
       </div>
       ${lineBlock}
       ${payBlock}
@@ -753,8 +757,8 @@ export function firmBody(stage, { invoice, profile, dl, total, interest, pen, fr
     `,
     final_warning: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
-      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${amt}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
+      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${amt}.</strong></p>
       <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed debt recovery cost under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>. This means the amount owed will increase from tomorrow.</p>
       <p>Please arrange payment immediately to avoid additional charges.</p>
       ${lineBlock}
@@ -763,7 +767,7 @@ export function firmBody(stage, { invoice, profile, dl, total, interest, pen, fr
     `,
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${amt}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
       <p>As notified, under the Late Payment of Commercial Debts (Interest) Act 1998, the following statutory charges have now been applied:</p>
       ${interestTable}
       <p>Please arrange payment of <strong>${fmt(total)}</strong> immediately. Interest continues to accrue daily.</p>

@@ -492,9 +492,9 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     const { error } = await supabase.from("invoices")
       .update({ parked_at: new Date().toISOString() }).eq("id", inv.id)
     setParking(false)
-    if (error) { toast("Couldn't park it: " + error.message, "error"); return }
+    if (error) { toast.error("Couldn't park it: " + error.message); return }
     trackEvent("debt_parked", { invoice_id: inv.id })
-    toast("Parked. The debt stays on your books.", "success")
+    toast.success("Parked. The debt stays on your books.")
     onUpdate?.()
   }
   const unparkDebt = async () => {
@@ -502,9 +502,9 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     const { error } = await supabase.from("invoices")
       .update({ parked_at: null }).eq("id", inv.id).select()
     setParking(false)
-    if (error) { toast("Couldn't resume: " + error.message, "error"); return }
+    if (error) { toast.error("Couldn't resume: " + error.message); return }
     trackEvent("debt_unparked", { invoice_id: inv.id })
-    toast("Chasing resumed.", "success")
+    toast.success("Chasing resumed.")
     onUpdate?.()
   }
 
@@ -1040,11 +1040,14 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       if (outcome === "paid") {
         updates.paid_date = new Date().toISOString().split("T")[0]
         updates.chase_stage = null
-      } else if (outcome === "adjusted") {
-        updates.chase_stage = "reminder_1"
       } else if (outcome === "written_off") {
         updates.chase_stage = null
       }
+      // "adjusted" resumes where the invoice left off. It used to force
+      // chase_stage to reminder_1, which ticked the Reminders milestone on
+      // the lifecycle bar for an invoice whose reminders were still weeks
+      // away. Auto-chase works out the next stage from the due date and
+      // the chase log, so nothing needs writing here.
       const { error: err } = await supabase
         .from("invoices")
         .update(updates)
@@ -1790,6 +1793,25 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       </div>
 
       <ChaseTimeline inv={inv} si={si} />
+
+      {/* The letter is out and the clock is running. Found live: with no
+          panel for this state the page said "BEING CHASED" and nothing
+          else, while every chase was (correctly) being refused. */}
+      {inv.status !== "paid" && inv.lba_sent_at && inv.lba_deadline &&
+       Date.now() <= new Date(inv.lba_deadline).getTime() + 864e5 && !inv.parked_at && (
+        <Card className={s.finalNoticeCard} style={{ marginTop: 16, borderColor: "#18181b30" }}>
+          <h3 className={s.finalNoticeTitle}>Letter Before Action sent {formatDate(inv.lba_sent_at)}</h3>
+          <p className={s.finalNoticeBody}>
+            {inv.client_name || "Your client"} has until <strong>{formatDate(inv.lba_deadline)}</strong> to
+            pay or respond. Hielda won't send any chase emails while that window is open — the letter
+            is the communication now. Interest keeps accruing. If they pay, record it above; if the
+            deadline passes, you'll get the options for what to do next here.
+          </p>
+          <div className={s.decisionActions}>
+            <Btn v="ghost" sz="sm" onClick={() => navigate(`/invoice/${inv.id}/letter-before-action`)}>View the letter</Btn>
+          </div>
+        </Card>
+      )}
 
       {/* Decision point: the Letter Before Action deadline has passed and
           the client still hasn't paid. This is the moment the user has to

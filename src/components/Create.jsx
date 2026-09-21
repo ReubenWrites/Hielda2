@@ -485,7 +485,12 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         requested_term_days: termsUnagreed ? effectiveDays : null,
         status: isOverdue ? "overdue" : "pending",
         chase_stage: isOverdue ? "reminder_1" : null,
-        send_method: meth,
+        // Stored from the real decision, not the checkbox alone. With the
+        // "Email the invoice" switch off and the checkbox clear this used
+        // to save 'portal', and the intro guard (which blocks on
+        // 'download') would then let a later "resend introduction" email
+        // a client the user had opted out of emailing.
+        send_method: emailClient ? "portal" : "download",
         auto_chase: autoChase,
         no_fines: clientType === "consumer" ? true : noFines,
         client_type: clientType,
@@ -504,7 +509,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         supabase.from("invoice_drafts").delete().eq("id", draftId).then(() => {})
         setDraftId(null)
       }
-      trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: meth })
+      trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: emailClient ? "portal" : "download" })
 
       setNewInvId(newInv.id)
 
@@ -653,7 +658,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
         <div className={`${s.iconCircle} ${s.iconCircleSuccess}`}>✓</div>
         <h2 className={s.heading}>Invoice Created</h2>
         <p className={s.successRef}>{ref} · {fmt(isVatRegistered ? totalWithVat : parsedTotal)}{isVatRegistered && totalVat > 0 ? ` (inc. ${fmt(totalVat)} VAT)` : ""} · {cn}</p>
-        <p className={s.subtextSmall}>Hielda will chase automatically if unpaid by {formatDate(due)}.</p>
+        <p className={s.subtextSmall}>
+          {due.toISOString().split("T")[0] < todayStr()
+            ? "This invoice is already overdue — Hielda will check in with you before the first chase goes out."
+            : `Hielda will chase automatically if unpaid by ${formatDate(due)}.`}
+        </p>
 
         {emailClient && !introSendError && (
           <div className={s.introSentBadge}>✓ Introduction email sent to {cn}</div>
@@ -680,7 +689,10 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           </div>
         )}
 
-        {(meth === "download" || introSendError) && (
+        {/* Whenever Hielda didn't email the client, the user is the one
+            sending the invoice, so hand them the PDF here — not only when
+            the checkbox specifically was ticked. */}
+        {(!emailClient || introSendError) && (
           <div className={s.downloadWrap}>
             <Btn onClick={downloadPdf} dis={downloading}>
               {downloading ? "Generating PDF..." : "⬇ Download Invoice PDF"}
@@ -689,7 +701,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           </div>
         )}
         <div className={s.btnRow}>
-          <Btn v={meth === "download" ? "ghost" : "primary"} onClick={() => navigate("/dashboard")}>Dashboard</Btn>
+          <Btn v={!emailClient ? "ghost" : "primary"} onClick={() => navigate("/dashboard")}>Dashboard</Btn>
           <Btn v="ghost" onClick={resetForm}>Create Another</Btn>
         </div>
       </div>
@@ -1301,11 +1313,23 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
           <Card style={{ marginBottom: 16 }}>
             <div className={s.introCheckRow}>
+              {/* Mirrors the real decision. Switching "Email the invoice"
+                  off on step 1 used to leave this box clear and the button
+                  reading "Send to …" — the screen promised an email the
+                  server had (correctly) decided not to send. */}
               <input
                 type="checkbox"
                 id="sendDownload"
-                checked={meth === "download"}
-                onChange={(e) => setMeth(e.target.checked ? "download" : "portal")}
+                checked={!emailClient}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setMeth("download")
+                  } else {
+                    setMeth("portal")
+                    setSendIntro(true)
+                    setIntroMethod("hielda")
+                  }
+                }}
                 className={s.introCheckbox}
               />
               <div className={s.introCheckContent}>
@@ -1324,7 +1348,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             <Btn dis={saving} onClick={go}>
               {saving
                 ? "Creating..."
-                : meth === "download"
+                : !emailClient
                   ? "📥 Create & Download"
                   : `📧 Send to ${cn || "client"}`}
             </Btn>

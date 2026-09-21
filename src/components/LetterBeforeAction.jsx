@@ -180,7 +180,7 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
       URL.revokeObjectURL(url)
       trackEvent("lba_invoice_downloaded", { invoice_id: inv.id })
     } catch (e) {
-      toast(e.message, "error")
+      toast.error(e.message)
     } finally {
       setDownloading(false)
     }
@@ -193,7 +193,7 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
       setTimeout(() => setCopied(false), 2500)
       trackEvent("lba_copied", { invoice_id: inv.id })
     } catch {
-      toast("Couldn't copy — your browser blocked clipboard access.", "error")
+      toast.error("Couldn't copy — your browser blocked clipboard access.")
     }
   }
 
@@ -206,9 +206,9 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
       client_entity: soleTrader ? "sole_trader" : "company",
     }).eq("id", inv.id)
     setSaving(false)
-    if (error) { toast("Couldn't save: " + error.message, "error"); return }
+    if (error) { toast.error("Couldn't save: " + error.message); return }
     trackEvent("lba_marked_sent", { invoice_id: inv.id, response_days: days })
-    toast(`Recorded. ${inv.client_name || "Your client"} has until ${formatDate(dueBy)} to respond.`, "success")
+    toast.success(`Recorded. ${inv.client_name || "Your client"} has until ${formatDate(dueBy)} to respond.`)
     onUpdate?.()
     navigate(`/invoice/${inv.id}`)
   }

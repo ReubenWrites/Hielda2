@@ -15,7 +15,7 @@ import { fmt, formatDate, penalty } from "../utils"
 
 export function friendlySubject(stage, { invoice, total, dl, poRef }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const subjects = {
     reminder_1:    `Just a heads-up: Invoice ${ref}${poRef} for ${amt} is coming up`,
@@ -57,7 +57,7 @@ export function friendlySubject(stage, { invoice, total, dl, poRef }) {
 
 export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const dueDate = formatDate(invoice.due_date)
 
@@ -334,7 +334,7 @@ export function friendlyBody(stage, { invoice, profile, dl, total, interest, pen
 
 export function legalSubject(stage, { invoice, total, dl, poRef }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const subjects = {
     reminder_1:    `FORMAL REMINDER: Invoice ${ref}${poRef} — ${amt} due shortly`,
@@ -376,7 +376,7 @@ export function legalSubject(stage, { invoice, total, dl, poRef }) {
 
 export function legalBody(stage, { invoice, profile, dl, total, interest, pen, fromName, interestTable, totalBlock, lineBlock, payBlock }) {
   const ref = invoice.ref
-  const amt = fmt(invoice.amount)
+  const amt = fmt(Math.max(0, Number(invoice.amount) - (Number(invoice.amount_paid) || 0)))
   const t = fmt(total)
   const dueDate = formatDate(invoice.due_date)
   const creditor = profile.business_name || profile.full_name || "the creditor"

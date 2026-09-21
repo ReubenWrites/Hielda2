@@ -342,6 +342,12 @@ export default function App() {
               logged-out visitor was silently shown the home page instead. */}
           <Route path="/how" element={<HowItWorks isMobile={isMobile} />} />
           <Route path="/" element={<LandingPage onGetStarted={() => { trackPageView("auth"); navigate("/auth") }} onPrivacy={() => { trackPageView("privacy"); navigate("/privacy") }} onCalculator={() => { trackPageView("calculator"); navigate("/calculator") }} isMobile={isMobile} />} />
+          {/* App URLs reached without a session (a bookmark, a link from a
+              Hielda email after the session expired) go to sign-in, not to
+              a not-found page. */}
+          {["/dashboard", "/create", "/settings", "/billing", "/referrals", "/admin", "/invoice/:id", "/invoice/:id/letter-before-action"].map((p) => (
+            <Route key={p} path={p} element={<Navigate to="/auth" replace />} />
+          ))}
           {/* Anything else is a not-found page marked noindex, not a second
               copy of the home page for Google to flag as a soft 404. */}
           <Route path="*" element={<NotFound />} />

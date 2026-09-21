@@ -86,6 +86,15 @@ function lineItemsBlock(invoice) {
           <td style="padding:8px 0 2px;font-weight:700;font-size:13px;">Total</td>
           <td style="padding:8px 0 2px;font-weight:700;font-size:14px;text-align:right;font-family:monospace;color:#1e5fa0;">${fmt(invoice.amount)}</td>
         </tr>
+        ${(Number(invoice.amount_paid) || 0) > 0 ? `
+        <tr>
+          <td style="padding:2px 0;font-size:12px;color:#15803d;">Paid so far</td>
+          <td style="padding:2px 0;font-size:12px;text-align:right;font-family:monospace;color:#15803d;">-${fmt(Number(invoice.amount_paid))}</td>
+        </tr>
+        <tr>
+          <td style="padding:2px 0 6px;font-weight:700;font-size:13px;">Balance</td>
+          <td style="padding:2px 0 6px;font-weight:700;font-size:14px;text-align:right;font-family:monospace;color:#1e5fa0;">${fmt(Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid)))}</td>
+        </tr>` : ''}
       </tfoot>
     </table>`
 }

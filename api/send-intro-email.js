@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
+import { clientSendBlock } from './_sendGuard.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -68,12 +69,12 @@ export default async function handler(req, res) {
       }
       // The user's choice to send this invoice themselves is recorded on
       // the invoice. Honour it here whatever the browser asked for: a gate
-      // in the UI is a courtesy, this is the guarantee.
-      if (inv.send_method === 'download') {
-        return res.status(409).json({
-          error: 'This invoice is marked as sent by you, so Hielda will not email your client.',
-          code: 'send_method_download',
-        })
+      // in the UI is a courtesy, this is the guarantee. Same shared gate as
+      // every other client-facing send (also refuses parked and paid).
+      // The address comes from the form; the row may predate client_email.
+      const block = clientSendBlock({ ...inv, client_email: inv.client_email || client_email }, 'intro')
+      if (block) {
+        return res.status(409).json({ error: block.message, code: block.code })
       }
       invoice = inv
     }
@@ -202,6 +203,22 @@ export default async function handler(req, res) {
     const resendData = await resendRes.json()
     if (!resendRes.ok) {
       return res.status(500).json({ error: resendData.message || 'Email send failed' })
+    }
+
+    // Log it like every other client-facing email: the invoice page's
+    // history showed nothing for the introduction, and the bounce webhook
+    // had no row to match a Resend id against.
+    if (invoice) {
+      const { error: logErr } = await supabase.from('chase_log').insert({
+        invoice_id: invoice.id,
+        user_id: user.id,
+        chase_stage: 'intro',
+        status: 'intro_sent',
+        email_to: client_email,
+        resend_id: resendData?.id || null,
+        delivery_status: 'pending',
+      })
+      if (logErr) console.error('send-intro-email: chase_log insert failed', logErr.message)
     }
 
     return res.status(200).json({ success: true })

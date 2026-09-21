@@ -12,9 +12,21 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const dl = daysLate(invoice.due_date)
   // The 1998 Act is business-to-business only: consumers are never charged.
   const finesEnabled = !invoice.no_fines && invoice.client_type !== "consumer"
-  const interest = finesEnabled ? calcInterest(Number(invoice.amount), dl) : 0
-  const pen = finesEnabled ? penalty(Number(invoice.amount)) : 0
-  const total = round2(Number(invoice.amount) + interest + pen)
+  // Everything the client is told is on the BALANCE, not the face value.
+  // This preview used to quote the full invoice amount to a client who had
+  // part-paid, while the server's send path credited the payment - so the
+  // preview and the email disagreed. Same rules as api/send-chase-email:
+  // fee tiered on the debt that went overdue, interest on what's left.
+  const amountPaid = Number(invoice.amount_paid) || 0
+  const outstanding = Math.max(0, round2(Number(invoice.amount) - amountPaid))
+  const debtAtDue = Math.max(0, round2(Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)))
+  const interest = finesEnabled ? calcInterest(outstanding, dl) : 0
+  const pen = finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
+  const total = round2(outstanding + interest + pen)
+  const amtStr = fmt(outstanding)
+  const paidRow = amountPaid > 0
+    ? `<tr><td style="padding:7px 16px 7px 0;color:#64748b;">Paid so far</td><td style="padding:6px 0;font-weight:600;color:#15803d;">-${fmt(amountPaid)}</td></tr>`
+    : ""
 
   // stageById covers the generated formal_N stages, which have no entry
   // in CHASE_STAGES — wrapInLayout needs a colour and label either way.
@@ -27,6 +39,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     ${lineBlock}
     <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
+      ${paidRow}
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Interest (${dl} days at ${getRate()}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
       <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
@@ -37,15 +50,15 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     <div style="background:#fef2f2;border-left:4px solid #9f1239;padding:16px;margin:16px 0;border-radius:0 8px 8px 0;">
       <div style="font-size:12px;color:#9f1239;font-weight:600;margin-bottom:4px;">TOTAL NOW OWED</div>
       <div style="font-size:24px;font-weight:700;color:#9f1239;">${fmt(total)}</div>
-      <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)} + Debt recovery cost: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Original: ${fmt(invoice.amount)}${amountPaid > 0 ? ` - Paid: ${fmt(amountPaid)}` : ""} + Debt recovery cost: ${fmt(pen)} + Interest: ${fmt(interest)}</div>
     </div>`
 
   const poRef = invoice.client_ref ? ` (${invoice.client_ref})` : ""
 
   const subjects = {
-    reminder_1: `Payment reminder: Invoice ${invoice.ref}${poRef} — ${fmt(invoice.amount)}`,
-    reminder_2: `Upcoming: Invoice ${invoice.ref}${poRef} due tomorrow — ${fmt(invoice.amount)}`,
-    final_warning: `URGENT: Invoice ${invoice.ref}${poRef} — last chance to settle at ${fmt(invoice.amount)}`,
+    reminder_1: `Payment reminder: Invoice ${invoice.ref}${poRef} — ${amtStr}`,
+    reminder_2: `Upcoming: Invoice ${invoice.ref}${poRef} due tomorrow — ${amtStr}`,
+    final_warning: `URGENT: Invoice ${invoice.ref}${poRef} — last chance to settle at ${amtStr}`,
     first_chase: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} now owed`,
     second_chase: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${dl} days late, ${fmt(total)} owed`,
     third_chase: `OVERDUE: Invoice ${invoice.ref}${poRef} — ${fmt(total)} outstanding`,
@@ -79,9 +92,9 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const bodies = {
     reminder_1: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
+      <p>This is a friendly reminder that invoice <strong>${invoice.ref}</strong> for <strong>${amtStr}</strong> is due by <strong>${formatDate(invoice.due_date)}</strong>.</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
-        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${amtStr}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
       </div>
       ${lineBlock}
       ${payBlock}
@@ -90,9 +103,9 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     `,
     reminder_2: `
       <p>Dear ${invoice.client_name},</p>
-      <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
+      <p>This is a reminder that invoice <strong>${invoice.ref}</strong> for <strong>${amtStr}</strong> is due <strong>tomorrow</strong> (${formatDate(invoice.due_date)}).</p>
       <div style="background:#f0f7ff;border-left:3px solid #1e5fa0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:13px;color:#1e3a5f;">
-        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${fmt(invoice.amount)}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
+        <strong>${formatDate(invoice.due_date)}</strong> is the final date this invoice can be settled at the original amount of <strong>${amtStr}</strong>. After this date, statutory fines and interest will apply. Early payment is always appreciated.
       </div>
       ${lineBlock}
       ${payBlock}
@@ -100,8 +113,8 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     `,
     final_warning: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
-      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${fmt(invoice.amount)}.</strong></p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${amtStr}</strong> is due <strong>today</strong> (${formatDate(invoice.due_date)}).</p>
+      <p><strong>This is your last opportunity to settle this invoice at the original amount of ${amtStr}.</strong></p>
       <p>If payment is not received by end of business today, we will be entitled to add statutory interest and a fixed debt recovery cost under the <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong>.</p>
       ${lineBlock}
       ${payBlock}
@@ -109,7 +122,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     `,
     first_chase: `
       <p>Dear ${invoice.client_name},</p>
-      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${fmt(invoice.amount)}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> for <strong>${amtStr}</strong> was due by <strong>${formatDate(invoice.due_date)}</strong> and remains unpaid.</p>
       <p>As notified, under the Late Payment of Commercial Debts (Interest) Act 1998, the following statutory charges have now been applied:</p>
       ${interestTable}
       <p>Please arrange payment of <strong>${fmt(total)}</strong> immediately. Interest continues to accrue daily.</p>
@@ -431,6 +444,15 @@ function lineItemsBlock(invoice) {
           <td style="padding:8px 0 2px;font-weight:700;font-size:13px;">Total</td>
           <td style="padding:8px 0 2px;font-weight:700;font-size:14px;text-align:right;font-family:monospace;color:#1e5fa0;">${fmt(invoice.amount)}</td>
         </tr>
+        ${(Number(invoice.amount_paid) || 0) > 0 ? `
+        <tr>
+          <td style="padding:2px 0;font-size:12px;color:#15803d;">Paid so far</td>
+          <td style="padding:2px 0;font-size:12px;text-align:right;font-family:monospace;color:#15803d;">-${fmt(Number(invoice.amount_paid))}</td>
+        </tr>
+        <tr>
+          <td style="padding:2px 0 6px;font-weight:700;font-size:13px;">Balance</td>
+          <td style="padding:2px 0 6px;font-weight:700;font-size:14px;text-align:right;font-family:monospace;color:#1e5fa0;">${fmt(Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid)))}</td>
+        </tr>` : ""}
       </tfoot>
     </table>`
 }

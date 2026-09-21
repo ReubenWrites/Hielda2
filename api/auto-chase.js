@@ -180,6 +180,7 @@ function buildCheckInEmail(invoice, profile, stage) {
             <tr><td style="padding:3px 0;color:#64748b;">Reference</td><td style="padding:3px 0;font-weight:500;text-align:right;">${invoice.ref}</td></tr>
             <tr><td style="padding:3px 0;color:#64748b;">Client</td><td style="padding:3px 0;font-weight:500;text-align:right;">${invoice.client_name}</td></tr>
             <tr><td style="padding:3px 0;color:#64748b;">Amount</td><td style="padding:3px 0;font-weight:500;text-align:right;">${fmt(invoice.amount)}</td></tr>
+            ${(Number(invoice.amount_paid) || 0) > 0 ? `<tr><td style="padding:3px 0;color:#64748b;">Still outstanding</td><td style="padding:3px 0;font-weight:600;text-align:right;">${fmt(Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid)))}</td></tr>` : ''}
             <tr><td style="padding:3px 0;color:#64748b;">Due Date</td><td style="padding:3px 0;font-weight:500;text-align:right;">${formatDate(invoice.due_date)}</td></tr>
             <tr><td style="padding:3px 0;color:#64748b;">Pending Stage</td><td style="padding:3px 0;font-weight:600;color:${color};text-align:right;">${stageName}</td></tr>
           </table>
