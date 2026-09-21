@@ -211,6 +211,27 @@ export default function App() {
     if (session) trackPageView(location.pathname)
   }, [location.pathname, session])
 
+  // Inside the app the tab used to keep the marketing title for every
+  // page. Name the page — someone with six tabs open needs "INV-0012".
+  useEffect(() => {
+    if (!session) return
+    const p = location.pathname
+    let t = "Hielda"
+    if (p === "/dashboard") t = "Dashboard"
+    else if (p === "/create") t = "New invoice"
+    else if (p === "/settings") t = "Your details"
+    else if (p === "/billing") t = "Your account"
+    else if (p === "/referrals") t = "Refer & earn"
+    else if (p === "/how") t = "How it works"
+    else if (p === "/calculator") t = "Late payment calculator"
+    else if (p === "/late-payment-letter-template") t = "Letter generator"
+    else if (p.startsWith("/invoice/")) {
+      const inv = invs.find((i) => p === `/invoice/${i.id}` || p.startsWith(`/invoice/${i.id}/`))
+      t = inv ? (p.endsWith("/letter-before-action") ? `Letter Before Action · ${inv.ref}` : inv.ref) : "Invoice"
+    }
+    document.title = `${t} · Hielda`
+  }, [location.pathname, session, invs])
+
   // Load live BoE rate on mount
   useEffect(() => { loadLiveBoeRate() }, [])
 

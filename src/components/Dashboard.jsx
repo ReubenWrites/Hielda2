@@ -1200,7 +1200,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
               it here keeps the primary header clean while staying one
               tap away. */}
           <div className={s.overflowWrap}>
-            <Btn sz="sm" v="ghost" onClick={() => setShowOverflow(v => !v)}>
+            <Btn sz="sm" v="ghost" onClick={() => setShowOverflow(v => !v)} aria-label="More actions" aria-expanded={showOverflow}>
               <MoreHorizontal size={14} />
             </Btn>
             {showOverflow && (

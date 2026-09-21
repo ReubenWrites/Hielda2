@@ -216,6 +216,85 @@
   font-family: var(--mono);
   color: var(--ac);
 }
+.liveInterest {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  margin: 28px auto 0;
+  max-width: 520px;
+  font-size: 13px;
+  color: var(--tm);
+  line-height: 1.5;
+}
+.liveInterest svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ac);
+}
+.liveInterestNum {
+  font-family: var(--mono, ui-monospace, monospace);
+  color: var(--ac);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Press quotes ── */
+.quotesSection {
+  padding: 8px 48px 40px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.quoteGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+.quoteBubble {
+  position: relative;
+  margin: 0;
+  background: var(--sf);
+  border: 1px solid var(--bd);
+  border-radius: 16px;
+  padding: 18px 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--tx);
+  font-style: italic;
+}
+.quoteBubble::before {
+  content: "\201C";
+  position: absolute;
+  top: 2px;
+  left: 12px;
+  font-size: 40px;
+  line-height: 1;
+  color: var(--ac);
+  opacity: 0.25;
+  font-style: normal;
+}
+.quoteBubble::after {
+  /* speech-bubble tail */
+  content: "";
+  position: absolute;
+  left: 28px;
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  background: var(--sf);
+  border-right: 1px solid var(--bd);
+  border-bottom: 1px solid var(--bd);
+  transform: rotate(45deg);
+}
+@media (max-width: 768px) {
+  .quotesSection {
+    padding: 8px 16px 32px;
+  }
+  .quoteGrid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
 .mockPaidChip {
   position: absolute;
   right: -10px;

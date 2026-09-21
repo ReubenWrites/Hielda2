@@ -223,6 +223,22 @@ export default function Calculator({ onBack, onGetStarted, isMobile }) {
                 Interest accrues daily. The longer they wait, the more you're owed.
               </p>
 
+              {/* The on-ramp: carry these figures into a new invoice so the
+                  visitor doesn't type them twice. Read by Create.jsx after
+                  sign-up (or straight away when already logged in). */}
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.setItem("hielda_prefill", JSON.stringify({ amount: parsedAmt, daysOverdue: parsedDays, at: Date.now() }))
+                  } catch {}
+                  onGetStarted()
+                }}
+                className={s.leadBtn}
+                style={{ width: "100%", marginBottom: 10 }}
+              >
+                Chase this invoice with Hielda →
+              </button>
+
               <button onClick={copyResultLink} className={s.copyLinkBtn}>
                 {linkCopied
                   ? <><Check size={13} strokeWidth={2.5} /> Link copied</>

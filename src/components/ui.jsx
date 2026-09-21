@@ -227,7 +227,7 @@ export const Badge = ({ children, color = "var(--ac)" }) => (
 )
 
 // ── Button ──
-export const Btn = ({ children, onClick, v = "primary", sz = "md", dis, style: userStyle, type = "button" }) => (
+export const Btn = ({ children, onClick, v = "primary", sz = "md", dis, style: userStyle, type = "button", ...rest }) => (
   <button
     type={type}
     onClick={dis ? undefined : onClick}
@@ -237,6 +237,7 @@ export const Btn = ({ children, onClick, v = "primary", sz = "md", dis, style: u
     data-size={sz}
     data-disabled={dis ? "true" : undefined}
     style={userStyle}
+    {...rest}
   >
     {children}
   </button>

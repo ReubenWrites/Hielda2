@@ -4,7 +4,7 @@ import { trackEvent } from "../posthog"
 import { Card, Inp, Btn, ShieldLogo, ErrorBanner } from "./ui"
 import s from "./Onboarding.module.css"
 
-const STEPS = ["Welcome", "Your Business"]
+const STEPS = ["Welcome", "Your Business", "Getting Paid"]
 
 export default function Onboarding({ user, profile, onComplete }) {
   const [step, setStep] = useState(0)
@@ -15,7 +15,22 @@ export default function Onboarding({ user, profile, onComplete }) {
   const [form, setForm] = useState({
     full_name: profile?.full_name || user?.user_metadata?.full_name || "",
     business_name: profile?.business_name || "",
+    account_name: profile?.account_name || "",
+    sort_code: profile?.sort_code || "",
+    account_number: profile?.account_number || "",
   })
+
+  // Bank details are needed before the first invoice can be created (they
+  // go on the PDF so the client knows where to pay). Every new user used to
+  // finish onboarding, click "Create your first invoice" and hit a
+  // "Payment details needed" wall. Ask here instead - optional, skippable.
+  const bankValid = (() => {
+    const sc = form.sort_code.replace(/\D/g, "")
+    const an = form.account_number.replace(/\D/g, "")
+    const anyFilled = form.account_name.trim() || sc || an
+    if (!anyFilled) return true
+    return sc.length === 6 && an.length === 8 && form.account_name.trim().length > 0
+  })()
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
   const blur = (field) => setTouched((prev) => ({ ...prev, [field]: true }))
@@ -29,12 +44,16 @@ export default function Onboarding({ user, profile, onComplete }) {
     setSaving(true)
     setError("")
     try {
+      const sc = form.sort_code.replace(/\D/g, "")
       const profileData = {
         id: user.id,
         email: user.email,
         full_name: form.full_name,
         business_name: form.business_name,
         onboarding_complete: true,
+        ...(form.account_name.trim() ? { account_name: form.account_name.trim() } : {}),
+        ...(sc.length === 6 ? { sort_code: `${sc.slice(0, 2)}-${sc.slice(2, 4)}-${sc.slice(4)}` } : {}),
+        ...(form.account_number.replace(/\D/g, "").length === 8 ? { account_number: form.account_number.replace(/\D/g, "") } : {}),
       }
 
       let profError
@@ -147,13 +166,50 @@ export default function Onboarding({ user, profile, onComplete }) {
 
               <div className={s.stepActions}>
                 <Btn v="ghost" onClick={() => setStep(0)}>← Back</Btn>
-                <Btn dis={!step1Valid || saving} onClick={handleComplete}>
-                  {saving ? "Setting up..." : "Let's go →"}
+                <Btn dis={!step1Valid} onClick={() => setStep(2)}>
+                  Next →
                 </Btn>
               </div>
               <p className={s.trialNote}>
                 No card required · 6-week free trial
               </p>
+            </div>
+          )}
+
+          {/* Step 2: Bank details — where clients should pay. Optional. */}
+          {step === 2 && (
+            <div>
+              <h2 className={s.stepTitle}>Where should clients pay you?</h2>
+              <p className={s.stepDesc}>
+                These go on every invoice and chase email so your client always knows where to send the money. You can add or change them later in Your Details.
+              </p>
+              <div className={s.securityNotice}>
+                <span className={s.securityIcon}>🔒</span>
+                <p className={s.securityText}>
+                  Encrypted at rest. Only you and your clients (on their invoices) ever see them.
+                </p>
+              </div>
+
+              <Inp label="Account Name" value={form.account_name} onChange={(v) => update("account_name", v)} ph={form.business_name || "Your business name"} />
+              <Inp label="Sort Code" value={form.sort_code} onChange={(v) => update("sort_code", v)} ph="00-00-00" />
+              <Inp label="Account Number" value={form.account_number} onChange={(v) => update("account_number", v)} ph="12345678" />
+              {!bankValid && (
+                <p className={s.stepDesc} style={{ color: "#b91c1c" }}>
+                  Enter all three — a 6-digit sort code and an 8-digit account number — or leave them all blank for now.
+                </p>
+              )}
+
+              <div className={s.stepActions}>
+                <Btn v="ghost" onClick={() => setStep(1)}>← Back</Btn>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn v="ghost" dis={saving} onClick={() => { setForm((f) => ({ ...f, account_name: "", sort_code: "", account_number: "" })); handleComplete() }}>
+                    Skip for now
+                  </Btn>
+                  <Btn dis={!bankValid || saving} onClick={handleComplete}>
+                    {saving ? "Setting up..." : "Let's go →"}
+                  </Btn>
+                </div>
+              </div>
             </div>
           )}
         </div>

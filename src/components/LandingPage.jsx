@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
-  ShieldCheck, Scale, MailCheck, CalendarClock, Coins, Lock,
+  ShieldCheck, Scale, MailCheck, CalendarClock, Lock, Files, Timer,
   Landmark, MessageSquareWarning, UserRound, Building2, Brush, Check,
 } from "lucide-react"
 import { getRate, getBoe } from "../constants"
@@ -11,35 +11,69 @@ import s from "./LandingPage.module.css"
 
 const FEATURES = [
   {
-    Ico: ShieldCheck,
-    title: "Automatic Chase Emails",
-    desc: "From friendly reminders to formal legal notices — Hielda sends escalating chase emails on your behalf so you don't have to.",
+    Ico: Timer,
+    title: "Interest & Charges Tracked to the Day",
+    desc: "Hielda knows exactly what every invoice is owed, every day — statutory interest at 8% above base rate, the £40–£100 fixed cost, part-payments credited. You never work it out, and you never under-claim.",
   },
   {
-    Ico: Scale,
-    title: "Statutory Interest & Fines",
-    desc: "Under the Late Payment of Commercial Debts Act 1998, you're legally entitled to charge interest and penalties. Hielda calculates and enforces them for you.",
+    Ico: ShieldCheck,
+    title: "Sent by Your Business, Not by You",
+    desc: "Chase emails go out as \"Your Business via Hielda\", replies come to you, and you're BCC'd. It reads like an accounts department, not a freelancer asking for money — so the relationship survives.",
   },
   {
     Ico: MailCheck,
-    title: "Check-in Before Every Step",
-    desc: "We always ask you first — 'Has your client paid?' — before sending the next chase. You stay in full control.",
+    title: "Nothing Sent Without Your Say-So",
+    desc: "Before every chase, Hielda asks you first: paid, or send? Every email has a confirm step. You're in control at every stage.",
   },
   {
     Ico: CalendarClock,
-    title: "Escalating Chase Timeline",
-    desc: "Eight weighted chases from 5 days before the due date to 30 days overdue, then monthly formal reminders until it's paid. The pressure builds, and it never goes quiet.",
+    title: "Escalates, Then Never Goes Quiet",
+    desc: "Eight weighted chases from 5 days before the due date to a final notice at 30 days, then a formal reminder every month until it's paid. No spam, no silence.",
   },
   {
-    Ico: Coins,
-    title: "You Keep Every Penny",
-    desc: "Interest and penalties are yours by law. Hielda ensures you receive every pound you're entitled to.",
+    Ico: Scale,
+    title: "Letter Before Action, Drafted for You",
+    desc: "At 30 days overdue Hielda drafts the letter the court expects before a claim, from the invoice itself, with the right deadline. Send it and most debts settle; if not, you get the real options with the real numbers.",
   },
   {
-    Ico: Lock,
-    title: "Secure & Professional",
-    desc: "AES-256 encryption, TLS in transit, and row-level access controls. Your data is protected to bank-grade standards.",
+    Ico: Files,
+    title: "Invoices & Statements Included",
+    desc: "Create the invoice in Hielda — or import a purchase order — and it's watched from day one. A client with several overdue invoices gets one statement of account, not five chases.",
   },
+]
+
+/**
+ * The number that moves. £3,000 at the statutory rate earns about 97p a
+ * day; shown to six places it visibly ticks every second, which is the
+ * whole emotional argument for the product in one line. Starts at zero on
+ * the server and on first paint, so the prerendered HTML matches.
+ */
+function LiveInterest() {
+  const [start] = useState(() => Date.now())
+  const [now, setNow] = useState(start)
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const perDay = 3000 * (getRate() / 100) / 365
+  const earned = perDay * (now - start) / 864e5
+  return (
+    <p className={s.liveInterest}>
+      <Timer size={14} />
+      <span>
+        Since you opened this page, this invoice has earned another{" "}
+        <strong className={s.liveInterestNum}>£{earned.toFixed(6)}</strong> in interest.
+        It never stops.
+      </span>
+    </p>
+  )
+}
+
+// From the MarketSpy piece, unattributed by request.
+const PRESS_QUOTES = [
+  "It automates the uncomfortable part of getting paid while making use of legal protections that already exist.",
+  "It doesn't simply send payment reminders.",
+  "It could help freelancers recover income they have already earned — without having to send one more awkward reminder email.",
 ]
 
 const TIMELINE_PREVIEW = [
@@ -159,8 +193,18 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
               <Check size={14} strokeWidth={3} /> Paid in full, 3 days later
             </div>
           </div>
+          <LiveInterest />
         </section>
       </div>
+
+      {/* What the press said — speech bubbles, no names. */}
+      <section className={s.quotesSection} aria-label="What the press said">
+        <div className={s.quoteGrid}>
+          {PRESS_QUOTES.map((q) => (
+            <blockquote key={q} className={s.quoteBubble}>{q}</blockquote>
+          ))}
+        </div>
+      </section>
 
       {/* The Problem */}
       <section className={s.problemSection}>

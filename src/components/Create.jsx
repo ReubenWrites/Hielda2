@@ -158,6 +158,25 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       }
     } catch {}
     try {
+      // Figures carried over from the public calculator ("Chase this
+      // invoice with Hielda"). Amount becomes the first line; the issue
+      // date is set so the due date lands the given number of days ago.
+      const pre = localStorage.getItem("hielda_prefill")
+      if (pre) {
+        localStorage.removeItem("hielda_prefill")
+        const d = JSON.parse(pre)
+        if (d.amount > 0 && Date.now() - (d.at || 0) < 7 * 864e5) {
+          setLineItems([{ description: "", amount: String(d.amount), vatRate: defaultVatRate }])
+          if (d.daysOverdue > 0) {
+            const issue = new Date()
+            issue.setDate(issue.getDate() - d.daysOverdue - Number(defaultTerms))
+            setDate(issue.toISOString().split("T")[0])
+          }
+          return
+        }
+      }
+    } catch {}
+    try {
       const clone = localStorage.getItem("hielda_clone")
       if (clone) {
         const d = JSON.parse(clone)
