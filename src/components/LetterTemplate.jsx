@@ -404,7 +404,7 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
             Why write letters when Hielda does it for you?
           </div>
           <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 20px", lineHeight: 1.7 }}>
-            Hielda sends 19 escalating chase emails automatically, calculates statutory interest daily,
+            Hielda sends escalating chase emails automatically — eight in the first 30 days, then monthly formal reminders — calculates statutory interest daily,
             and checks in with you before every step. You never have to write another letter.
           </p>
           <button onClick={onGetStarted} style={{

@@ -192,7 +192,7 @@ export default function HowToChaseLateInvoices({ onBack, onGetStarted }) {
         At Hielda we've seen thousands of late invoices, and the pattern is consistent: <strong>freelancers who send chases manually do it inconsistently, late, or not at all</strong>, because chasing is emotionally taxing. The work that produced the invoice is fun; the chasing is not.
       </p>
       <p>
-        The single biggest unlock for getting paid faster is taking yourself out of the chasing loop. Whether that's a virtual assistant, a credit-control freelancer, or a tool — anything that sends the chases without you having to write each one. Hielda is one option: it runs the entire timeline above automatically, calculates daily interest, applies the fixed debt recovery cost, and escalates through 19 stages over 45 days. You're CC'd on everything but never have to draft a single email.
+        The single biggest unlock for getting paid faster is taking yourself out of the chasing loop. Whether that's a virtual assistant, a credit-control freelancer, or a tool — anything that sends the chases without you having to write each one. Hielda is one option: it runs the entire timeline above automatically, calculates daily interest, applies the fixed debt recovery cost, and escalates through eight weighted chases in the first 30 days, then monthly formal reminders until it's paid. You're BCC'd on everything but never have to draft a single email.
       </p>
     </GuideLayout>
   )

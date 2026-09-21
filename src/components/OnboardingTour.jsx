@@ -22,7 +22,7 @@ const STEPS = [
   },
   {
     title: "Automatic chasing",
-    body: "When an invoice goes overdue, Hielda sends up to 19 escalating chase emails on your behalf — from friendly reminders to final notices. You stay the good guy.",
+    body: "When an invoice goes overdue, Hielda sends escalating chase emails on your behalf — from friendly reminders to a final notice at 30 days, then monthly formal reminders. You stay the good guy.",
     icon: "📧",
   },
   {

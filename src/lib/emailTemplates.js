@@ -345,7 +345,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
     recovery_final: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>FORMAL RECOVERY REFERRAL — Recovery period ended.</strong></p>
-      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. Despite 45 days of correspondence and multiple opportunities to settle, payment has not been received.</p>
+      <p>Invoice <strong>${invoice.ref}</strong> is <strong>${dl} days overdue</strong>. Despite repeated correspondence and multiple opportunities to settle, payment has not been received.</p>
       ${totalBlock}
       <p>The final recovery period has now ended. The creditor may now pursue this debt through formal channels, which may include:</p>
       <ul style="margin:12px 0;padding-left:20px;color:#0f172a;">

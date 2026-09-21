@@ -20,6 +20,7 @@ const HowItWorks = lazy(() => import("./components/HowItWorks"))
 const Billing = lazy(() => import("./components/Billing"))
 const LandingPage = lazy(() => import("./components/LandingPage"))
 const NotFound = lazy(() => import("./components/NotFound"))
+import { seoForPath } from "./data/seoRoutes"
 const Calculator = lazy(() => import("./components/Calculator"))
 const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"))
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"))
@@ -174,24 +175,14 @@ export default function App() {
   // Sync page title with route
   useEffect(() => {
     if (session) return
-    const path = location.pathname
-    let title, desc
-    if (path === "/calculator") {
-      title = "UK Late Payment Calculator — Hielda"
-      desc = "Calculate statutory interest and penalties on overdue invoices. Free tool for UK freelancers under the Late Payment Act 1998."
-    } else if (path === "/privacy") {
-      title = "Privacy Policy — Hielda"
-      desc = "Hielda privacy policy — how we collect, use, and protect your data."
-    } else if (path === "/auth") {
-      title = "Start Free Trial — Hielda"
-      desc = "6-week free trial, no credit card required. Automatic invoice chasing and late payment enforcement for UK freelancers."
-    } else {
-      title = "Hielda — Invoice Chasing & Late Payment Enforcement for UK Freelancers"
-      desc = "Automatically chase late invoices and enforce statutory interest and penalties under UK law. For freelancers and SMEs."
-    }
-    document.title = title
+    // Same table the prerender bakes into the static HTML. An unknown
+    // path (the not-found page sets its own title) is left alone rather
+    // than retitled as the home page.
+    const seo = seoForPath(location.pathname)
+    if (!seo) return
+    document.title = seo.title
     const metaDesc = document.querySelector('meta[name="description"]')
-    if (metaDesc) metaDesc.setAttribute("content", desc)
+    if (metaDesc) metaDesc.setAttribute("content", seo.description)
     const canonical = document.querySelector('link[rel="canonical"]')
     if (canonical) canonical.setAttribute("href", `https://hielda.com${location.pathname === "/" ? "" : location.pathname}`)
   }, [location.pathname, session])

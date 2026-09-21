@@ -662,7 +662,7 @@ export function legalBody(stage, { invoice, profile, dl, total, interest, pen, f
     recovery_final: `
       <p>Dear ${invoice.client_name},</p>
       <p><strong>NOTICE OF REFERRAL FOR FORMAL RECOVERY</strong></p>
-      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. Despite 45 days of written demands and multiple opportunities to settle, the sum of <strong>${t}</strong> has not been received.</p>
+      <p>Invoice <strong>${ref}</strong> is <strong>${dl} days in arrears</strong>. Despite repeated written demands and multiple opportunities to settle, the sum of <strong>${t}</strong> has not been received.</p>
       ${totalBlock}
       <p>The recovery period has now concluded. The creditor may now pursue this debt through formal channels, which may include:</p>
       <ul style="margin:12px 0;padding-left:20px;color:#0f172a;">

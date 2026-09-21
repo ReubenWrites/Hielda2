@@ -72,7 +72,7 @@ export function nextStepsHtml() {
 
 export function trialCtaHtml() {
   return `
-        <p>Hielda automates the entire process: it sends formal chase emails, applies the statutory charges, and escalates through 19 stages — so you never have to ask awkwardly for your own money.</p>
+        <p>Hielda automates the entire process: it sends formal chase emails, applies the statutory charges, and keeps escalating until it is paid — so you never have to ask awkwardly for your own money.</p>
 
         <div style="text-align:center;margin:28px 0;">
           <a href="https://hielda.com" style="display:inline-block;padding:14px 36px;background:#1e5fa0;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;">Start your free 6-week trial</a>
