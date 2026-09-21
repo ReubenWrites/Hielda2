@@ -12,33 +12,52 @@ const shouldShowTour = (userId) => { try { return !localStorage.getItem(`hielda_
 import s from "./App.module.css"
 
 // Lazy-loaded routes
-const Onboarding = lazy(() => import("./components/Onboarding"))
-const Detail = lazy(() => import("./components/Detail"))
-const Create = lazy(() => import("./components/Create"))
-const Settings = lazy(() => import("./components/Settings"))
-const HowItWorks = lazy(() => import("./components/HowItWorks"))
-const Billing = lazy(() => import("./components/Billing"))
-const LandingPage = lazy(() => import("./components/LandingPage"))
-const NotFound = lazy(() => import("./components/NotFound"))
+const Onboarding = lazyRetry(() => import("./components/Onboarding"))
+const Detail = lazyRetry(() => import("./components/Detail"))
+const Create = lazyRetry(() => import("./components/Create"))
+const Settings = lazyRetry(() => import("./components/Settings"))
+// Every deploy renames the hashed chunks. A tab opened before a deploy
+// still holds the old names, and the next lazy route fails with "Failed to
+// fetch dynamically imported module" and lands on the error boundary -
+// seen live on the invoice page seconds after a push. Reload once to pick
+// up the new build; the flag stops a genuinely missing chunk from looping.
+const CHUNK_RELOAD_KEY = "hielda:chunk-reload"
+const lazyRetry = (factory) => lazy(() =>
+  factory().then((m) => { try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch {} ; return m })
+    .catch((err) => {
+      let reloaded = false
+      try { reloaded = !!sessionStorage.getItem(CHUNK_RELOAD_KEY) } catch {}
+      if (!reloaded && /dynamically imported module|Loading chunk|Importing a module script failed/i.test(String(err?.message))) {
+        try { sessionStorage.setItem(CHUNK_RELOAD_KEY, "1") } catch {}
+        window.location.reload()
+        return new Promise(() => {})
+      }
+      throw err
+    }))
+
+const HowItWorks = lazyRetry(() => import("./components/HowItWorks"))
+const Billing = lazyRetry(() => import("./components/Billing"))
+const LandingPage = lazyRetry(() => import("./components/LandingPage"))
+const NotFound = lazyRetry(() => import("./components/NotFound"))
 import { seoForPath } from "./data/seoRoutes"
-const Calculator = lazy(() => import("./components/Calculator"))
-const PrivacyPolicy = lazy(() => import("./components/PrivacyPolicy"))
-const AdminDashboard = lazy(() => import("./components/AdminDashboard"))
-const Referrals = lazy(() => import("./components/Referrals"))
-const NotificationDropdown = lazy(() => import("./components/NotificationDropdown"))
-const OnboardingTour = lazy(() => import("./components/OnboardingTour"))
-const LetterTemplate = lazy(() => import("./components/LetterTemplate"))
-const LbaDraft = lazy(() => import("./components/LetterBeforeAction"))
-const GuidesIndex = lazy(() => import("./components/guides/GuidesIndex"))
-const LatePaymentActExplained = lazy(() => import("./components/guides/LatePaymentActExplained"))
-const HowToChaseLateInvoices = lazy(() => import("./components/guides/HowToChaseLateInvoices"))
-const ClientNotPayingInvoice = lazy(() => import("./components/guides/ClientNotPayingInvoice"))
-const LetterBeforeAction = lazy(() => import("./components/guides/LetterBeforeAction"))
-const SmallClaimsCourtUnpaidInvoice = lazy(() => import("./components/guides/SmallClaimsCourtUnpaidInvoice"))
-const HowMuchInterestLateInvoice = lazy(() => import("./components/guides/HowMuchInterestLateInvoice"))
-const InvoicePaymentTermsUk = lazy(() => import("./components/guides/InvoicePaymentTermsUk"))
-const FreelancerRightsLatePayment = lazy(() => import("./components/guides/FreelancerRightsLatePayment"))
-const DebtCollectionAgencyVsDiy = lazy(() => import("./components/guides/DebtCollectionAgencyVsDiy"))
+const Calculator = lazyRetry(() => import("./components/Calculator"))
+const PrivacyPolicy = lazyRetry(() => import("./components/PrivacyPolicy"))
+const AdminDashboard = lazyRetry(() => import("./components/AdminDashboard"))
+const Referrals = lazyRetry(() => import("./components/Referrals"))
+const NotificationDropdown = lazyRetry(() => import("./components/NotificationDropdown"))
+const OnboardingTour = lazyRetry(() => import("./components/OnboardingTour"))
+const LetterTemplate = lazyRetry(() => import("./components/LetterTemplate"))
+const LbaDraft = lazyRetry(() => import("./components/LetterBeforeAction"))
+const GuidesIndex = lazyRetry(() => import("./components/guides/GuidesIndex"))
+const LatePaymentActExplained = lazyRetry(() => import("./components/guides/LatePaymentActExplained"))
+const HowToChaseLateInvoices = lazyRetry(() => import("./components/guides/HowToChaseLateInvoices"))
+const ClientNotPayingInvoice = lazyRetry(() => import("./components/guides/ClientNotPayingInvoice"))
+const LetterBeforeAction = lazyRetry(() => import("./components/guides/LetterBeforeAction"))
+const SmallClaimsCourtUnpaidInvoice = lazyRetry(() => import("./components/guides/SmallClaimsCourtUnpaidInvoice"))
+const HowMuchInterestLateInvoice = lazyRetry(() => import("./components/guides/HowMuchInterestLateInvoice"))
+const InvoicePaymentTermsUk = lazyRetry(() => import("./components/guides/InvoicePaymentTermsUk"))
+const FreelancerRightsLatePayment = lazyRetry(() => import("./components/guides/FreelancerRightsLatePayment"))
+const DebtCollectionAgencyVsDiy = lazyRetry(() => import("./components/guides/DebtCollectionAgencyVsDiy"))
 
 const PageLoader = () => (
   <div className={s.pageLoader}>
@@ -234,7 +253,12 @@ export default function App() {
     try {
       const [{ data: profs, error: profErr }, { data: invoices, error: invErr }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id),
-        supabase.from("invoices").select("id,ref,description,status,due_date,issue_date,amount,amount_paid,paid_before_due,subtotal,vat_amount,total_with_vat,client_name,client_email,client_address,chase_stage,created_at,auto_chase,no_fines,client_type,payment_term_days,terms_agreed,requested_term_days,send_method,line_items,client_ref,cc_emails,bcc_emails,paid_date,dispute_reason,dispute_notes,dispute_date,resolution_outcome,resolution_notes,resolution_date,notes").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
+        // All columns. This was an explicit list that had drifted: it had
+        // no lba_sent_at, lba_deadline, client_entity or parked_at, so the
+        // Letter Before Action window, the decision panel and the parked
+        // state could never render in the live app while every test (fed
+        // complete rows) passed. See invoiceColumns.test.js.
+        supabase.from("invoices").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500),
       ])
 
       if (profErr) throw profErr
