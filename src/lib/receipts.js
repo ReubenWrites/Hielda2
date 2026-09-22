@@ -108,6 +108,20 @@ export async function deleteReceipt(row) {
   await supabase.storage.from(BUCKET).remove([row.storage_path])
 }
 
+/** Remove the files behind every receipt on these invoices. The rows
+ *  cascade when the invoice is deleted; storage objects do not, so call
+ *  this first. Best-effort: a failure leaves an orphaned file, not a
+ *  half-deleted invoice. */
+export async function removeInvoiceReceiptFiles(invoiceIds) {
+  try {
+    const { data } = await supabase.from("invoice_receipts").select("storage_path").in("invoice_id", invoiceIds)
+    const paths = (data || []).map((r) => r.storage_path)
+    if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+  } catch (e) {
+    console.error("receipt files not removed:", e?.message)
+  }
+}
+
 /** Discard a pending (not yet attached) upload. */
 export async function discardPendingReceipt(path) {
   await supabase.storage.from(BUCKET).remove([path])

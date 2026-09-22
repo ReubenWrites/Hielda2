@@ -14,7 +14,7 @@ import { trackEvent } from "../posthog"
 import DisputeModal from "./DisputeModal"
 import ResolveDisputeModal from "./ResolveDisputeModal"
 import s from "./Detail.module.css"
-import { listReceipts, addReceiptToInvoice, setReceiptIncluded, deleteReceipt, validateReceiptFile, RECEIPT_ACCEPT } from "../lib/receipts"
+import { listReceipts, addReceiptToInvoice, setReceiptIncluded, deleteReceipt, validateReceiptFile, removeInvoiceReceiptFiles, RECEIPT_ACCEPT } from "../lib/receipts"
 
 // getNextStage is unused since the ladder moved to src/constants.js —
 // stageForDay() decides what fires next, and past day 30 the formal
@@ -492,6 +492,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
     setDeleting(true)
     setError("")
     try {
+      await removeInvoiceReceiptFiles([inv.id])
       const { error: err } = await supabase.from("invoices").delete().eq("id", inv.id)
       if (err) throw err
       onUpdate()

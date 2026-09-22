@@ -8,6 +8,7 @@ import { supabase } from "../supabase"
 import { trackEvent } from "../posthog"
 import EmailQueue from "./EmailQueue"
 import s from "./Dashboard.module.css"
+import { removeInvoiceReceiptFiles } from "../lib/receipts"
 
 // CSV escaping per RFC 4180: any value containing comma, quote, or
 // newline needs to be quoted and embedded quotes doubled.
@@ -692,6 +693,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
     setBulkLoading(true)
     try {
       const ids = Array.from(selected)
+      await removeInvoiceReceiptFiles(ids)
       const { error } = await supabase
         .from("invoices")
         .delete()
