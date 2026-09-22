@@ -4,7 +4,7 @@ import { Check, FileUp } from "lucide-react"
 import { supabase } from "../supabase"
 import { colors as c, TERMS, getRate } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
-import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection, useToast } from "./ui"
+import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection, useToast, useConfirm } from "./ui"
 import { trackEvent } from "../posthog"
 import { buildIntroText as buildIntroTextLib } from "../lib/introText"
 import { shouldEmailClientOnCreate } from "../lib/sendDecision"
@@ -499,6 +499,42 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
   const buildIntroText = () => buildIntroTextLib(profile, cn, termsUnagreed ? effectiveDays : null)
 
+  // "I'll send it myself" ... then a change of mind on the success screen.
+  // Every email to a client goes through a confirm; the invoice's
+  // send_method flips to portal first so the intro guard lets it through.
+  const confirm = useConfirm()
+  const [lateIntro, setLateIntro] = useState(null) // null | "sending" | "sent" | { error }
+  const sendIntroInstead = async () => {
+    if (!newInvId) return
+    if (!(await confirm({
+      title: `Email ${cn} now?`,
+      message: `Hielda will send ${ce} the invoice PDF with a short note introducing Hielda. You'll be BCC'd a copy.`,
+      confirmLabel: "Send it",
+      cancelLabel: "Cancel",
+    }))) return
+    setLateIntro("sending")
+    try {
+      const { error: upErr } = await supabase.from("invoices").update({ send_method: "portal" }).eq("id", newInvId)
+      if (upErr) throw upErr
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch("/api/send-intro-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_name: cn, client_email: ce, intro_text: introText.trim() || buildIntroText(), invoice_id: newInvId, user_token: session?.access_token }),
+      })
+      if (!res.ok) {
+        let msg = await res.text()
+        try { msg = JSON.parse(msg).error || msg } catch {}
+        throw new Error(msg || `Send failed (${res.status})`)
+      }
+      setLateIntro("sent")
+      trackEvent("intro_sent_after_download")
+      onCreated?.()
+    } catch (e) {
+      setLateIntro({ error: e.message || "Send failed" })
+    }
+  }
+
   // Pre-fill the intro textarea so users see what'll be sent to the client
   // by default, instead of an empty box. Re-fills as cn / profile change,
   // but stops once the user manually edits the textarea.
@@ -770,6 +806,18 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
             <p className={s.downloadHint}>
               Nothing has been emailed to {cn}. Send them this PDF{receiptCount > 0 ? ` (${receiptCount === 1 ? "receipt" : "receipts"} attached)` : ""} yourself — Hielda takes over only if it isn't paid by {formatDate(due)}.
             </p>
+            {!introSendError && ce && (
+              lateIntro === "sent" ? (
+                <div className={s.introSentBadge}>✓ Sent to {cn} with a note introducing Hielda</div>
+              ) : (
+                <div className={s.sendInsteadWrap}>
+                  <Btn v="ghost" sz="sm" dis={lateIntro === "sending"} onClick={sendIntroInstead}>
+                    {lateIntro === "sending" ? "Sending…" : `Or send it to ${cn} for me, with a note introducing Hielda`}
+                  </Btn>
+                  {lateIntro?.error && <div className={s.lineError}>{lateIntro.error}</div>}
+                </div>
+              )
+            )}
           </div>
         )}
 
