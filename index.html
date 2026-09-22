@@ -2,6 +2,16 @@
 <html lang="en" translate="no">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // The app must load from exactly one host. On www. the HTML is served
+      // directly but the hashed JS files redirect to the apex, so the
+      // browser ends up with the bundle loaded under two URLs - two copies
+      // of React - and every render throws (React #321, 22 Sep 2026). The
+      // server redirect handles this too; this is the belt to its braces.
+      if (location.hostname.indexOf('www.') === 0) {
+        location.replace(location.protocol + '//' + location.hostname.slice(4) + location.pathname + location.search + location.hash)
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="google" content="notranslate" />
     <title>Hielda — Invoice Chasing & Late Payment Enforcement for UK Freelancers</title>

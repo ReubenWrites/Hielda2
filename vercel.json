@@ -2,9 +2,15 @@
   "trailingSlash": false,
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/",
       "has": [{ "type": "host", "value": "www.hielda.com" }],
-      "destination": "https://hielda.com/:path*",
+      "destination": "https://hielda.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "www.hielda.com" }],
+      "destination": "https://hielda.com/:path+",
       "permanent": true
     }
   ],
