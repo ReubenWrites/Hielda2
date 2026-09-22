@@ -310,6 +310,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [receipts, setReceipts] = useState([])
   const [receiptBusy, setReceiptBusy] = useState(false)
   const [receiptNote, setReceiptNote] = useState("")
+  const [receiptCount, setReceiptCount] = useState(0)
   const pickReceipt = (lineIndex) => { setReceiptTarget(lineIndex); receiptInputRef.current?.click() }
   const onReceiptFile = async (file) => {
     const lineIndex = receiptTarget
@@ -319,11 +320,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     setReceiptNote("")
     try {
       // Upload and read in parallel; reading happens in the browser.
-      const [path, extracted] = await Promise.all([
+      const [{ path, file: stored }, extracted] = await Promise.all([
         uploadReceipt(file, userId, "pending"),
         extractReceipt(file, (p) => setReceiptNote(`Reading ${file.name}… ${Math.round(p * 100)}%`)),
       ])
-      setReceipts((prev) => [...prev, { key: path, path, lineIndex, fileName: file.name, mimeType: file.type, size: file.size, include: true, extracted }])
+      setReceipts((prev) => [...prev, { key: path, path, lineIndex, fileName: stored.name, mimeType: stored.type, size: stored.size, include: true, extracted }])
       if (extracted && lineIndex != null) {
         // Only fill blanks - never overwrite what the user typed.
         setLineItems((prev) => prev.map((li, i) => i !== lineIndex ? li : {
@@ -582,6 +583,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: emailClient ? "portal" : "download" })
 
       setNewInvId(newInv.id)
+      setReceiptCount(receipts.length)
 
       // Move any receipts under the new invoice before the introduction
       // email goes out, so the PDF it attaches already has them appended.
@@ -757,30 +759,20 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           </div>
         )}
 
-        {sendIntro && !emailClient && (
-          <div className={s.introSelfWrap}>
-            <div className={s.sectionLabel}>Nothing was sent to {cn} — copy and send this yourself</div>
-            <textarea readOnly value={introText} className={s.introTextarea} />
-            <button
-              onClick={() => { navigator.clipboard.writeText(introText); setIntroCopied(true) }}
-              className={introCopied ? s.copyBtnDone : s.copyBtn}
-            >
-              {introCopied ? "✓ Copied!" : "Copy to clipboard"}
-            </button>
-          </div>
-        )}
-
         {/* Whenever Hielda didn't email the client, the user is the one
-            sending the invoice, so hand them the PDF here — not only when
-            the checkbox specifically was ticked. */}
+            sending the invoice, so the PDF comes first and the wording says
+            plainly that nothing has been emailed. */}
         {(!emailClient || introSendError) && (
           <div className={s.downloadWrap}>
             <Btn onClick={downloadPdf} dis={downloading}>
               {downloading ? "Generating PDF..." : "⬇ Download Invoice PDF"}
             </Btn>
-            <p className={s.downloadHint}>Send this to your client directly — Hielda will still chase if unpaid.</p>
+            <p className={s.downloadHint}>
+              Nothing has been emailed to {cn}. Send them this PDF{receiptCount > 0 ? ` (${receiptCount === 1 ? "receipt" : "receipts"} attached)` : ""} yourself — Hielda takes over only if it isn't paid by {formatDate(due)}.
+            </p>
           </div>
         )}
+
         <div className={s.btnRow}>
           <Btn v={!emailClient ? "ghost" : "primary"} onClick={() => navigate("/dashboard")}>Dashboard</Btn>
           <Btn v="ghost" onClick={resetForm}>Create Another</Btn>

@@ -26,12 +26,39 @@ export function validateReceiptFile(file) {
   return null
 }
 
+/**
+ * Phone photos arrive at 4-5 MB and 4000px; a receipt is legible at 1600px
+ * and ~300 KB, and the invoice PDF embeds the file as-is, so shrink before
+ * upload. EXIF orientation is honoured by createImageBitmap. Anything that
+ * can't be processed (old browser, odd file) uploads unchanged.
+ */
+export async function shrinkImage(file, maxPx = 1600, quality = 0.82) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 400 * 1024) return file
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" })
+    const scale = Math.min(1, maxPx / Math.max(bmp.width, bmp.height))
+    const w = Math.round(bmp.width * scale)
+    const h = Math.round(bmp.height * scale)
+    const canvas = document.createElement("canvas")
+    canvas.width = w
+    canvas.height = h
+    canvas.getContext("2d").drawImage(bmp, 0, 0, w, h)
+    bmp.close?.()
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality))
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.(png|webp|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" })
+  } catch {
+    return file
+  }
+}
+
 /** Upload to storage. invoiceId may be "pending" during creation. */
 export async function uploadReceipt(file, userId, invoiceId) {
-  const path = `${userId}/${invoiceId}/${crypto.randomUUID()}.${extOf(file)}`
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: false })
+  const upload = await shrinkImage(file)
+  const path = `${userId}/${invoiceId}/${crypto.randomUUID()}.${extOf(upload)}`
+  const { error } = await supabase.storage.from(BUCKET).upload(path, upload, { contentType: upload.type, upsert: false })
   if (error) throw error
-  return path
+  return { path, file: upload }
 }
 
 /** Read the receipt in the browser (pdf.js text, or Tesseract OCR for
@@ -69,15 +96,15 @@ export async function attachPendingReceipts(pending, userId, invoiceId) {
 
 /** Upload straight onto an existing invoice and record it. */
 export async function addReceiptToInvoice(file, userId, invoiceId, lineIndex = null) {
-  const [path, extracted] = await Promise.all([uploadReceipt(file, userId, invoiceId), extractReceipt(file)])
+  const [{ path, file: stored }, extracted] = await Promise.all([uploadReceipt(file, userId, invoiceId), extractReceipt(file)])
   const { data, error } = await supabase.from("invoice_receipts").insert({
     invoice_id: invoiceId,
     user_id: userId,
     line_index: lineIndex,
     storage_path: path,
-    file_name: file.name,
-    mime_type: file.type,
-    size_bytes: file.size,
+    file_name: stored.name,
+    mime_type: stored.type,
+    size_bytes: stored.size,
     include_in_invoice: true,
     extracted,
   }).select().single()
