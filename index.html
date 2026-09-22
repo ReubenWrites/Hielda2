@@ -157,9 +157,14 @@
     </noscript>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      // No service worker any more (see public/sw.js for why). Returning
+      // browsers still have the old one: unregister it and drop its caches.
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {})
+          navigator.serviceWorker.getRegistrations()
+            .then((rs) => Promise.all(rs.map((r) => r.unregister())))
+            .catch(() => {})
+          if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {})
         })
       }
     </script>
