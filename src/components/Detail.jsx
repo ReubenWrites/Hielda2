@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Check, Pencil, Wallet, Flag, RotateCcw, MoreHorizontal,
@@ -14,6 +14,7 @@ import { trackEvent } from "../posthog"
 import DisputeModal from "./DisputeModal"
 import ResolveDisputeModal from "./ResolveDisputeModal"
 import s from "./Detail.module.css"
+import { listReceipts, addReceiptToInvoice, setReceiptIncluded, deleteReceipt, validateReceiptFile, RECEIPT_ACCEPT } from "../lib/receipts"
 
 // getNextStage is unused since the ladder moved to src/constants.js —
 // stageForDay() decides what fires next, and past day 30 the formal
@@ -315,6 +316,37 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
       setPaymentsLoaded(true)
     })()
   }, [inv?.id, inv?.amount_paid])
+
+  // Receipts attached to this invoice (appended to the PDF when included).
+  const [receipts, setReceipts] = useState([])
+  const [receiptBusy, setReceiptBusy] = useState(false)
+  const receiptInputRef = useRef(null)
+  const reloadReceipts = async () => {
+    try { setReceipts(await listReceipts(inv.id)) } catch { setReceipts([]) }
+  }
+  useEffect(() => { if (inv?.id) reloadReceipts() }, [inv?.id])
+  const onReceiptFile = async (file) => {
+    const bad = validateReceiptFile(file)
+    if (bad) { toast.error(bad); return }
+    setReceiptBusy(true)
+    try {
+      const row = await addReceiptToInvoice(file, inv.user_id, inv.id, null)
+      await reloadReceipts()
+      toast.success(row.extracted?.amount != null
+        ? `Attached ${file.name} (read as £${Number(row.extracted.amount).toFixed(2)}). It'll be appended to the invoice PDF.`
+        : `Attached ${file.name}. It'll be appended to the invoice PDF.`)
+    } catch (e) {
+      toast.error("Couldn't attach that receipt: " + (e.message || "unknown error"))
+    }
+    setReceiptBusy(false)
+  }
+  const toggleReceipt = async (r) => {
+    try { await setReceiptIncluded(r.id, !r.include_in_invoice); await reloadReceipts() } catch (e) { toast.error(e.message) }
+  }
+  const removeReceipt = async (r) => {
+    if (!(await confirm({ title: `Remove ${r.file_name}?`, message: "It will no longer be appended to the invoice PDF.", confirmLabel: "Remove", cancelLabel: "Keep" }))) return
+    try { await deleteReceipt(r); await reloadReceipts() } catch (e) { toast.error(e.message) }
+  }
   const [savingPartial, setSavingPartial] = useState(false)
   // Settle-short flow: a checkbox for part payments accepted as full and
   // final, and a breakdown popup when a payment covers the invoice but
@@ -1638,6 +1670,44 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
           )}
         </Card>
       )}
+
+      {/* Receipts: what's attached, whether each goes out with the PDF. */}
+      <Card style={{ marginBottom: isMobile ? 12 : 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <h3 className={s.sectionHeading} style={{ margin: 0 }}>Receipts{receipts.length ? ` (${receipts.length})` : ""}</h3>
+          <input ref={receiptInputRef} type="file" accept={RECEIPT_ACCEPT} style={{ display: "none" }} onChange={(e) => { onReceiptFile(e.target.files?.[0]); e.target.value = "" }} />
+          <Btn sz="sm" v="ghost" dis={receiptBusy} onClick={() => receiptInputRef.current?.click()}>
+            {receiptBusy ? "Uploading…" : "📎 Add receipt"}
+          </Btn>
+        </div>
+        {receipts.length === 0 ? (
+          <p style={{ fontSize: 13, color: "#64748b", margin: "10px 0 0" }}>
+            Attach Uber, train or materials receipts and they're appended to the invoice PDF your client gets. Photos or PDFs, up to 10 MB.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, marginTop: 12 }}>
+            {receipts.map((r) => (
+              <div key={r.id} style={{ border: "1px solid #dce1e8", borderRadius: 10, overflow: "hidden", background: "#fff", opacity: r.include_in_invoice ? 1 : 0.55 }}>
+                <a href={r.url || "#"} target="_blank" rel="noopener noreferrer" style={{ display: "block", height: 110, background: "#f1f3f6" }} title="Open">
+                  {r.mime_type === "application/pdf" || !r.url
+                    ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#64748b" }}>PDF</div>
+                    : <img src={r.url} alt={r.file_name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
+                </a>
+                <div style={{ padding: "8px 10px", fontSize: 12 }}>
+                  <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={r.file_name}>{r.file_name}</div>
+                  {r.extracted?.amount != null && <div style={{ color: "#64748b" }}>Read as £{Number(r.extracted.amount).toFixed(2)}{r.extracted.date ? ` · ${formatDate(r.extracted.date)}` : ""}</div>}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer", color: "#475569" }}>
+                      <input type="checkbox" checked={!!r.include_in_invoice} onChange={() => toggleReceipt(r)} /> In PDF
+                    </label>
+                    <button type="button" onClick={() => removeReceipt(r)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 12 }} aria-label={`Remove ${r.file_name}`}>Remove</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Invoice details + breakdown — stacks on mobile */}
       <div className={isMobile ? s.detailGridMobile : s.detailGrid}>

@@ -125,6 +125,59 @@ function accruedInterest(
   return round2(interest)
 }
 
+/**
+ * Append receipt files to the invoice PDF with pdf-lib: PDF receipts have
+ * their pages copied in; JPEG/PNG receipts each get an A4 page with the
+ * image fitted inside a margin and a small caption naming the line item.
+ * WebP can't be embedded by pdf-lib and is skipped.
+ */
+async function appendReceipts(
+  invoicePdf: ArrayBuffer, receipts: any[], supabase: any, invoice: any,
+): Promise<ArrayBuffer> {
+  const { PDFDocument, StandardFonts, rgb } = await import("npm:pdf-lib@1.17.1")
+  const out = await PDFDocument.load(invoicePdf)
+  const font = await out.embedFont(StandardFonts.Helvetica)
+  const lineItems = coerceLineItems(invoice.line_items) || []
+  const A4: [number, number] = [595.28, 841.89]
+  const M = 40
+
+  for (const r of receipts) {
+    const { data: blob, error } = await supabase.storage.from("receipts").download(r.storage_path)
+    if (error || !blob) continue
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    const caption = `Receipt${r.line_index != null && lineItems[r.line_index] ? ` — ${lineItems[r.line_index].description}` : ""}  ·  ${r.file_name}`
+    try {
+      if (r.mime_type === "application/pdf") {
+        const src = await PDFDocument.load(bytes, { ignoreEncryption: true })
+        const pages = await out.copyPages(src, src.getPageIndices())
+        pages.forEach((p, i) => {
+          out.addPage(p)
+          if (i === 0) {
+            const { width, height } = p.getSize()
+            p.drawText(caption.slice(0, 110), { x: 24, y: height - 18, size: 8, font, color: rgb(0.45, 0.5, 0.55), maxWidth: width - 48 })
+          }
+        })
+        continue
+      }
+      const img = r.mime_type === "image/png" ? await out.embedPng(bytes)
+        : r.mime_type === "image/jpeg" ? await out.embedJpg(bytes)
+        : null
+      if (!img) continue
+      const page = out.addPage(A4)
+      page.drawText(caption.slice(0, 110), { x: M, y: A4[1] - M + 12, size: 9, font, color: rgb(0.45, 0.5, 0.55), maxWidth: A4[0] - 2 * M })
+      const boxW = A4[0] - 2 * M
+      const boxH = A4[1] - 2 * M - 16
+      const scale = Math.min(boxW / img.width, boxH / img.height, 1)
+      const w = img.width * scale
+      const h = img.height * scale
+      page.drawImage(img, { x: M + (boxW - w) / 2, y: A4[1] - M - 16 - h, width: w, height: h })
+    } catch (e) {
+      console.error("generate-invoice-pdf: receipt skipped:", r.file_name, (e as Error).message)
+    }
+  }
+  return await out.save()
+}
+
 // Page geometry. A4 portrait is 297mm tall; the footer sits at y=280
 // (and footer subtext at y=285). PAGE_BOTTOM_LIMIT is the floor for
 // content above the footer — anything that would render below it
@@ -765,7 +818,24 @@ serve(async (req) => {
     }
 
     // Output
-    const pdfOutput = doc.output("arraybuffer")
+    let pdfOutput: ArrayBuffer = doc.output("arraybuffer")
+
+    // Receipts the user chose to include are appended as pages, so the
+    // client gets one document: invoice first, receipts behind it. Any
+    // failure here degrades to the invoice alone rather than no PDF.
+    try {
+      const { data: receipts } = await supabase
+        .from("invoice_receipts")
+        .select("storage_path, file_name, mime_type, line_index")
+        .eq("invoice_id", invoice.id)
+        .eq("include_in_invoice", true)
+        .order("created_at", { ascending: true })
+      if (receipts && receipts.length) {
+        pdfOutput = await appendReceipts(pdfOutput, receipts, supabase, invoice)
+      }
+    } catch (e) {
+      console.error("generate-invoice-pdf: receipts skipped:", (e as Error).message)
+    }
 
     return new Response(pdfOutput, {
       headers: {

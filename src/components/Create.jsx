@@ -9,6 +9,7 @@ import { trackEvent } from "../posthog"
 import { buildIntroText as buildIntroTextLib } from "../lib/introText"
 import { shouldEmailClientOnCreate } from "../lib/sendDecision"
 import s from "./Create.module.css"
+import { uploadReceipt, extractReceipt, attachPendingReceipts, discardPendingReceipt, validateReceiptFile, RECEIPT_ACCEPT } from "../lib/receipts"
 
 const DRAFT_KEY = (userId) => `hielda_draft_${userId}`
 
@@ -301,6 +302,52 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
   const [importingPo, setImportingPo] = useState(false)
   const [poImportResult, setPoImportResult] = useState(null)
 
+  // ── Receipts (photo or PDF per line item) ──
+  // Uploaded to storage straight away under <user>/pending/ so Claude can
+  // read them and pre-fill the line; moved under the invoice in go().
+  const receiptInputRef = useRef(null)
+  const [receiptTarget, setReceiptTarget] = useState(null)
+  const [receipts, setReceipts] = useState([])
+  const [receiptBusy, setReceiptBusy] = useState(false)
+  const [receiptNote, setReceiptNote] = useState("")
+  const pickReceipt = (lineIndex) => { setReceiptTarget(lineIndex); receiptInputRef.current?.click() }
+  const onReceiptFile = async (file) => {
+    const lineIndex = receiptTarget
+    const bad = validateReceiptFile(file)
+    if (bad) { setReceiptNote(bad); return }
+    setReceiptBusy(true)
+    setReceiptNote("")
+    try {
+      // Upload and read in parallel; reading happens in the browser.
+      const [path, extracted] = await Promise.all([
+        uploadReceipt(file, userId, "pending"),
+        extractReceipt(file, (p) => setReceiptNote(`Reading ${file.name}… ${Math.round(p * 100)}%`)),
+      ])
+      setReceipts((prev) => [...prev, { key: path, path, lineIndex, fileName: file.name, mimeType: file.type, size: file.size, include: true, extracted }])
+      if (extracted && lineIndex != null) {
+        // Only fill blanks - never overwrite what the user typed.
+        setLineItems((prev) => prev.map((li, i) => i !== lineIndex ? li : {
+          ...li,
+          description: li.description.trim() ? li.description : (extracted.description || extracted.vendor || li.description),
+          amount: String(li.amount || "").trim() ? li.amount : (extracted.amount != null ? String(extracted.amount) : li.amount),
+        }))
+        setReceiptNote(extracted.amount != null ? `Read ${file.name}: ${extracted.description || extracted.vendor || "receipt"}, £${extracted.amount.toFixed(2)}. Check it, then carry on.` : `Attached ${file.name}. Couldn't read an amount from it - type it in.`)
+        trackEvent("receipt_attached", { extracted: true })
+      } else {
+        setReceiptNote(`Attached ${file.name}.`)
+        trackEvent("receipt_attached", { extracted: false })
+      }
+    } catch (e) {
+      setReceiptNote("Couldn't upload that receipt: " + (e.message || "unknown error"))
+    }
+    setReceiptBusy(false)
+  }
+  const removePendingReceipt = async (key) => {
+    const r = receipts.find((x) => x.key === key)
+    setReceipts((prev) => prev.filter((x) => x.key !== key))
+    if (r) discardPendingReceipt(r.path).catch(() => {})
+  }
+
   const importPo = async (file) => {
     if (!file || importingPo) return
     setImportingPo(true)
@@ -397,7 +444,11 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
     setLineItems(prev => prev.map((li, i) => i === index ? { ...li, [field]: value } : li))
   }
   const addLineItem = () => setLineItems(prev => [...prev, { description: "", amount: "", vatRate: defaultVatRate }])
-  const removeLineItem = (index) => setLineItems(prev => prev.filter((_, i) => i !== index))
+  const removeLineItem = (index) => {
+    setLineItems(prev => prev.filter((_, i) => i !== index))
+    // Receipts on the removed line lose their line; later lines shift up.
+    setReceipts(prev => prev.map((r) => r.lineIndex == null ? r : r.lineIndex === index ? { ...r, lineIndex: null } : r.lineIndex > index ? { ...r, lineIndex: r.lineIndex - 1 } : r))
+  }
 
   const effectiveDays = terms === "-1" ? (parseInt(customDays) || 0) : parseInt(terms)
   // Statutory interest only runs from the end of an AGREED credit period —
@@ -531,6 +582,17 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
       trackEvent("invoice_created", { amount: parsedTotal, line_items: validItems.length, send_method: emailClient ? "portal" : "download" })
 
       setNewInvId(newInv.id)
+
+      // Move any receipts under the new invoice before the introduction
+      // email goes out, so the PDF it attaches already has them appended.
+      if (receipts.length) {
+        try {
+          await attachPendingReceipts(receipts, userId, newInv.id)
+          setReceipts([])
+        } catch (e) {
+          console.error("receipts not attached:", e.message)
+        }
+      }
 
       // Atomically increment invoice number server-side to avoid race conditions
       await supabase.rpc("increment_invoice_number", { p_user_id: userId })
@@ -843,6 +905,13 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                   <span />
                 </div>
               )}
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept={RECEIPT_ACCEPT}
+                style={{ display: "none" }}
+                onChange={(e) => { onReceiptFile(e.target.files?.[0]); e.target.value = "" }}
+              />
               {lineItems.map((li, i) => (
                 <div key={i} className={isMobile ? s.lineRowMobile : (isVatRegistered ? s.lineRowVat : s.lineRowNoVat)}>
                   <div>
@@ -923,9 +992,23 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                   {lineItemErrors[i] && (
                     <div className={s.lineError}>{lineItemErrors[i]}</div>
                   )}
+                  {!isEditing && (
+                    <div className={s.receiptRow}>
+                      {receipts.filter((r) => r.lineIndex === i).map((r) => (
+                        <span key={r.key} className={s.receiptChip} title={r.fileName}>
+                          📎 {r.fileName.length > 22 ? r.fileName.slice(0, 20) + "…" : r.fileName}
+                          <button type="button" onClick={() => removePendingReceipt(r.key)} className={s.receiptChipRemove} aria-label={`Remove receipt ${r.fileName}`}>×</button>
+                        </span>
+                      ))}
+                      <button type="button" onClick={() => pickReceipt(i)} disabled={receiptBusy} className={s.receiptAddBtn}>
+                        {receiptBusy && receiptTarget === i ? "Reading receipt…" : "📎 Attach receipt"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
               <button type="button" onClick={addLineItem} className={s.addLineBtn}>+ Add line</button>
+              {receiptNote && <div className={s.receiptNote}>{receiptNote}</div>}
               {parsedTotal > 0 && (
                 <div className={s.totalsWrap}>
                   {isVatRegistered && totalVat > 0 && (

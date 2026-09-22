@@ -1255,3 +1255,50 @@
 
 /* margin utilities the CSS module.css uses for line-items wrapper */
 .lineItemsWrap { margin-bottom: 14px; }
+
+/* ── Receipts on line items ── */
+.receiptRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.receiptChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--tm);
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  padding: 3px 6px 3px 10px;
+}
+.receiptChipRemove {
+  background: none;
+  border: none;
+  color: var(--td);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.receiptChipRemove:hover { color: var(--or); }
+.receiptAddBtn {
+  background: none;
+  border: 1px dashed var(--bd);
+  border-radius: 999px;
+  color: var(--tm);
+  font-size: 12px;
+  font-family: var(--font);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.receiptAddBtn:hover { border-color: var(--ac); color: var(--ac); }
+.receiptAddBtn:disabled { opacity: 0.5; cursor: wait; }
+.receiptNote {
+  font-size: 12px;
+  color: var(--tm);
+  margin: 6px 0 0;
+}
