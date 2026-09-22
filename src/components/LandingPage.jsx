@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   ShieldCheck, Scale, MailCheck, CalendarClock, Lock, Files, Timer,
   Landmark, MessageSquareWarning, UserRound, Building2, Brush, Check,
@@ -49,20 +49,32 @@ const FEATURES = [
  * the server and on first paint, so the prerendered HTML matches.
  */
 function LiveInterest() {
-  const [start] = useState(() => Date.now())
-  const [now, setNow] = useState(start)
+  // The number is written straight into the DOM node, not through React
+  // state. A React re-render every second was crashing the page for a
+  // user whose browser (Chrome translate, or an extension such as
+  // Grammarly / Dark Reader) rewrites text nodes: React then tried to
+  // replace a node that was no longer where it left it — "removeChild:
+  // the node to be removed is not a child of this node" — and the error
+  // boundary took the whole landing page down (22 Sep 2026). Updating
+  // textContent on a ref means React never reconciles that node again.
+  const numRef = useRef(null)
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
+    const start = Date.now()
+    const perDay = 3000 * (getRate() / 100) / 365
+    const tick = () => {
+      const el = numRef.current
+      if (!el) return
+      try { el.textContent = `£${(perDay * (Date.now() - start) / 864e5).toFixed(4)}` } catch {}
+    }
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
-  const perDay = 3000 * (getRate() / 100) / 365
-  const earned = perDay * (now - start) / 864e5
   return (
-    <p className={s.liveInterest}>
+    <p className={s.liveInterest} translate="no">
       <Timer size={14} />
       <span>
         Since you opened this page, this invoice has earned another{" "}
-        <strong className={s.liveInterestNum}>£{earned.toFixed(4)}</strong> in interest.
+        <strong className={s.liveInterestNum} ref={numRef}>£0.0000</strong> in interest.
         It never stops.
       </span>
     </p>
