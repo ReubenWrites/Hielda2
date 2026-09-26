@@ -178,6 +178,9 @@ export function attachSockets(io) {
           : playerSceneFor(roomId, socket.data.name, socket.id);
         socket.data.sceneId = sceneId;
         socket.join(sceneRoom(roomId, sceneId));
+        // Same person in a second tab (or a quick refresh) shouldn't spam chat.
+        const alreadyHere = roomPresence(io, roomId, { excludeId: socket.id })
+          .some(p => p.name === socket.data.name && p.role === role);
         const state = getSceneState(roomId, sceneId);
         const session = getSession(roomId);
         cb?.({
@@ -193,7 +196,7 @@ export function attachSockets(io) {
           characters: role === 'dm' ? listCharacters(roomId) : [],
           paused: session.paused,
         });
-        broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
+        if (!alreadyHere) broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
         io.to(roomId).emit('presence:updated', roomPresence(io, roomId));
       } catch (e) {
         cb?.({ error: e.message });
@@ -202,9 +205,10 @@ export function attachSockets(io) {
 
     socket.on('disconnect', () => {
       if (socket.data.roomId) {
-        broadcastSystem(io, socket.data.roomId, `${socket.data.name} left`);
-        io.to(socket.data.roomId).emit('presence:updated',
-          roomPresence(io, socket.data.roomId, { excludeId: socket.id }));
+        const remaining = roomPresence(io, socket.data.roomId, { excludeId: socket.id });
+        const stillHere = remaining.some(p => p.name === socket.data.name && p.role === socket.data.role);
+        if (!stillHere) broadcastSystem(io, socket.data.roomId, `${socket.data.name} left`);
+        io.to(socket.data.roomId).emit('presence:updated', remaining);
       }
     });
 

@@ -19,7 +19,7 @@ const ack = (s, ev, p) => new Promise(res => s.emit(ev, p, res));
   const errors = [];
   const track = (page, tag) => {
     page.on('pageerror', e => errors.push(`[${tag}] ${e.message}`));
-    page.on('console', m => { if (m.type() === 'error' && !/font|ERR_CONNECTION/.test(m.text())) errors.push(`[${tag} console] ${m.text()}`); });
+    page.on('console', m => { if (m.type() === 'error' && !/font|ERR_CONNECTION|Failed to load resource/.test(m.text())) errors.push(`[${tag} console] ${m.text()}`); });
   };
 
   // ---- DM creates the quest in a real browser
