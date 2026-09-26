@@ -164,8 +164,8 @@ export function createCharacter(roomId, c) {
   const id = nanoid(12);
   db.prepare(`
     INSERT INTO characters (id, room_id, name, kind, emoji, color, image_url, owner,
-      hp, max_hp, ac, sight_radius, notes, created_at, speed, attacks)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      hp, max_hp, ac, sight_radius, notes, created_at, speed, attacks, size, reach, init_bonus)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, roomId,
     (c.name || 'Character').slice(0, 60),
@@ -180,6 +180,9 @@ export function createCharacter(roomId, c) {
     Date.now(),
     c.speed ?? 30,
     c.attacks ?? 1,
+    c.size ?? 1,
+    c.reach ?? 5,
+    c.initBonus ?? 0,
   );
   return getCharacter(id);
 }
@@ -199,7 +202,8 @@ export function updateCharacter(id, fields) {
   const map = {
     name: 'name', kind: 'kind', emoji: 'emoji', color: 'color', imageUrl: 'image_url',
     owner: 'owner', hp: 'hp', maxHp: 'max_hp', ac: 'ac', sightRadius: 'sight_radius', notes: 'notes',
-    speed: 'speed', attacks: 'attacks',
+    speed: 'speed', attacks: 'attacks', size: 'size', reach: 'reach', initBonus: 'init_bonus',
+    ddbCharacterId: 'ddb_character_id', ddbSyncedAt: 'ddb_synced_at',
   };
   const sets = [];
   const vals = [];
@@ -218,8 +222,9 @@ export function updateCharacter(id, fields) {
   // Keep placed tokens' identity in step with their sheet.
   const c = getCharacter(id);
   if (c) {
-    db.prepare(`UPDATE tokens SET name = ?, emoji = ?, color = ?, owner = ?, sight_radius = ?, speed = ?, attacks = ?
-      WHERE character_id = ?`).run(c.name, c.emoji, c.color, c.owner, c.sightRadius, c.speed, c.attacks, id);
+    db.prepare(`UPDATE tokens SET name = ?, emoji = ?, color = ?, owner = ?, sight_radius = ?, speed = ?, attacks = ?,
+      size = ?, reach = ?, init_bonus = ? WHERE character_id = ?`)
+      .run(c.name, c.emoji, c.color, c.owner, c.sightRadius, c.speed, c.attacks, c.size, c.reach, c.initBonus, id);
     if ('imageUrl' in fields) db.prepare('UPDATE tokens SET image_url = ? WHERE character_id = ?').run(c.imageUrl, id);
   }
   return c;
@@ -238,8 +243,8 @@ export function createToken(roomId, sceneId, t) {
   const id = nanoid(12);
   db.prepare(`
     INSERT INTO tokens (id, room_id, scene_id, character_id, name, image_url, color, owner, x, y,
-      sight_radius, visible_to_players, hp, max_hp, ac, emoji, speed, attacks)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sight_radius, visible_to_players, hp, max_hp, ac, emoji, speed, attacks, size, reach, init_bonus)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, roomId, sceneId,
     t.characterId || null,
@@ -256,6 +261,9 @@ export function createToken(roomId, sceneId, t) {
     t.emoji || null,
     t.speed ?? 30,
     t.attacks ?? 1,
+    t.size ?? 1,
+    t.reach ?? 5,
+    t.initBonus ?? 0,
   );
   return getToken(id);
 }
@@ -267,7 +275,7 @@ export function placeCharacter(roomId, sceneId, characterId, { x, y }) {
   return createToken(roomId, sceneId, {
     characterId: c.id, name: c.name, imageUrl: c.imageUrl, color: c.color, owner: c.owner,
     x, y, sightRadius: c.sightRadius, hp: c.hp, maxHp: c.maxHp, ac: c.ac, emoji: c.emoji,
-    speed: c.speed, attacks: c.attacks,
+    speed: c.speed, attacks: c.attacks, size: c.size, reach: c.reach, initBonus: c.initBonus,
   });
 }
 
@@ -283,7 +291,7 @@ export function updateToken(id, fields) {
     x: 'x', y: 'y', sightRadius: 'sight_radius',
     visibleToPlayers: 'visible_to_players',
     hp: 'hp', maxHp: 'max_hp', ac: 'ac', emoji: 'emoji',
-    speed: 'speed', attacks: 'attacks',
+    speed: 'speed', attacks: 'attacks', size: 'size', reach: 'reach', initBonus: 'init_bonus',
     characterId: 'character_id',
     ddbCharacterId: 'ddb_character_id', ddbData: 'ddb_data',
   };
@@ -438,6 +446,9 @@ function serializeToken(row) {
     emoji: row.emoji,
     speed: row.speed ?? 30,
     attacks: row.attacks ?? 1,
+    size: row.size ?? 1,
+    reach: row.reach ?? 5,
+    initBonus: row.init_bonus ?? 0,
     ddbCharacterId: row.ddb_character_id,
     ddbData: row.ddb_data ? safeParse(row.ddb_data) : null,
   };
@@ -482,6 +493,11 @@ function serializeCharacter(row) {
     notes: row.notes,
     speed: row.speed ?? 30,
     attacks: row.attacks ?? 1,
+    size: row.size ?? 1,
+    reach: row.reach ?? 5,
+    initBonus: row.init_bonus ?? 0,
+    ddbCharacterId: row.ddb_character_id || null,
+    ddbSyncedAt: row.ddb_synced_at || null,
   };
 }
 

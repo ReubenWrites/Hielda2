@@ -67,6 +67,13 @@ export function normaliseDdb(d) {
 
   if (typeof d.weightSpeeds?.normal?.walk === 'number') out.speed = d.weightSpeeds.normal.walk;
 
+  // Derived numbers the VTT can use directly.
+  const dex = out.abilities.DEX;
+  out.dexMod = typeof dex === 'number' ? Math.floor((dex - 10) / 2) : 0;
+  out.initBonus = out.dexMod;
+  // D&D Beyond doesn't hand over a computed AC; unarmoured base is the best safe guess.
+  out.ac = typeof dex === 'number' ? 10 + out.dexMod : null;
+
   // Senses: look for darkvision modifiers
   const modifiers = []
     .concat(d.modifiers?.race ?? [])
@@ -86,4 +93,16 @@ export function normaliseDdb(d) {
   // AC is annoying to compute from raw DDB data (depends on armor + dex etc).
   // For v1 we just leave it null and let the DM type it in.
   return out;
+}
+
+// Map a normalised sheet onto the fields a token / cast character understands.
+export function ddbToStats(data) {
+  const stats = {};
+  if (data.name) stats.name = data.name;
+  if (data.hp?.max != null) { stats.maxHp = data.hp.max; stats.hp = data.hp.current ?? data.hp.max; }
+  if (data.speed != null) stats.speed = data.speed;
+  if (data.senses?.darkvision > 0) stats.sightRadius = Math.max(6, Math.round(data.senses.darkvision / 5));
+  if (typeof data.initBonus === 'number') stats.initBonus = data.initBonus;
+  if (data.avatarUrl) stats.imageUrl = data.avatarUrl;
+  return stats;
 }

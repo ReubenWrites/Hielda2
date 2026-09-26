@@ -3,6 +3,7 @@ import { useStore } from '../state/store.js';
 const TOOLS = [
   { t: 'select',      icon: '🖱️', label: 'Select / move tokens' },
   { t: 'attack',      icon: '⚔️', label: 'Attack: select the attacker, then tap the target' },
+  { t: 'ping',        icon: '📍', label: 'Ping: tap the map to show everyone a spot (or just double-click the map)' },
   { t: 'add-token',   icon: '⭕', label: 'Add token' },
   { t: 'draw-wall',   icon: '🧱', label: 'Draw wall' },
   { t: 'draw-door',   icon: '🚪', label: 'Draw door' },

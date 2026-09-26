@@ -1,5 +1,6 @@
 import { computeVisibleCells, unionVisible } from '@questhub/shared/vision';
 import { blockingWalls } from './walls.js';
+import { tokenCenter } from '@questhub/shared/geometry';
 
 // Compute the set of cells visible to a viewer.
 //
@@ -14,7 +15,7 @@ export function computeFog({ role, you, tokens, walls, room }) {
   if (myTokens.length === 0) return new Set(); // player with no tokens sees nothing
   const bw = blockingWalls(walls);
   const sets = myTokens.map(t => computeVisibleCells({
-    origin: { x: t.x + 0.5, y: t.y + 0.5 },
+    origin: tokenCenter(t),
     radius: t.sightRadius || 6,
     walls: bw,
     gridW: room.grid_w,
@@ -66,5 +67,6 @@ export function tokenVisibleToViewer(token, visibleSet, you) {
   if (token.owner === you?.name || token.owner === you?.id) return true; // own token
   if (token.visibleToPlayers === false) return false; // DM hid it
   if (visibleSet === 'all') return true; // overland: no fog, but hidden stays hidden
-  return visibleSet.has(`${Math.floor(token.x)},${Math.floor(token.y)}`);
+  const c = tokenCenter(token);
+  return visibleSet.has(`${Math.floor(c.x - 1e-9)},${Math.floor(c.y - 1e-9)}`);
 }

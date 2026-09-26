@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { rollDice, formatRoll } from '@questhub/shared/dice';
 import { measureMoveFeet, formatFeet } from '@questhub/shared/measure';
+import { tokenCenter, withinReach } from '@questhub/shared/geometry';
 import {
   getRoom, getScene, getSceneState, verifyDm, setDmScene,
   createScene, updateScene, deleteScene, listScenes, playerSceneFor,
@@ -9,7 +10,7 @@ import {
   createAsset, deleteAsset, getAsset, updateAssetGrid,
   createCharacter, updateCharacter, deleteCharacter, listCharacters, getCharacter,
 } from './rooms.js';
-import { fetchDdbCharacter } from './dndbeyond.js';
+import { fetchDdbCharacter, ddbToStats } from './dndbeyond.js';
 import { detectGrid } from './gridDetect.js';
 import { uploadPath } from './uploads.js';
 import { getExplored, resetExplored, updateExplored } from './fog.js';
@@ -69,7 +70,11 @@ function advanceTurn(session) {
 }
 
 function rollEntry(token) {
-  return { tokenId: token.id, name: token.name, emoji: token.emoji || null, color: token.color, owner: token.owner, roll: 1 + Math.floor(Math.random() * 20) };
+  const bonus = Number(token.initBonus) || 0;
+  return {
+    tokenId: token.id, name: token.name, emoji: token.emoji || null, color: token.color, owner: token.owner,
+    roll: 1 + Math.floor(Math.random() * 20) + bonus, bonus,
+  };
 }
 
 function roomPresence(io, roomId, { excludeId } = {}) {
@@ -103,9 +108,10 @@ function refreshFog(io, roomId, sceneId) {
 }
 
 function cellCenterPx(room, t) {
+  const c = tokenCenter(t);
   return {
-    x: (room.offset_x || 0) + (t.x + 0.5) * room.grid_size,
-    y: (room.offset_y || 0) + (t.y + 0.5) * room.grid_size,
+    x: (room.offset_x || 0) + c.x * room.grid_size,
+    y: (room.offset_y || 0) + c.y * room.grid_size,
   };
 }
 
@@ -156,6 +162,39 @@ export function resyncRoom(io, roomId) {
   io.to(roomId).emit('scenes:updated', listScenes(roomId));
 }
 
+// Periodically pull linked D&D Beyond sheets while anyone is in the room.
+const DDB_SYNC_MS = 5 * 60 * 1000;
+async function syncRoomDdb(io, roomId) {
+  const linked = listCharacters(roomId).filter(c => c.ddbCharacterId);
+  for (const ch0 of linked) {
+    try {
+      const data = await fetchDdbCharacter(ch0.ddbCharacterId);
+      const stats = ddbToStats(data);
+      delete stats.imageUrl;
+      // Live HP belongs to QuestHub during play; only max HP and the rest refresh.
+      delete stats.hp;
+      const ch = updateCharacter(ch0.id, { ...stats, ddbSyncedAt: Date.now() });
+      emitDm(io, roomId, 'char:updated', ch);
+      const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(ch0.id);
+      for (const { id } of tokens) {
+        const t = getToken(id);
+        if (t) emitScene(io, roomId, t.sceneId, 'token:updated', t);
+      }
+    } catch {
+      // Unofficial endpoint; a failed refresh is not worth interrupting play for.
+    }
+  }
+}
+function ensureDdbTimer(io, roomId) {
+  const session = getSession(roomId);
+  if (session.ddbTimer) return;
+  session.ddbTimer = setInterval(() => {
+    if (roomPresence(io, roomId).length === 0) { clearInterval(session.ddbTimer); session.ddbTimer = null; return; }
+    syncRoomDdb(io, roomId);
+  }, DDB_SYNC_MS);
+  if (typeof session.ddbTimer.unref === 'function') session.ddbTimer.unref();
+}
+
 export function attachSockets(io) {
   io.on('connection', (socket) => {
     socket.data = { roomId: null, sceneId: null, role: null, name: 'Guest', id: socket.id };
@@ -198,6 +237,7 @@ export function attachSockets(io) {
         });
         if (!alreadyHere) broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
         io.to(roomId).emit('presence:updated', roomPresence(io, roomId));
+        if (role === 'dm' && !alreadyHere) { syncRoomDdb(io, roomId); ensureDdbTimer(io, roomId); }
       } catch (e) {
         cb?.({ error: e.message });
       }
@@ -452,9 +492,11 @@ export function attachSockets(io) {
         if (held) return cb?.({ error: held });
         const state = getSceneState(R(), door.sceneId);
         const mid = { x: (door.x1 + door.x2) / 2, y: (door.y1 + door.y2) / 2 };
-        const near = state.tokens.some(t =>
-          (t.owner === socket.data.name || t.owner === socket.id) &&
-          Math.hypot(t.x + 0.5 - mid.x, t.y + 0.5 - mid.y) <= 1.6);
+        const near = state.tokens.some(t => {
+          if (!(t.owner === socket.data.name || t.owner === socket.id)) return false;
+          const c = tokenCenter(t);
+          return Math.hypot(c.x - mid.x, c.y - mid.y) <= 1.6 + (Number(t.size) || 1) / 2 - 0.5;
+        });
         if (!near) return cb?.({ error: 'Move next to the door first' });
       }
       const wall = toggleDoor(id);
@@ -649,13 +691,43 @@ export function attachSockets(io) {
     socket.on('ddb:link', dmOnly(async ({ tokenId, characterId, manualData }, cb) => {
       try {
         const data = manualData || await fetchDdbCharacter(characterId);
-        const t = updateToken(tokenId, {
-          ddbCharacterId: characterId || null,
-          ddbData: data,
-          name: data.name || undefined,
-        });
+        const stats = ddbToStats(data);
+        const before = getToken(tokenId);
+        if (!before) return cb?.({ error: 'Token not found' });
+        // Keep whatever art the DM chose over the DDB avatar.
+        if (before.imageUrl) delete stats.imageUrl;
+        const t = updateToken(tokenId, { ...stats, ddbCharacterId: characterId || null, ddbData: data });
+        if (t.characterId) {
+          const ch = updateCharacter(t.characterId, { ...stats, ddbCharacterId: characterId || null, ddbSyncedAt: Date.now() });
+          if (ch) emitDm(io, R(), 'char:updated', ch);
+        }
         emitScene(io, R(), t.sceneId, 'token:updated', t);
-        cb?.({ ok: true, token: t });
+        refreshFog(io, R(), t.sceneId);
+        cb?.({ ok: true, token: t, stats });
+      } catch (e) {
+        cb?.({ error: e.message });
+      }
+    }));
+
+    // Link a cast member's sheet to D&D Beyond (or refresh it); placed tokens follow.
+    socket.on('char:ddb-link', dmOnly(async ({ characterId, ddbId, manualData }, cb) => {
+      try {
+        const ch0 = getCharacter(characterId);
+        if (!ch0) return cb?.({ error: 'Character not found' });
+        const id = ddbId || ch0.ddbCharacterId;
+        if (!id && !manualData) return cb?.({ error: 'D&D Beyond character ID required' });
+        const data = manualData || await fetchDdbCharacter(id);
+        const stats = ddbToStats(data);
+        if (ch0.imageUrl) delete stats.imageUrl;
+        const ch = updateCharacter(characterId, { ...stats, ddbCharacterId: id || null, ddbSyncedAt: Date.now() });
+        emitDm(io, R(), 'char:updated', ch);
+        const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(characterId);
+        for (const { id: tid } of tokens) {
+          const t = updateToken(tid, { hp: ch.hp, maxHp: ch.maxHp, ddbCharacterId: id || null, ddbData: data });
+          emitScene(io, R(), t.sceneId, 'token:updated', t);
+          refreshFog(io, R(), t.sceneId);
+        }
+        cb?.({ ok: true, character: ch, stats });
       } catch (e) {
         cb?.({ error: e.message });
       }
@@ -745,12 +817,15 @@ export function attachSockets(io) {
       const state = getSceneState(R(), target.sceneId);
       // Players attack with whichever of their tokens is adjacent; the DM
       // names the attacker explicitly (any token, any range).
+      const feetPerCell = state.room.feet_per_cell || 5;
+      const mine = state.tokens.filter(t => t.owner === socket.data.name || t.owner === socket.id);
       const attacker = socket.data.role === 'dm' && attackerId
         ? state.tokens.find(t => t.id === attackerId)
-        : state.tokens.find(t =>
-          (t.owner === socket.data.name || t.owner === socket.id) &&
-          Math.max(Math.abs(t.x - target.x), Math.abs(t.y - target.y)) <= 1.01);
-      if (socket.data.role !== 'dm' && !attacker) return cb?.({ error: 'Move next to it to attack' });
+        : mine.find(t => withinReach(t, target, t.reach ?? 5, feetPerCell));
+      if (socket.data.role !== 'dm' && !attacker) {
+        const reach = mine[0]?.reach ?? 5;
+        return cb?.({ error: reach > 5 ? `Out of reach — get within ${formatFeet(reach)}` : 'Move next to it to attack' });
+      }
       if (socket.data.role === 'dm' && attackerId && !attacker) return cb?.({ error: 'Attacker not on this map' });
       if (attacker && attacker.id === target.id) return cb?.({ error: 'A creature cannot attack itself' });
       const session = getSession(R());
@@ -849,6 +924,16 @@ export function attachSockets(io) {
       io.to(R()).emit('handout:hide');
       cb?.({ ok: true });
     }));
+
+    // ---- Ping: point at a spot on the map for everyone on this scene ----
+    socket.on('ping', ({ to }, cb) => {
+      if (!R() || !to) return cb?.({ error: 'Not in a room' });
+      emitScene(io, R(), S(), 'spell:effect', {
+        id: nanoid(8), kind: 'ping', to: { x: Number(to.x) || 0, y: Number(to.y) || 0 },
+        by: socket.data.name, fromDm: socket.data.role === 'dm', ts: Date.now(),
+      });
+      cb?.({ ok: true });
+    });
 
     // ---- Spells / animations (scene-scoped: only viewers of this map see them) ----
     socket.on('spell:cast', ({ kind, from, to, color }, cb) => {

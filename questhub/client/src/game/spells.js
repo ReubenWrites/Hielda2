@@ -21,9 +21,33 @@ export function createEffect(kind, { from, to, color, text }) {
     case 'heal':     return heal(to, c);
     case 'lightning':return lightning(from, to, c);
     case 'appear':   return appear(to);
+    case 'ping':     return ping(to);
     case 'number':   return floatingNumber(to, text, c);
     default: return null;
   }
+}
+
+// "Look here!": bright rings pulsing outward, easy to spot across the map.
+function ping(to) {
+  const g = new Graphics();
+  let age = 0;
+  const dur = 1500;
+  return {
+    container: g,
+    tick(dt) {
+      age += dt;
+      const t = Math.min(1, age / dur);
+      g.clear();
+      for (let i = 0; i < 3; i++) {
+        const rt = ((t * 1.5) + i / 3) % 1;
+        const r = 8 + rt * 70;
+        g.circle(to.x, to.y, r).stroke({ width: 4 * (1 - rt) + 1, color: 0xf0a500, alpha: (1 - rt) * (1 - t * 0.5) });
+      }
+      g.circle(to.x, to.y, 6).fill({ color: 0xffffff, alpha: 1 - t });
+      this.done = age >= dur;
+    },
+    done: false,
+  };
 }
 
 // Dramatic entrance: dark shockwave rings + a bright flash at the centre.

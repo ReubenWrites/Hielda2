@@ -1,5 +1,6 @@
 import { Container, Graphics, Text, Assets, Sprite } from 'pixi.js';
 import { cellToWorld } from './grid.js';
+import { tokenCenter, tokenSize } from '@questhub/shared/geometry';
 
 export class TokenView {
   constructor(token, room) {
@@ -36,7 +37,7 @@ export class TokenView {
       this.glyph.visible = false;
       return;
     }
-    const size = this.room.grid_size;
+    const size = this.room.grid_size * tokenSize(this.token);
     const down = this.token.maxHp > 0 && this.token.hp != null && this.token.hp <= 0;
     if (down) {
       this.glyph.text = '💀';
@@ -56,7 +57,7 @@ export class TokenView {
       const tex = await Assets.load(url);
       if (this.sprite) this.container.removeChild(this.sprite);
       this.sprite = new Sprite(tex);
-      const s = this.room.grid_size * 0.86;
+      const s = this.room.grid_size * 0.86 * tokenSize(this.token);
       this.sprite.width = s; this.sprite.height = s;
       this.sprite.anchor.set(0.5);
       this.container.addChildAt(this.sprite, 0);
@@ -70,7 +71,8 @@ export class TokenView {
   draw({ selected = false, ghost = false, showHp = false } = {}) {
     const g = this.body;
     g.clear();
-    const r = this.room.grid_size * 0.4;
+    const k = tokenSize(this.token);
+    const r = this.room.grid_size * 0.4 * k;
     const down = this.token.maxHp > 0 && this.token.hp != null && this.token.hp <= 0;
     // Downed creatures go grey so nobody mistakes a corpse for a threat.
     const color = down ? 0x555a60 : parseInt((this.token.color || '#5b9bd5').replace('#', ''), 16);
@@ -84,9 +86,9 @@ export class TokenView {
     });
     // HP bar above the token (DM always; players only on their own tokens)
     if (showHp && this.token.maxHp > 0 && this.token.hp != null) {
-      const w = this.room.grid_size * 0.8;
+      const w = this.room.grid_size * 0.8 * k;
       const h = 5;
-      const y = -this.room.grid_size * 0.55;
+      const y = -this.room.grid_size * 0.55 * k;
       const frac = Math.max(0, Math.min(1, this.token.hp / this.token.maxHp));
       g.rect(-w / 2, y, w, h).fill({ color: 0x511414, alpha: 0.9 });
       if (frac > 0) {
@@ -101,11 +103,12 @@ export class TokenView {
 
   position(cellOverride) {
     const c = cellOverride ?? { x: this.token.x, y: this.token.y };
-    const w = cellToWorld(c.x + 0.5, c.y + 0.5, this.room);
+    const half = tokenSize(this.token) / 2;
+    const w = cellToWorld(c.x + half, c.y + half, this.room);
     this.container.x = w.x;
     this.container.y = w.y;
     this.label.x = 0;
-    this.label.y = this.room.grid_size * 0.42;
+    this.label.y = this.room.grid_size * 0.42 * tokenSize(this.token);
   }
 
   update(nextToken, room) {
@@ -115,7 +118,7 @@ export class TokenView {
       this.loadImage(nextToken.imageUrl);
     } else if (this.sprite) {
       // Grid re-alignment changes the square size; keep art sized to the square.
-      const s = this.room.grid_size * 0.86;
+      const s = this.room.grid_size * 0.86 * tokenSize(this.token);
       this.sprite.width = s; this.sprite.height = s;
     }
     if (!nextToken.imageUrl && this.sprite) {

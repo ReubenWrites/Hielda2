@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Sprite, Assets, Text } from 'pixi.js';
 import { buildGrid, worldToCell, cellToWorld, lineCells } from './grid.js';
 import { formatFeet } from '@questhub/shared/measure';
+import { tokenCenter, tokenSize } from '@questhub/shared/geometry';
 import { TokenView } from './tokens.js';
 import { drawWalls } from './walls.js';
 import { drawFog, tokenVisibleToViewer } from './fog.js';
@@ -98,6 +99,13 @@ export class Scene {
     canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
     canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e));
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Double-click an empty spot: "look here!" ping for everyone on this map.
+    canvas.addEventListener('dblclick', (e) => {
+      if (!this.room) return;
+      const world = this.screenToWorld(e.clientX, e.clientY);
+      if (this.pickToken(world)) return;
+      this.onAction({ type: 'ping', to: world });
+    });
   }
 
   screenToWorld(x, y) {
@@ -164,6 +172,10 @@ export class Scene {
       this.onAction({ type: 'add-token', cell: cellPos });
       return;
     }
+    if (this.tool === 'ping') {
+      this.onAction({ type: 'ping', to: world });
+      return;
+    }
     if (this.tool === 'attack' && this.role === 'dm') {
       // DM: the selected token attacks whatever was tapped.
       const target = this.pickToken(world);
@@ -218,7 +230,7 @@ export class Scene {
       // Cast from the selected token; players default to their own character.
       const selected = this.tokens.find(t => t.id === this.selectedId)
         || (this.role !== 'dm' ? this.tokens.find(t => this.canMoveToken(t)) : null);
-      const fromCell = selected ? { x: selected.x + 0.5, y: selected.y + 0.5 } : cell;
+      const fromCell = selected ? tokenCenter(selected) : cell;
       const from = cellToWorld(fromCell.x, fromCell.y, this.room);
       const to = cellToWorld(cell.x, cell.y, this.room);
       this.onAction({ type: 'cast-spell', kind: this.spell.kind, from, to });
@@ -337,11 +349,12 @@ export class Scene {
 
   pickToken(world) {
     if (!this.room) return null;
-    const r = this.room.grid_size * 0.42;
     for (let i = this.tokens.length - 1; i >= 0; i--) {
       const t = this.tokens[i];
       if (!tokenVisibleToViewer(t, this.visibleSet, this.visYou)) continue;
-      const c = cellToWorld(t.x + 0.5, t.y + 0.5, this.room);
+      const r = this.room.grid_size * 0.42 * tokenSize(t);
+      const tc = tokenCenter(t);
+      const c = cellToWorld(tc.x, tc.y, this.room);
       const dx = world.x - c.x, dy = world.y - c.y;
       if (dx * dx + dy * dy <= r * r) return t;
     }
@@ -372,16 +385,17 @@ export class Scene {
       if (!token) return;
       // Draw path as connected line through cell centers
       const path = this.dragging.path;
+      const half = tokenSize(token) / 2;
       for (let i = 0; i < path.length; i++) {
-        const c = cellToWorld(path[i].x + 0.5, path[i].y + 0.5, this.room);
+        const c = cellToWorld(path[i].x + half, path[i].y + half, this.room);
         if (i === 0) g.moveTo(c.x, c.y);
         else g.lineTo(c.x, c.y);
       }
       g.stroke({ width: 3, color: 0xf0a500, alpha: 0.85 });
       // Ghost circle at end
       const end = path[path.length - 1];
-      const w = cellToWorld(end.x + 0.5, end.y + 0.5, this.room);
-      g.circle(w.x, w.y, this.room.grid_size * 0.4)
+      const w = cellToWorld(end.x + half, end.y + half, this.room);
+      g.circle(w.x, w.y, this.room.grid_size * 0.4 * tokenSize(token))
         .stroke({ width: 2, color: 0xf0a500, alpha: 0.8 });
       // Distance label (with the remaining movement budget during combat)
       const ft = this.isFree
@@ -440,8 +454,9 @@ export class Scene {
     if (this.selectedId) {
       const t = this.tokens.find(t => t.id === this.selectedId);
       if (t) {
-        const c = cellToWorld(t.x + 0.5, t.y + 0.5, this.room);
-        g.circle(c.x, c.y, this.room.grid_size * 0.5)
+        const tc = tokenCenter(t);
+        const c = cellToWorld(tc.x, tc.y, this.room);
+        g.circle(c.x, c.y, this.room.grid_size * 0.5 * tokenSize(t))
           .stroke({ width: 2, color: 0xf0a500, alpha: 0.5 });
       }
     }
@@ -450,10 +465,12 @@ export class Scene {
     if (this.initTokenId) {
       const t = this.tokens.find(t => t.id === this.initTokenId);
       if (t && tokenVisibleToViewer(t, this.visibleSet, this.visYou)) {
-        const c = cellToWorld(t.x + 0.5, t.y + 0.5, this.room);
-        g.circle(c.x, c.y, this.room.grid_size * 0.56)
+        const tc = tokenCenter(t);
+        const c = cellToWorld(tc.x, tc.y, this.room);
+        const k = tokenSize(t);
+        g.circle(c.x, c.y, this.room.grid_size * 0.56 * k)
           .stroke({ width: 3, color: 0xffffff, alpha: 0.9 });
-        g.circle(c.x, c.y, this.room.grid_size * 0.62)
+        g.circle(c.x, c.y, this.room.grid_size * 0.62 * k)
           .stroke({ width: 2, color: 0xf0a500, alpha: 0.9 });
       }
     }
@@ -490,7 +507,7 @@ export class Scene {
     if (!this.room) return;
     const mine = this.role !== 'dm' ? this.tokens.find(t => this.canMoveToken(t)) : null;
     const target = mine || this.tokens[0];
-    if (target) this.centerOn(target.x + 0.5, target.y + 0.5);
+    if (target) { const c = tokenCenter(target); this.centerOn(c.x, c.y); }
     else this.centerOn(this.room.grid_w / 2, this.room.grid_h / 2);
   }
 
@@ -578,7 +595,8 @@ export class Scene {
     if (!this.room || this.role === 'dm') return;
     const mine = this.tokens.find(t => this.canMoveToken(t));
     if (!mine) return;
-    const w = cellToWorld(mine.x + 0.5, mine.y + 0.5, this.room);
+    const mc = tokenCenter(mine);
+    const w = cellToWorld(mc.x, mc.y, this.room);
     const sx = this.camera.x + w.x * this.camera.scale;
     const sy = this.camera.y + w.y * this.camera.scale;
     const margin = 48;
@@ -634,17 +652,18 @@ export class Scene {
       const token = this.tokens.find(t => t.id === p.tokenId);
       if (!token) continue;
       const g = new Graphics();
+      const half = tokenSize(token) / 2;
       // Start cell
-      const start = cellToWorld(token.x + 0.5, token.y + 0.5, this.room);
+      const start = cellToWorld(token.x + half, token.y + half, this.room);
       g.moveTo(start.x, start.y);
       for (const step of p.path) {
-        const w = cellToWorld(step.x + 0.5, step.y + 0.5, this.room);
+        const w = cellToWorld(step.x + half, step.y + half, this.room);
         g.lineTo(w.x, w.y);
       }
       g.stroke({ width: 3, color: 0x5b9bd5, alpha: 0.75 });
       const end = p.path[p.path.length - 1];
-      const ec = cellToWorld(end.x + 0.5, end.y + 0.5, this.room);
-      g.circle(ec.x, ec.y, this.room.grid_size * 0.4)
+      const ec = cellToWorld(end.x + half, end.y + half, this.room);
+      g.circle(ec.x, ec.y, this.room.grid_size * 0.4 * tokenSize(token))
         .stroke({ width: 2, color: 0x5b9bd5, alpha: 0.85 });
       this.ghostLayer.addChild(g);
     }
@@ -654,9 +673,11 @@ export class Scene {
   pickProposalStep(cell) {
     if (this.role !== 'dm') return null;
     for (const p of this.proposals || []) {
+      const tok = this.tokens.find(t => t.id === p.tokenId);
+      const half = tokenSize(tok || {}) / 2;
       for (let i = 0; i < p.path.length; i++) {
         const s = p.path[i];
-        if (Math.hypot(s.x + 0.5 - cell.x, s.y + 0.5 - cell.y) <= 0.5) return { proposalId: p.id, index: i };
+        if (Math.hypot(s.x + half - cell.x, s.y + half - cell.y) <= 0.5 * tokenSize(tok || {})) return { proposalId: p.id, index: i };
       }
     }
     return null;
@@ -694,6 +715,15 @@ export class Scene {
   }
 
   playEffect(payload) {
+    // A ping from the DM should be seen: bring it on screen for players.
+    if (payload.kind === 'ping' && this.role !== 'dm' && payload.to) {
+      const sx = this.camera.x + payload.to.x * this.camera.scale;
+      const sy = this.camera.y + payload.to.y * this.camera.scale;
+      if (sx < 0 || sy < 0 || sx > this.host.clientWidth || sy > this.host.clientHeight) {
+        const cell = worldToCell(payload.to.x, payload.to.y, this.room);
+        this.centerOn(cell.x, cell.y);
+      }
+    }
     const eff = createEffect(payload.kind, {
       from: payload.from,
       to: payload.to,

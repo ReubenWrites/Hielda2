@@ -30,7 +30,7 @@ export default function CombatBar() {
           return (
             <div key={e.tokenId}
               className={`combat-chip ${isCur ? 'current' : ''} ${alive ? '' : 'gone'}`}
-              title={`${e.name} — initiative ${e.roll}${alive ? '' : ' (not on this map)'}`}
+              title={`${e.name} — initiative ${e.roll}${e.bonus ? ` (d20 ${e.bonus > 0 ? '+' : ''}${e.bonus})` : ''}${alive ? '' : ' (not on this map)'}`}
               style={{ background: e.color || '#5b9bd5' }}>
               <span className="face">{e.emoji || e.name.charAt(0).toUpperCase()}</span>
               <span className="who">{e.name}</span>

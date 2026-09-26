@@ -87,8 +87,8 @@ export default function Room() {
           text: delta > 0 ? `+${delta}` : `${delta}`,
           color: delta > 0 ? 0x58c267 : 0xff4d4d,
           to: {
-            x: (room.offset_x || 0) + (t.x + 0.5) * room.grid_size,
-            y: (room.offset_y || 0) + (t.y + 0.5) * room.grid_size,
+            x: (room.offset_x || 0) + (t.x + (Number(t.size) || 1) / 2) * room.grid_size,
+            y: (room.offset_y || 0) + (t.y + (Number(t.size) || 1) / 2) * room.grid_size,
           },
         } }));
       }
@@ -273,6 +273,7 @@ export default function Room() {
               hp: tpl.hp ?? null, maxHp: tpl.maxHp ?? null, ac: tpl.ac ?? null,
               emoji: tpl.emoji ?? null,
               speed: tpl.speed ?? 30, attacks: tpl.attacks ?? 1,
+              size: tpl.size ?? 1, reach: tpl.reach ?? 5, initBonus: tpl.initBonus ?? 0,
             });
             // Single-shot templates (player tokens) disarm; bestiary stays armed
             if (tpl.single) useStore.getState().setSpawnTemplate(null);
@@ -301,6 +302,9 @@ export default function Room() {
         case 'cast-spell':
           await emit('spell:cast', { kind: action.kind, from: action.from, to: action.to });
           useStore.getState().setSpell(null);
+          break;
+        case 'ping':
+          await emit('ping', { to: action.to });
           break;
         case 'attack': {
           const r = await emit('attack', { targetId: action.targetId, attackerId: action.attackerId });
@@ -475,13 +479,14 @@ function Hint() {
   let msg = '';
   if (tool === 'align-grid') msg = 'Click one corner of a map square, then the OPPOSITE corner of the SAME square';
   else if (tool === 'attack') msg = 'Attack: select the attacker, then tap the target';
+  else if (tool === 'ping') msg = 'Tap the map to say "look here!" to everyone';
   else if (tool === 'add-token') msg = 'Click a cell to place a token';
   else if (tool === 'draw-wall') msg = 'Click two corners to draw a wall';
   else if (tool === 'draw-door') msg = 'Click two corners to draw a door';
   else if (tool === 'erase-wall') msg = 'Click a wall to remove it';
   else if (tool === 'toggle-door') msg = 'Click a door to open/close it';
   else if (tool === 'cast-spell') msg = 'Click target to cast';
-  else if (role === 'player') msg = 'Drag your token to move · tap a monster beside you to attack · tap a door beside you to open it';
+  else if (role === 'player') msg = 'Drag your token to move · tap a monster to attack · tap a door to open it · double-tap to point';
   else msg = 'Drag tokens to move · Shift+drag to pan · Scroll to zoom';
   return <div className="hint">{msg}</div>;
 }

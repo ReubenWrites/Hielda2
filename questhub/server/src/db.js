@@ -120,8 +120,16 @@ function migrate(d) {
   ensureColumn(d, 'tokens', 'emoji', 'emoji TEXT');
   ensureColumn(d, 'tokens', 'speed', 'speed REAL NOT NULL DEFAULT 30');
   ensureColumn(d, 'tokens', 'attacks', 'attacks INTEGER NOT NULL DEFAULT 1');
+  ensureColumn(d, 'tokens', 'size', 'size REAL NOT NULL DEFAULT 1');
+  ensureColumn(d, 'tokens', 'reach', 'reach REAL NOT NULL DEFAULT 5');
+  ensureColumn(d, 'tokens', 'init_bonus', 'init_bonus INTEGER NOT NULL DEFAULT 0');
   ensureColumn(d, 'characters', 'speed', 'speed REAL NOT NULL DEFAULT 30');
   ensureColumn(d, 'characters', 'attacks', 'attacks INTEGER NOT NULL DEFAULT 1');
+  ensureColumn(d, 'characters', 'size', 'size REAL NOT NULL DEFAULT 1');
+  ensureColumn(d, 'characters', 'reach', 'reach REAL NOT NULL DEFAULT 5');
+  ensureColumn(d, 'characters', 'init_bonus', 'init_bonus INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(d, 'characters', 'ddb_character_id', 'ddb_character_id TEXT');
+  ensureColumn(d, 'characters', 'ddb_synced_at', 'ddb_synced_at INTEGER');
   ensureColumn(d, 'tokens', 'scene_id', 'scene_id TEXT');
   ensureColumn(d, 'tokens', 'character_id', 'character_id TEXT');
   ensureColumn(d, 'walls', 'scene_id', 'scene_id TEXT');

@@ -286,6 +286,7 @@ function DmTab({ tool, setTool }) {
                     key: m.key, name: m.name, color: m.color, emoji: m.emoji,
                     sightRadius: m.sight, hp: m.hp, maxHp: m.hp, ac: m.ac,
                     speed: m.speed ?? 30, attacks: m.attacks ?? 1,
+                    size: m.size ?? 1, reach: m.reach ?? 5, initBonus: m.initBonus ?? 0,
                   })}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -576,6 +577,18 @@ function CharacterCard({ c, open, onToggle, placing, onPlace }) {
             <div className="field"><label>Attacks / action</label>
               <input type="number" min={1} max={6} value={c.attacks ?? 1} onChange={e => save({ attacks: Math.max(1, parseInt(e.target.value, 10) || 1) })} /></div>
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            <div className="field"><label>Size</label>
+              <select value={String(c.size ?? 1)} onChange={e => save({ size: parseFloat(e.target.value) })}>
+                <option value="1">Medium</option><option value="2">Large</option>
+                <option value="3">Huge</option><option value="4">Gargantuan</option>
+              </select></div>
+            <div className="field"><label>Reach (ft)</label>
+              <input type="number" min={5} step={5} value={c.reach ?? 5} onChange={e => save({ reach: Math.max(5, parseFloat(e.target.value) || 5) })} /></div>
+            <div className="field"><label>Init bonus</label>
+              <input type="number" value={c.initBonus ?? 0} onChange={e => save({ initBonus: parseInt(e.target.value, 10) || 0 })} /></div>
+          </div>
+          <DdbLink character={c} setStatus={setStatus} />
           <div className="field">
             <label>Notes (DM only)</label>
             <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
@@ -589,6 +602,35 @@ function CharacterCard({ c, open, onToggle, placing, onPlace }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// Pull a character's numbers from D&D Beyond (public characters only; unofficial API).
+function DdbLink({ character, setStatus }) {
+  const [id, setId] = useState(character.ddbCharacterId || '');
+  const [busy, setBusy] = useState(false);
+  async function sync() {
+    if (!id.trim()) return;
+    setBusy(true);
+    try {
+      const r = await emit('char:ddb-link', { characterId: character.id, ddbId: id.trim() });
+      const got = Object.keys(r.stats || {}).filter(k => k !== 'imageUrl');
+      setStatus(`Synced ${character.name} from D&D Beyond (${got.join(', ') || 'no stats found'})`, 6000);
+    } catch (e) {
+      setStatus(`D&D Beyond: ${e.message} — is the character set to Public?`, 8000);
+    } finally { setBusy(false); }
+  }
+  return (
+    <div className="field">
+      <label>D&D Beyond character ID {character.ddbSyncedAt ? `· synced ${new Date(character.ddbSyncedAt).toLocaleTimeString()}` : ''}</label>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input value={id} onChange={e => setId(e.target.value)} placeholder="digits from the character URL" />
+        <button disabled={busy} onClick={sync}>{character.ddbCharacterId ? '🔄 Refresh' : 'Link'}</button>
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--muted)' }}>
+        Pulls name, HP, speed, darkvision and initiative. One-way: QuestHub keeps HP during play.
+      </div>
     </div>
   );
 }
@@ -968,6 +1010,27 @@ function TokenEditor({ tokenId, setStatus }) {
           <label>Attacks per action</label>
           <input type="number" min={1} max={6} value={token.attacks ?? 1}
             onChange={e => update({ attacks: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+        <div className="field">
+          <label>Size</label>
+          <select value={String(token.size ?? 1)} onChange={e => update({ size: parseFloat(e.target.value) })}>
+            <option value="1">Medium (1×1)</option>
+            <option value="2">Large (2×2)</option>
+            <option value="3">Huge (3×3)</option>
+            <option value="4">Gargantuan (4×4)</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>Reach (ft)</label>
+          <input type="number" min={5} step={5} value={token.reach ?? 5}
+            onChange={e => update({ reach: Math.max(5, parseFloat(e.target.value) || 5) })} />
+        </div>
+        <div className="field">
+          <label>Init bonus</label>
+          <input type="number" min={-5} max={15} value={token.initBonus ?? 0}
+            onChange={e => update({ initBonus: parseInt(e.target.value, 10) || 0 })} />
         </div>
       </div>
       <CombatMembership tokenId={tokenId} name={token.name} setStatus={setStatus} />

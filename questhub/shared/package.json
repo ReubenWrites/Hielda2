@@ -10,7 +10,8 @@
     "./dice": "./dice.js",
     "./bestiary": "./bestiary.js",
     "./gridcalib": "./gridcalib.js",
-    "./measure": "./measure.js"
+    "./measure": "./measure.js",
+    "./geometry": "./geometry.js"
   },
   "scripts": {
     "test": "vitest run"

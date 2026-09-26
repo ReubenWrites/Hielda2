@@ -8,6 +8,7 @@
 // tokens shown — the classic "remembered corridor" effect.
 
 import { computeVisibleCells, unionVisible } from '@questhub/shared/vision';
+import { tokenCenter } from '@questhub/shared/geometry';
 import { getDb } from './db.js';
 import { getSceneState } from './rooms.js';
 
@@ -57,7 +58,7 @@ export function updateExplored(roomId, sceneId) {
   const changed = {};
   for (const [owner, tokens] of byOwner) {
     const visible = unionVisible(tokens.map(t => computeVisibleCells({
-      origin: { x: t.x + 0.5, y: t.y + 0.5 },
+      origin: tokenCenter(t),
       radius: t.sightRadius || 6,
       walls: blocking,
       gridW: state.room.grid_w,
