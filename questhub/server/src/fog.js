@@ -26,6 +26,14 @@ export function resetExplored(roomId, sceneId) {
   else getDb().prepare('DELETE FROM explored WHERE room_id = ?').run(roomId);
 }
 
+// Restore a saved explored set (quest import).
+export function setExplored(roomId, sceneId, owner, cells) {
+  getDb().prepare(`
+    INSERT INTO explored (room_id, scene_id, owner, cells) VALUES (?, ?, ?, ?)
+    ON CONFLICT(room_id, scene_id, owner) DO UPDATE SET cells = excluded.cells
+  `).run(roomId, sceneId, owner, JSON.stringify(Array.isArray(cells) ? cells : []));
+}
+
 // Recompute vision for every player-owned token in a scene and grow the
 // explored sets. Returns { owner: cells[] } for owners whose set changed.
 export function updateExplored(roomId, sceneId) {

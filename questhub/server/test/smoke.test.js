@@ -374,6 +374,9 @@ describe('quest files', () => {
     await emitAck(dm, 'char:create', { name: 'Ireena', kind: 'npc', notes: 'Soft-spoken, brave' });
     await emitAck(dm, 'scene:create', { name: 'Death House', assetId: mapAsset.id });
     await emitAck(dm, 'token:create', { name: 'Ghost', x: 1, y: 1 });
+    // A player has explored part of Death House
+    await emitAck(dm, 'map:config', { gridType: 'square' });
+    await emitAck(dm, 'token:create', { name: 'Seren', owner: 'Seren', x: 4, y: 4, sightRadius: 2 });
     dm.close();
 
     const quest = await (await fetch(`${baseUrl}/api/rooms/${roomId}/export?secret=${dmSecret}`)).json();
@@ -384,6 +387,7 @@ describe('quest files', () => {
     expect(quest.scenes[0].grid_type).toBe('free');
     expect(quest.scenes[0].feet_per_cell).toBe(1320);
     expect(quest.scenes[1].name).toBe('Death House');
+    expect(quest.scenes[1].explored.Seren).toContain('4,4');
     expect(quest.characters).toHaveLength(1);
     expect(quest.assets).toHaveLength(2);
     expect(quest.assets.every(a => a.dataUrl?.startsWith('data:image/png'))).toBe(true);
@@ -407,7 +411,9 @@ describe('quest files', () => {
     expect(join.characters[0].notes).toBe('Soft-spoken, brave');
     // The DM was on Death House when they saved, so that's where they land.
     expect(join.state.room.scene_name).toBe('Death House');
-    expect(join.state.tokens[0].name).toBe('Ghost');
+    expect(join.state.tokens.map(t => t.name).sort()).toEqual(['Ghost', 'Seren']);
+    // …and Seren's memory of Death House came back with the file.
+    expect(join.explored.Seren).toContain('4,4');
     const back = once(dm2, 'scene:enter');
     await emitAck(dm2, 'scene:switch', { sceneId: join.state.scenes[0].id });
     const first = await back;

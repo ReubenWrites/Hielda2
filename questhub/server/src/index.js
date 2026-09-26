@@ -13,6 +13,7 @@ import {
 } from './rooms.js';
 import { upload, uploadUrl, uploadPath } from './uploads.js';
 import { attachSockets, resyncRoom } from './sockets.js';
+import { getExplored, setExplored } from './fog.js';
 
 const MIME_BY_EXT = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -101,6 +102,8 @@ export function createApp() {
         mapImageDataUrl: viaAsset >= 0 ? null : embed(st.room.map_image_url),
         walls: st.walls.map(({ id: _i, roomId: _r, sceneId: _s, ...w }) => w),
         tokens: st.tokens.map(({ roomId: _r, sceneId: _s, ...t }) => t),
+        // Players' remembered areas, so a restore mid-campaign keeps continuity.
+        explored: getExplored(id, s.id),
       };
     });
     const out = {
@@ -158,8 +161,15 @@ export function createApp() {
         ...c, imageUrl: c.imageUrl?.startsWith('data:') ? c.imageUrl : null,
       }));
       replaceRoomContents(id, { scenes, characters, assets });
-      // Honour the saved "which scene was the DM on".
+      // Honour the saved "which scene was the DM on", and restore fog memory
+      // scene by scene (scenes come back in the same order they were saved).
       const list = listScenes(id);
+      list.forEach((sc, i) => {
+        const saved = (quest.scenes || [])[i]?.explored;
+        if (saved && typeof saved === 'object') {
+          for (const [owner, cells] of Object.entries(saved)) setExplored(id, sc.id, owner, cells);
+        }
+      });
       const dmIdx = Math.min(list.length - 1, Math.max(0, quest.dmSceneIndex ?? 0));
       getDb().prepare('UPDATE rooms SET dm_scene_id = ? WHERE id = ?').run(list[dmIdx].id, id);
       resyncRoom(io, id);
