@@ -100,16 +100,22 @@ const ack = (s, ev, p) => new Promise(res => s.emit(ev, p, res));
       vis > mem + 4 && mem > unseen + 3 && unseen < 8, `visible=${vis.toFixed(1)} remembered=${mem.toFixed(1)} unseen=${unseen.toFixed(1)}`);
   }
 
-  // Dramatic entrance: DM places a Zombie from the bestiary two squares from
-  // Seren. The DM's camera is centred on the first token (Seren was at 7,5
-  // when the DM's map opened), so (5,8) is (-2,+3) squares from centre.
+  // Dramatic entrance: the DM finds Seren on the map (double-click his row
+  // centres the view on him), then places a Zombie from the bestiary two
+  // squares up-right of him at (5,8).
+  await dm.click('.tabs button:has-text("Tokens")');
+  await dm.dblclick('.token-row:has-text("Seren")');
+  await dm.waitForTimeout(300);
   await dm.click('.tabs button:has-text("DM")');
   await dm.fill('input[placeholder="Search monsters…"]', 'zombie');
   await dm.click('button:has-text("🧟 Zombie")');
   const dstage = await dm.locator('.stage').boundingBox();
-  await dm.mouse.click(dstage.x + dstage.width / 2 - 2 * 64, dstage.y + dstage.height / 2 + 3 * 64);
+  await dm.mouse.click(dstage.x + dstage.width / 2 + 2 * 64, dstage.y + dstage.height / 2 - 2 * 64);
   await seren.waitForTimeout(300);
   await seren.screenshot({ path: `${OUT}/4-seren-zombie-appears.png` });
+  await seren.click('.tabs button:has-text("Tokens")');
+  const withZombie = await seren.locator('.token-row .name').allTextContents();
+  check('Zombie placed in Seren\'s sight is visible to him', withZombie.some(n => n.includes('Zombie')), JSON.stringify(withZombie));
   await dm.keyboard.press('Escape');
   await seren.waitForTimeout(600);
   await seren.click('.tabs button:has-text("Chat")');
@@ -125,7 +131,10 @@ const ack = (s, ev, p) => new Promise(res => s.emit(ev, p, res));
 
   // Damage: DM hits Seren for 5 → floating "-5" on Seren's map + HP bar update
   await dm.click('.tabs button:has-text("Tokens")');
-  await dm.click('.token-row:has-text("Seren")');
+  // Clicking a row toggles selection; only click if Seren isn't selected yet.
+  if (await dm.locator('.token-row:has-text("Seren"):not(.selected)').count()) {
+    await dm.click('.token-row:has-text("Seren")');
+  }
   await dm.click('button:has-text("−5")');
   await seren.waitForTimeout(350);
   await seren.screenshot({ path: `${OUT}/5-seren-takes-damage.png` });

@@ -846,7 +846,12 @@ function TokenListTab({ tokens, selectedId, setSelected, role }) {
       {filtered.map(t => (
         <div key={t.id}
           className={`token-row ${selectedId === t.id ? 'selected' : ''}`}
+          title="Click to select · double-click to centre the map on it"
           onClick={() => setSelected(t.id === selectedId ? null : t.id)}
+          onDoubleClick={() => {
+            setSelected(t.id);
+            window.dispatchEvent(new CustomEvent('questhub:focus-token', { detail: { id: t.id } }));
+          }}
         >
           <div className="swatch" style={{ background: t.color || '#5b9bd5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
             {t.emoji || ''}

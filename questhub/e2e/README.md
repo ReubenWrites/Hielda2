@@ -9,5 +9,5 @@ one-tap dice, HP damage, scene switching/following, and NPC sheets.
 npm run build
 PORT=4330 npm start &            # serves client/dist
 npm i -D playwright               # once; needs a Chromium (CHROMIUM_PATH optional)
-node e2e/playthrough.js           # screenshots land in e2e/out/
+node e2e/playthrough.cjs           # screenshots land in e2e/out/
 ```

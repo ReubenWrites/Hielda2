@@ -44,13 +44,19 @@ export default function MapCanvas({ onAction }) {
     function onFx(e) {
       sceneRef.current?.playEffect(e.detail);
     }
+    function onFocus(e) {
+      const t = useStore.getState().tokens.find(x => x.id === e.detail.id);
+      if (t) sceneRef.current?.centerOn(t.x + 0.5, t.y + 0.5);
+    }
     window.addEventListener('questhub:animate-move', onAnim);
     window.addEventListener('questhub:spell-fx', onFx);
+    window.addEventListener('questhub:focus-token', onFocus);
 
     return () => {
       cancelled = true;
       window.removeEventListener('questhub:animate-move', onAnim);
       window.removeEventListener('questhub:spell-fx', onFx);
+      window.removeEventListener('questhub:focus-token', onFocus);
       sceneRef.current?.destroy();
       sceneRef.current = null;
     };
