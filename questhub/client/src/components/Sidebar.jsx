@@ -523,6 +523,7 @@ function CastTab() {
         </form>
       </div>
 
+      <AwardForm characters={characters} />
       {groups.map(([kind, list]) => list.length > 0 && (
         <div className="tool-section" key={kind}>
           <h3>{KIND_LABEL[kind]}</h3>
@@ -546,6 +547,52 @@ function CastTab() {
         </div>
       )}
     </>
+  );
+}
+
+// Hand out XP, gold and loot: lands on the chosen sheets and in chat.
+function AwardForm({ characters }) {
+  const setStatus = useStore(s => s.setStatus);
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ xp: '', gp: '', items: '', who: 'all' });
+  const pcs = characters.filter(c => c.kind === 'pc');
+  if (!pcs.length) return null;
+  if (!open) return (
+    <div className="tool-section">
+      <button style={{ width: '100%' }} onClick={() => setOpen(true)}>🎁 Award XP / gold / loot</button>
+    </div>
+  );
+  async function give() {
+    try {
+      await emit('award', {
+        characterIds: f.who === 'all' ? [] : [f.who],
+        xp: parseInt(f.xp, 10) || 0, gp: parseInt(f.gp, 10) || 0,
+        items: f.items.split(',').map(x => x.trim()).filter(Boolean),
+      });
+      setStatus('Awarded ✓');
+      setF({ xp: '', gp: '', items: '', who: f.who }); setOpen(false);
+    } catch (e) { setStatus(e.message, 4000); }
+  }
+  return (
+    <div className="tool-section">
+      <h3>🎁 Award</h3>
+      <div className="field">
+        <label>To</label>
+        <select value={f.who} onChange={e => setF({ ...f, who: e.target.value })}>
+          <option value="all">Every player character</option>
+          {pcs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <div className="field"><label>XP</label><input type="number" value={f.xp} onChange={e => setF({ ...f, xp: e.target.value })} placeholder="300" /></div>
+        <div className="field"><label>Gold</label><input type="number" value={f.gp} onChange={e => setF({ ...f, gp: e.target.value })} placeholder="25" /></div>
+      </div>
+      <div className="field"><label>Items (comma-separated)</label><input value={f.items} onChange={e => setF({ ...f, items: e.target.value })} placeholder="Potion of Healing, Silver dagger" /></div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <button className="primary" onClick={give}>Give</button>
+        <button onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
   );
 }
 
@@ -634,27 +681,45 @@ function CharacterCard({ c, open, onToggle, placing, onPlace }) {
 function DdbLink({ character, setStatus }) {
   const [id, setId] = useState(character.ddbCharacterId || '');
   const [busy, setBusy] = useState(false);
-  async function sync() {
-    if (!id.trim()) return;
+  const [paste, setPaste] = useState(false);
+  const [raw, setRaw] = useState('');
+  const idClean = id.replace(/\D+/g, ''); // accept a pasted URL too
+  async function run(payload) {
     setBusy(true);
     try {
-      const r = await emit('char:ddb-link', { characterId: character.id, ddbId: id.trim() });
-      const got = Object.keys(r.stats || {}).filter(k => k !== 'imageUrl');
-      setStatus(`Synced ${character.name} from D&D Beyond (${got.join(', ') || 'no stats found'})`, 6000);
+      const r = await emit('char:ddb-link', { characterId: character.id, ...payload });
+      const got = Object.keys(r.stats || {}).filter(k => !['imageUrl', 'sheet'].includes(k));
+      setStatus(`Synced ${r.character?.name || character.name} from D&D Beyond (${got.join(', ') || 'no stats found'})`, 6000);
+      setPaste(false); setRaw('');
     } catch (e) {
-      setStatus(`D&D Beyond: ${e.message} — is the character set to Public?`, 8000);
+      setStatus(`D&D Beyond: ${e.message} — is the character set to Public? You can also paste the JSON.`, 9000);
     } finally { setBusy(false); }
   }
   return (
     <div className="field">
-      <label>D&D Beyond character ID {character.ddbSyncedAt ? `· synced ${new Date(character.ddbSyncedAt).toLocaleTimeString()}` : ''}</label>
+      <label>D&D Beyond character ID or URL {character.ddbSyncedAt ? `· synced ${new Date(character.ddbSyncedAt).toLocaleTimeString()}` : ''}</label>
       <div style={{ display: 'flex', gap: 6 }}>
-        <input value={id} onChange={e => setId(e.target.value)} placeholder="digits from the character URL" />
-        <button disabled={busy} onClick={sync}>{character.ddbCharacterId ? '🔄 Refresh' : 'Link'}</button>
+        <input value={id} onChange={e => setId(e.target.value)} placeholder="e.g. 43513513 or the character link" />
+        <button disabled={busy || !idClean} onClick={() => run({ ddbId: idClean })}>{character.ddbCharacterId ? '🔄 Refresh' : 'Link'}</button>
       </div>
       <div style={{ fontSize: 10, color: 'var(--muted)' }}>
-        Pulls name, HP, speed, darkvision and initiative. One-way: QuestHub keeps HP during play.
+        Imports abilities, HP, speed, senses, proficiencies, armour, weapons, spells, items.
+        One-way: QuestHub keeps live HP, slots and loot during play.
+        {' '}<a href="#" onClick={e => { e.preventDefault(); setPaste(p => !p); }} style={{ color: 'var(--accent-2)' }}>
+          {paste ? 'Hide paste box' : 'Fetch blocked? Paste the JSON instead'}
+        </a>
       </div>
+      {paste && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>
+            Open <code>https://character-service.dndbeyond.com/character/v5/character/{idClean || 'ID'}</code> in your
+            browser, select all, copy, and paste here.
+          </div>
+          <textarea rows={4} value={raw} onChange={e => setRaw(e.target.value)} placeholder='{"id":...,"success":true,"data":{...}}' />
+          <button className="primary" disabled={busy || !raw.trim()} style={{ width: '100%', marginTop: 4 }}
+            onClick={() => run({ ddbId: idClean || undefined, rawJson: raw })}>Import pasted JSON</button>
+        </div>
+      )}
     </div>
   );
 }

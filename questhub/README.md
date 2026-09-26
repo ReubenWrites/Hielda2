@@ -62,6 +62,29 @@ invite link in a second tab/browser to join as a player.
   walls, tokens, library (images embedded) and grid calibration; Load restores
   it. Use one file per prepared scene ("Death House", "Castle Ravenloft") —
   this also survives free-tier restarts.
+- **Character sheets**: players get a Sheet tab — HP with short/long rests,
+  AC/initiative/speed tiles, tap-to-roll abilities, saves and skills
+  (proficiency ● / expertise ◉ toggles), temporary ability bonuses that ripple
+  through every derived number, weapons with the active one selected, spell
+  slot pips, spells, inventory and money, conditions. Players edit only their
+  own sheet and never see DM notes. `shared/rules.js` derives all numbers.
+- **D&D Beyond**: Cast card → enter the character ID (from the DDB URL; the
+  character must be Public). Imports ability scores, HP, speed, senses,
+  proficiencies, armour, equipped weapons, slots, spells, inventory, money and
+  XP. One-way: DDB stays the rules calculator (level-ups, magic items) —
+  hit Refresh after changes and QuestHub keeps live HP, slot use and loot.
+  Linked sheets auto-refresh every 5 minutes.
+- **Attacks**: tapping a target rolls d20 + the active weapon's to-hit vs AC,
+  rolls damage on a hit (crits double dice) and applies it automatically,
+  temp HP first. Bestiary monsters have their own attacks for the DM's ⚔️ tool.
+- **Combat**: initiative (d20 + bonus) on a bar across everyone's map; players
+  act only on their turn — movement up to speed, attacks per action, one
+  action (attack or spell); Space / N advances; ⏸ Hold (H) freezes players
+  and stops walkers mid-route; DM can click a square on a drawn route to
+  stop a player exactly there.
+- **Awards & session end**: Cast tab → 🎁 Award XP/gold/items to sheets;
+  DM tab → 📜 End session shows everyone a checklist of what changed since
+  the last D&D Beyond sync so the DDB sheets get updated together.
 - **Spells**: pick an effect from the bar at the bottom (fireball, magic
   missile, slash, heal, lightning), then click a target on the map.
 - **D&D Beyond**: select a token → "Link to D&D Beyond character ID". The
@@ -109,7 +132,8 @@ client/   Vite + React + PixiJS 8 + zustand
 ## Tests
 
 ```bash
-npm test    # runs shared (23), server (6) and client (14) suites
+npm test                 # unit suites: shared (rules, dice, vision…), server, client
+node e2e/run-all.cjs     # browser playthroughs (see e2e/README.md)
 ```
 
 ## Known limitations (v1)

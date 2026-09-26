@@ -482,6 +482,55 @@ describe('socket flow', () => {
     dm.close();
   });
 
+  test('awards land on sheets and in the session checklist; sheets survive quest files', async () => {
+    const { roomId, dmSecret, dm } = await dmFor('Award Test');
+    const { socket: seren } = await playerFor(roomId, 'Seren');
+    const ch = (await emitAck(dm, 'char:create', { name: 'Seren', kind: 'pc', owner: 'Seren', hp: 10, maxHp: 10,
+      sheet: { xp: 300, money: { gp: 1 }, inventory: [{ id: 'a', name: 'Torch', qty: 1 }], ddbSnapshot: { hp: 10, slots: {}, inventory: [{ name: 'Torch', qty: 1 }], money: { gp: 1 }, xp: 300 } } })).character;
+    const got = once(seren, 'sheet:updated');
+    const chat = waitChat(seren, /gains/);
+    const r = await emitAck(dm, 'award', { xp: 200, gp: 15, items: ['Potion of Healing', 'Torch'] });
+    expect(r.ok).toBe(true);
+    const sh = await got;
+    expect(sh.sheet.xp).toBe(500);
+    expect(sh.sheet.money.gp).toBe(16);
+    expect(sh.sheet.inventory.find(i => i.name === 'Torch').qty).toBe(2);
+    expect(sh.sheet.inventory.some(i => i.name === 'Potion of Healing')).toBe(true);
+    expect((await chat).text).toMatch(/Seren gains 200 XP, 15 gp, Potion of Healing, Torch/);
+    const summary = await emitAck(dm, 'session:end', {});
+    const lines = summary.summary[0].lines;
+    expect(lines).toContain('XP: 300 → 500');
+    expect(lines).toContain('New item: Potion of Healing');
+    // Quest file carries the sheet
+    const quest = await (await fetch(`${baseUrl}/api/rooms/${roomId}/export?secret=${dmSecret}`)).json();
+    expect(quest.characters[0].sheet.xp).toBe(500);
+    const roomB = await call('POST', '/api/rooms', { name: 'Target' });
+    await fetch(`${baseUrl}/api/rooms/${roomB.id}/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: roomB.dmSecret, data: quest }) });
+    const dm2 = connect(); await once(dm2, 'connect');
+    const join = await emitAck(dm2, 'room:join', { roomId: roomB.id, name: 'GM', asDm: true, dmSecret: roomB.dmSecret });
+    expect(join.characters[0].sheet.inventory.some(i => i.name === 'Potion of Healing')).toBe(true);
+    dm2.close(); dm.close(); seren.close();
+  });
+
+  test('pasting the raw D&D Beyond JSON imports the sheet; junk is rejected', async () => {
+    const { dm } = await dmFor('Paste Test');
+    const ch = (await emitAck(dm, 'char:create', { name: 'Tmp', kind: 'pc', owner: 'Seren' })).character;
+    const bad = await emitAck(dm, 'char:ddb-link', { characterId: ch.id, rawJson: 'not json' });
+    expect(bad.error).toMatch(/not valid JSON/i);
+    const notChar = await emitAck(dm, 'char:ddb-link', { characterId: ch.id, rawJson: JSON.stringify({ hello: 1 }) });
+    expect(notChar.error).toMatch(/does not look like/i);
+    const raw = { id: 43513513, name: 'Pasted Hero', race: { fullName: 'Human' }, classes: [{ level: 2, definition: { name: 'Fighter' } }],
+      baseHitPoints: 12, removedHitPoints: 0, stats: [{ value: 16 }, { value: 12 }, { value: 14 }, { value: 10 }, { value: 10 }, { value: 8 }],
+      weightSpeeds: { normal: { walk: 30 } }, modifiers: {}, inventory: [], spellSlots: [] };
+    const ok = await emitAck(dm, 'char:ddb-link', { characterId: ch.id, rawJson: JSON.stringify({ data: raw }) });
+    expect(ok.ok).toBe(true);
+    expect(ok.character.name).toBe('Pasted Hero');
+    expect(ok.character.maxHp).toBe(12 + 2 * 2);
+    expect(ok.character.ddbCharacterId).toBe('43513513');
+    expect(ok.character.sheet.abilities.STR).toBe(16);
+    dm.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { roomId, dm } = await dmFor('Dice Test');
     const { socket: player } = await playerFor(roomId, 'P');

@@ -11,7 +11,7 @@ import {
   createAsset, deleteAsset, getAsset, updateAssetGrid,
   createCharacter, updateCharacter, deleteCharacter, listCharacters, getCharacter, listCharactersFor,
 } from './rooms.js';
-import { fetchDdbCharacter, ddbToStats } from './dndbeyond.js';
+import { fetchDdbCharacter, ddbToStats, normaliseDdb } from './dndbeyond.js';
 import { detectGrid } from './gridDetect.js';
 import { uploadPath } from './uploads.js';
 import { getExplored, resetExplored, updateExplored } from './fog.js';
@@ -775,6 +775,37 @@ export function attachSockets(io) {
       cb?.({ ok: true });
     });
 
+    // Loot and XP handed out by the DM go straight onto sheets.
+    socket.on('award', dmOnly(({ characterIds, xp, gp, items }, cb) => {
+      const all = listCharacters(R()).filter(c => c.kind === 'pc');
+      const targets = Array.isArray(characterIds) && characterIds.length
+        ? all.filter(c => characterIds.includes(c.id)) : all;
+      if (!targets.length) return cb?.({ error: 'No player characters to award' });
+      const names = (items || []).map(n => String(n).trim()).filter(Boolean);
+      for (const c of targets) {
+        const sheet = c.sheet || {};
+        const patch = {};
+        if (xp) patch.xp = (Number(sheet.xp) || 0) + Number(xp);
+        if (gp) patch.money = { ...(sheet.money || {}), gp: (Number(sheet.money?.gp) || 0) + Number(gp) };
+        if (names.length) {
+          const inv = [...(sheet.inventory || [])];
+          for (const n of names) {
+            const ex = inv.find(i => i.name.toLowerCase() === n.toLowerCase());
+            if (ex) ex.qty = (ex.qty || 1) + 1;
+            else inv.push({ id: `it-${nanoid(6)}`, name: n, qty: 1 });
+          }
+          patch.inventory = inv;
+        }
+        if (!Object.keys(patch).length) continue;
+        const updated = updateCharacter(c.id, { sheet: patch });
+        emitDm(io, R(), 'char:updated', updated);
+        emitToOwner(io, R(), updated.owner, 'sheet:updated', stripNotes(updated));
+      }
+      const what = [xp ? `${xp} XP` : null, gp ? `${gp} gp` : null, ...names].filter(Boolean).join(', ');
+      if (what) broadcastSystem(io, R(), `🎁 ${targets.map(c => c.name).join(', ')} gain${targets.length === 1 ? 's' : ''} ${what}`);
+      cb?.({ ok: true });
+    }));
+
     // End of session: what to copy back to D&D Beyond, shown to everyone.
     socket.on('session:end', dmOnly((_p, cb) => {
       const pcs = listCharacters(R()).filter(c => c.kind === 'pc');
@@ -888,10 +919,20 @@ export function attachSockets(io) {
     }));
 
     // Link a cast member's sheet to D&D Beyond (or refresh it); placed tokens follow.
-    socket.on('char:ddb-link', dmOnly(async ({ characterId, ddbId, manualData }, cb) => {
+    socket.on('char:ddb-link', dmOnly(async ({ characterId, ddbId, manualData, rawJson }, cb) => {
       try {
         const ch0 = getCharacter(characterId);
         if (!ch0) return cb?.({ error: 'Character not found' });
+        // rawJson: the character-service response pasted by hand (works even
+        // when the server cannot reach D&D Beyond).
+        if (rawJson) {
+          let parsed;
+          try { parsed = JSON.parse(rawJson); } catch { return cb?.({ error: 'That is not valid JSON — copy the whole page' }); }
+          const raw = parsed?.data ?? parsed;
+          if (!raw || typeof raw !== 'object' || !('stats' in raw || 'name' in raw)) return cb?.({ error: 'That JSON does not look like a D&D Beyond character' });
+          manualData = normaliseDdb(raw);
+          ddbId = ddbId || (raw.id ? String(raw.id) : null);
+        }
         const id = ddbId || ch0.ddbCharacterId;
         if (!id && !manualData) return cb?.({ error: 'D&D Beyond character ID required' });
         const data = manualData || await fetchDdbCharacter(id);
