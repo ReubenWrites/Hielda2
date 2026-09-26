@@ -47,15 +47,12 @@ export default function Sidebar({ onCopyInvite }) {
           {tab === 'cast' && role === 'dm' && <CastTab />}
           {tab === 'library' && role === 'dm' && <LibraryTab />}
           {tab === 'characters' && (
-            <>
-              <InitiativePanel />
-              <TokenListTab
-                tokens={tokens}
-                selectedId={selectedTokenId}
-                setSelected={setSelected}
-                role={role}
-              />
-            </>
+            <TokenListTab
+              tokens={tokens}
+              selectedId={selectedTokenId}
+              setSelected={setSelected}
+              role={role}
+            />
           )}
           {tab === 'chat' && <ChatTab />}
         </div>
@@ -266,12 +263,12 @@ function DmTab({ tool, setTool }) {
           <button style={{ width: '100%' }}
             onClick={() => emit('init:roll', { tokenIds: tokens.map(t => t.id) })
               .catch(e => setStatus(e.message, 4000))}>
-            🎲 Roll initiative (everyone here)
+            🎲 Roll initiative (everyone on this map)
           </button>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <button className="primary" onClick={() => emit('init:next')}>Next turn ▶</button>
-            <button onClick={() => emit('init:end')}>End combat</button>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Combat is running — use the bar at the top of the map. Select a token
+            to add or remove it from the fight.
           </div>
         )}
       </div>
@@ -288,6 +285,7 @@ function DmTab({ tool, setTool }) {
                 : setSpawnTemplate({
                     key: m.key, name: m.name, color: m.color, emoji: m.emoji,
                     sightRadius: m.sight, hp: m.hp, maxHp: m.hp, ac: m.ac,
+                    speed: m.speed ?? 30, attacks: m.attacks ?? 1,
                   })}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -571,6 +569,12 @@ function CharacterCard({ c, open, onToggle, placing, onPlace }) {
               <input value={c.emoji || ''} onChange={e => save({ emoji: e.target.value || null })} /></div>
             <div className="field"><label>Owner (player name or dm)</label>
               <input value={c.owner} onChange={e => save({ owner: e.target.value })} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div className="field"><label>Speed (ft)</label>
+              <input type="number" min={0} step={5} value={c.speed ?? 30} onChange={e => save({ speed: parseFloat(e.target.value) || 0 })} /></div>
+            <div className="field"><label>Attacks / action</label>
+              <input type="number" min={1} max={6} value={c.attacks ?? 1} onChange={e => save({ attacks: Math.max(1, parseInt(e.target.value, 10) || 1) })} /></div>
           </div>
           <div className="field">
             <label>Notes (DM only)</label>
@@ -982,6 +986,19 @@ function TokenEditor({ tokenId, setStatus }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
         <div className="field">
+          <label>Speed (ft / turn)</label>
+          <input type="number" min={0} max={200} step={5} value={token.speed ?? 30}
+            onChange={e => update({ speed: parseFloat(e.target.value) || 0 })} />
+        </div>
+        <div className="field">
+          <label>Attacks per action</label>
+          <input type="number" min={1} max={6} value={token.attacks ?? 1}
+            onChange={e => update({ attacks: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
+        </div>
+      </div>
+      <CombatMembership tokenId={tokenId} name={token.name} setStatus={setStatus} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        <div className="field">
           <label>Sight (squares)</label>
           <input type="number" min={0} max={30} value={token.sightRadius}
             onChange={e => update({ sightRadius: parseFloat(e.target.value) })} />
@@ -1031,6 +1048,27 @@ function TokenEditor({ tokenId, setStatus }) {
         )}
       </div>
       <button className="danger" onClick={remove} style={{ width: '100%' }}>Delete token</button>
+    </div>
+  );
+}
+
+function CombatMembership({ tokenId, name, setStatus }) {
+  const initiative = useStore(s => s.initiative);
+  if (!initiative) return null;
+  const inCombat = initiative.order.some(e => e.tokenId === tokenId);
+  return (
+    <div className="field">
+      {inCombat ? (
+        <button style={{ width: '100%' }}
+          onClick={() => emit('init:remove', { tokenId }).catch(e => setStatus(e.message, 4000))}>
+          ⚔️ Remove {name} from combat
+        </button>
+      ) : (
+        <button style={{ width: '100%' }} className="primary"
+          onClick={() => emit('init:add', { tokenId }).catch(e => setStatus(e.message, 4000))}>
+          ⚔️ Add {name} to combat (rolls initiative)
+        </button>
+      )}
     </div>
   );
 }

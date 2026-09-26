@@ -216,6 +216,11 @@ export class Scene {
     // Default: select / drag tokens
     const hit = this.pickToken(world);
     if (hit) {
+      // A player tapping someone else's creature attacks it (if adjacent).
+      if (this.role !== 'dm' && !this.canMoveToken(hit)) {
+        this.onAction({ type: 'attack', targetId: hit.id });
+        return;
+      }
       this.selectedId = hit.id;
       this.onAction({ type: 'select-token', id: hit.id });
       if (this.canMoveToken(hit)) {

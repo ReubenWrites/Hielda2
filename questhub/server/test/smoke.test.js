@@ -211,6 +211,82 @@ describe('socket flow', () => {
     dm.close(); player.close();
   });
 
+  test('tap-to-attack: adjacent only, rolls d20, announces hit/miss vs AC', async () => {
+    const { roomId, dm } = await dmFor('Attack Test');
+    const { socket: seren } = await playerFor(roomId, 'Seren');
+    await emitAck(dm, 'token:create', { name: 'Seren', owner: 'Seren', x: 2, y: 2 });
+    const wolf = (await emitAck(dm, 'token:create', { name: 'Wolf', x: 6, y: 2, ac: 13, hp: 11, maxHp: 11 })).token;
+    const far = await emitAck(seren, 'attack', { targetId: wolf.id });
+    expect(far.error).toMatch(/next to it/i);
+    await emitAck(dm, 'token:move', { id: wolf.id, x: 3, y: 3 }); // diagonal neighbour
+    const fx = once(seren, 'spell:effect');
+    const chat = once(dm, 'chat:message');
+    const res = await emitAck(seren, 'attack', { targetId: wolf.id });
+    expect(res.ok).toBe(true);
+    expect(res.roll).toBeGreaterThanOrEqual(1);
+    expect(typeof res.hit).toBe('boolean');
+    expect((await fx).kind).toBe('slash');
+    const msg = await chat;
+    expect(msg.text).toMatch(/Seren attacks Wolf: 1d20\[\d+\] = \d+ — (HIT|miss)/);
+    dm.close(); seren.close();
+  });
+
+  test('turn economy: only on your turn, movement budget, attack count, spell uses action, player ends turn', async () => {
+    const { roomId, dm } = await dmFor('Turn Rules');
+    const { socket: seren } = await playerFor(roomId, 'Seren');
+    const s = (await emitAck(dm, 'token:create', { name: 'Seren', owner: 'Seren', x: 2, y: 2, speed: 30, attacks: 1 })).token;
+    const w = (await emitAck(dm, 'token:create', { name: 'Wolf', x: 3, y: 2, ac: 13, hp: 11, maxHp: 11 })).token;
+    // Force a known order: wolf first, Seren second (roll then fix up via remove/add is random) — instead
+    // check whichever is first and step to Seren if needed.
+    const rolled = await emitAck(dm, 'init:roll', { tokenIds: [w.id, s.id] });
+    expect(rolled.initiative.round).toBe(1);
+    expect(rolled.initiative.turnState).toEqual({ movedFt: 0, actionUsed: false, attacksUsed: 0 });
+    let init = rolled.initiative;
+    if (init.order[init.turn].tokenId !== s.id) {
+      const denied = await emitAck(seren, 'move:propose', { tokenId: s.id, path: [{ x: 2, y: 3 }] });
+      expect(denied.error).toMatch(/not your turn/i);
+      const playerNext = await emitAck(seren, 'init:next', {});
+      expect(playerNext.error).toMatch(/not your turn/i);
+      const upd = once(dm, 'init:updated');
+      await emitAck(dm, 'init:next', {});
+      init = await upd;
+    }
+    expect(init.order[init.turn].tokenId).toBe(s.id);
+    // 7 squares = 35 ft > 30 ft speed
+    const tooFar = await emitAck(seren, 'move:propose', { tokenId: s.id, path: Array.from({ length: 7 }, (_, i) => ({ x: 2, y: 3 + i })) });
+    expect(tooFar.error).toMatch(/30 ft of movement left/);
+    // 4 squares = 20 ft ok; approve spends it
+    const ok = await emitAck(seren, 'move:propose', { tokenId: s.id, path: [{ x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 }, { x: 3, y: 5 }] });
+    expect(ok.ok).toBe(true);
+    expect(ok.proposal.distFt).toBe(20);
+    const spent = once(dm, 'init:updated');
+    await emitAck(dm, 'move:approve', { proposalId: ok.proposal.id });
+    expect((await spent).turnState.movedFt).toBe(20);
+    const overBudget = await emitAck(seren, 'move:propose', { tokenId: s.id, path: [{ x: 3, y: 6 }, { x: 3, y: 7 }, { x: 3, y: 8 }] });
+    expect(overBudget.error).toMatch(/10 ft of movement left/);
+    // Attack: move wolf adjacent, one attack allowed, second refused
+    await emitAck(dm, 'token:move', { id: w.id, x: 4, y: 5 });
+    const a1 = await emitAck(seren, 'attack', { targetId: w.id });
+    expect(a1.ok).toBe(true);
+    const a2 = await emitAck(seren, 'attack', { targetId: w.id });
+    expect(a2.error).toMatch(/no attacks left/i);
+    // Spell after attacking: action already used
+    const cast = await emitAck(seren, 'spell:cast', { kind: 'fireball', from: { x: 0, y: 0 }, to: { x: 1, y: 1 } });
+    expect(cast.error).toMatch(/already used your action/i);
+    // Player ends their own turn → fresh budget for the next creature
+    const ended = once(dm, 'init:updated');
+    const end = await emitAck(seren, 'init:next', {});
+    expect(end.ok).toBe(true);
+    const after = await ended;
+    expect(after.order[after.turn].tokenId).toBe(w.id);
+    expect(after.turnState.movedFt).toBe(0);
+    // Deleting the wolf drops it from the order and combat ends when nobody is left
+    await emitAck(dm, 'token:delete', { id: w.id });
+    const state = await emitAck(dm, 'init:add', { tokenId: s.id }); // still Seren in order
+    expect(state.initiative.order.map(e => e.tokenId)).toEqual([s.id]);
+    dm.close(); seren.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { roomId, dm } = await dmFor('Dice Test');
     const { socket: player } = await playerFor(roomId, 'P');

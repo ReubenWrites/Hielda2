@@ -164,8 +164,8 @@ export function createCharacter(roomId, c) {
   const id = nanoid(12);
   db.prepare(`
     INSERT INTO characters (id, room_id, name, kind, emoji, color, image_url, owner,
-      hp, max_hp, ac, sight_radius, notes, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      hp, max_hp, ac, sight_radius, notes, created_at, speed, attacks)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, roomId,
     (c.name || 'Character').slice(0, 60),
@@ -178,6 +178,8 @@ export function createCharacter(roomId, c) {
     c.sightRadius ?? 6,
     (c.notes || '').slice(0, 5000),
     Date.now(),
+    c.speed ?? 30,
+    c.attacks ?? 1,
   );
   return getCharacter(id);
 }
@@ -197,6 +199,7 @@ export function updateCharacter(id, fields) {
   const map = {
     name: 'name', kind: 'kind', emoji: 'emoji', color: 'color', imageUrl: 'image_url',
     owner: 'owner', hp: 'hp', maxHp: 'max_hp', ac: 'ac', sightRadius: 'sight_radius', notes: 'notes',
+    speed: 'speed', attacks: 'attacks',
   };
   const sets = [];
   const vals = [];
@@ -215,8 +218,8 @@ export function updateCharacter(id, fields) {
   // Keep placed tokens' identity in step with their sheet.
   const c = getCharacter(id);
   if (c) {
-    db.prepare(`UPDATE tokens SET name = ?, emoji = ?, color = ?, owner = ?, sight_radius = ?
-      WHERE character_id = ?`).run(c.name, c.emoji, c.color, c.owner, c.sightRadius, id);
+    db.prepare(`UPDATE tokens SET name = ?, emoji = ?, color = ?, owner = ?, sight_radius = ?, speed = ?, attacks = ?
+      WHERE character_id = ?`).run(c.name, c.emoji, c.color, c.owner, c.sightRadius, c.speed, c.attacks, id);
     if ('imageUrl' in fields) db.prepare('UPDATE tokens SET image_url = ? WHERE character_id = ?').run(c.imageUrl, id);
   }
   return c;
@@ -235,8 +238,8 @@ export function createToken(roomId, sceneId, t) {
   const id = nanoid(12);
   db.prepare(`
     INSERT INTO tokens (id, room_id, scene_id, character_id, name, image_url, color, owner, x, y,
-      sight_radius, visible_to_players, hp, max_hp, ac, emoji)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sight_radius, visible_to_players, hp, max_hp, ac, emoji, speed, attacks)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, roomId, sceneId,
     t.characterId || null,
@@ -251,6 +254,8 @@ export function createToken(roomId, sceneId, t) {
     t.maxHp ?? null,
     t.ac ?? null,
     t.emoji || null,
+    t.speed ?? 30,
+    t.attacks ?? 1,
   );
   return getToken(id);
 }
@@ -262,6 +267,7 @@ export function placeCharacter(roomId, sceneId, characterId, { x, y }) {
   return createToken(roomId, sceneId, {
     characterId: c.id, name: c.name, imageUrl: c.imageUrl, color: c.color, owner: c.owner,
     x, y, sightRadius: c.sightRadius, hp: c.hp, maxHp: c.maxHp, ac: c.ac, emoji: c.emoji,
+    speed: c.speed, attacks: c.attacks,
   });
 }
 
@@ -277,6 +283,7 @@ export function updateToken(id, fields) {
     x: 'x', y: 'y', sightRadius: 'sight_radius',
     visibleToPlayers: 'visible_to_players',
     hp: 'hp', maxHp: 'max_hp', ac: 'ac', emoji: 'emoji',
+    speed: 'speed', attacks: 'attacks',
     characterId: 'character_id',
     ddbCharacterId: 'ddb_character_id', ddbData: 'ddb_data',
   };
@@ -429,6 +436,8 @@ function serializeToken(row) {
     maxHp: row.max_hp,
     ac: row.ac,
     emoji: row.emoji,
+    speed: row.speed ?? 30,
+    attacks: row.attacks ?? 1,
     ddbCharacterId: row.ddb_character_id,
     ddbData: row.ddb_data ? safeParse(row.ddb_data) : null,
   };
@@ -471,6 +480,8 @@ function serializeCharacter(row) {
     ac: row.ac,
     sightRadius: row.sight_radius,
     notes: row.notes,
+    speed: row.speed ?? 30,
+    attacks: row.attacks ?? 1,
   };
 }
 

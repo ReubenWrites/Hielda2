@@ -118,6 +118,10 @@ function migrate(d) {
   ensureColumn(d, 'tokens', 'max_hp', 'max_hp REAL');
   ensureColumn(d, 'tokens', 'ac', 'ac INTEGER');
   ensureColumn(d, 'tokens', 'emoji', 'emoji TEXT');
+  ensureColumn(d, 'tokens', 'speed', 'speed REAL NOT NULL DEFAULT 30');
+  ensureColumn(d, 'tokens', 'attacks', 'attacks INTEGER NOT NULL DEFAULT 1');
+  ensureColumn(d, 'characters', 'speed', 'speed REAL NOT NULL DEFAULT 30');
+  ensureColumn(d, 'characters', 'attacks', 'attacks INTEGER NOT NULL DEFAULT 1');
   ensureColumn(d, 'tokens', 'scene_id', 'scene_id TEXT');
   ensureColumn(d, 'tokens', 'character_id', 'character_id TEXT');
   ensureColumn(d, 'walls', 'scene_id', 'scene_id TEXT');

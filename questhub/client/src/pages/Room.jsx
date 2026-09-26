@@ -7,6 +7,7 @@ import Sidebar from '../components/Sidebar.jsx';
 import SpellBar from '../components/SpellBar.jsx';
 import ProposalBanner from '../components/ProposalBanner.jsx';
 import StageToolbar from '../components/StageToolbar.jsx';
+import CombatBar from '../components/CombatBar.jsx';
 import { computeGridFromSquare } from '@questhub/shared/gridcalib';
 
 export default function Room() {
@@ -247,6 +248,7 @@ export default function Room() {
               sightRadius: tpl.sightRadius ?? 6,
               hp: tpl.hp ?? null, maxHp: tpl.maxHp ?? null, ac: tpl.ac ?? null,
               emoji: tpl.emoji ?? null,
+              speed: tpl.speed ?? 30, attacks: tpl.attacks ?? 1,
             });
             // Single-shot templates (player tokens) disarm; bestiary stays armed
             if (tpl.single) useStore.getState().setSpawnTemplate(null);
@@ -276,6 +278,13 @@ export default function Room() {
           await emit('spell:cast', { kind: action.kind, from: action.from, to: action.to });
           useStore.getState().setSpell(null);
           break;
+        case 'attack': {
+          const r = await emit('attack', { targetId: action.targetId });
+          if (r.hit === true) useStore.getState().setStatus(`⚔️ Rolled ${r.roll} — HIT!`);
+          else if (r.hit === false) useStore.getState().setStatus(`⚔️ Rolled ${r.roll} — miss`);
+          else useStore.getState().setStatus(`⚔️ Rolled ${r.roll}`);
+          break;
+        }
         case 'align-grid': {
           const g = computeGridFromSquare(action.p1, action.p2, action.mapW, action.mapH);
           if (!g) {
@@ -321,6 +330,7 @@ export default function Room() {
         {role === 'dm' && <ProposalBanner />}
         {role === 'dm' && <StageToolbar />}
         {role === 'dm' && <ViewAsBanner />}
+        <CombatBar />
         <HandoutOverlay />
         <SpellBar />
         {status && (
@@ -400,7 +410,7 @@ function Hint() {
   else if (tool === 'erase-wall') msg = 'Click a wall to remove it';
   else if (tool === 'toggle-door') msg = 'Click a door to open/close it';
   else if (tool === 'cast-spell') msg = 'Click target to cast';
-  else if (role === 'player') msg = 'Drag your token to propose a move · click a door beside you to open it';
+  else if (role === 'player') msg = 'Drag your token to move · tap a monster beside you to attack · tap a door beside you to open it';
   else msg = 'Drag tokens to move · Shift+drag to pan · Scroll to zoom';
   return <div className="hint">{msg}</div>;
 }

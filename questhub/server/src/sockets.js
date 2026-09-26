@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { rollDice, formatRoll } from '@questhub/shared/dice';
+import { measureMoveFeet, formatFeet } from '@questhub/shared/measure';
 import {
   getRoom, getScene, getSceneState, verifyDm, setDmScene,
   createScene, updateScene, deleteScene, listScenes, playerSceneFor,
@@ -30,6 +31,40 @@ function pushChat(roomId, msg) {
   const s = getSession(roomId);
   s.chat.push(msg);
   if (s.chat.length > 200) s.chat.splice(0, s.chat.length - 200);
+}
+
+// ---- Turn economy (5e-lite): during combat a player may act only on their
+// token's turn, move up to its speed, and either attack (up to `attacks`
+// times) or cast once. The DM is never restricted.
+const freshTurn = () => ({ movedFt: 0, actionUsed: false, attacksUsed: 0 });
+
+function currentEntry(session) {
+  const init = session.initiative;
+  return init && init.order.length ? init.order[init.turn] : null;
+}
+
+// Returns an error string if `token` may not act now for this socket, else null.
+function turnGate(session, socket, token) {
+  if (socket.data.role === 'dm') return null;
+  const init = session.initiative;
+  if (!init || init.order.length === 0) return null; // no combat: free exploration
+  const cur = currentEntry(session);
+  const inCombat = init.order.some(e => e.tokenId === token.id);
+  if (!inCombat) return null; // not a combatant (e.g. a scene-side NPC) — unrestricted
+  if (cur.tokenId !== token.id) return `Not your turn — it's ${cur.name}'s`;
+  return null;
+}
+
+function advanceTurn(session) {
+  const init = session.initiative;
+  if (!init || init.order.length === 0) return;
+  init.turn = (init.turn + 1) % init.order.length;
+  if (init.turn === 0) init.round += 1;
+  init.turnState = freshTurn();
+}
+
+function rollEntry(token) {
+  return { tokenId: token.id, name: token.name, emoji: token.emoji || null, color: token.color, owner: token.owner, roll: 1 + Math.floor(Math.random() * 20) };
 }
 
 function roomPresence(io, roomId, { excludeId } = {}) {
@@ -315,6 +350,20 @@ export function attachSockets(io) {
       emitScene(io, R(), token.sceneId, 'token:deleted', { id });
       refreshFog(io, R(), token.sceneId);
       syncPlayers(io, R());
+      // A dead combatant leaves the initiative order.
+      const session = getSession(R());
+      if (session.initiative?.order.some(e => e.tokenId === id)) {
+        const curId = currentEntry(session)?.tokenId;
+        session.initiative.order = session.initiative.order.filter(e => e.tokenId !== id);
+        if (session.initiative.order.length === 0) session.initiative = null;
+        else if (curId === id) {
+          session.initiative.turn = session.initiative.turn % session.initiative.order.length;
+          session.initiative.turnState = freshTurn();
+        } else {
+          session.initiative.turn = Math.max(0, session.initiative.order.findIndex(e => e.tokenId === curId));
+        }
+        io.to(R()).emit('init:updated', session.initiative);
+      }
       io.to(R()).emit('scenes:updated', listScenes(R()));
       cb?.({ ok: true });
     }));
@@ -463,7 +512,7 @@ export function attachSockets(io) {
       cb?.({ ok: true, character: ch, token: updated });
     }));
 
-    // ---- Initiative ----
+    // ---- Initiative / combat ----
 
     socket.on('init:roll', dmOnly(({ tokenIds }, cb) => {
       const session = getSession(R());
@@ -471,29 +520,74 @@ export function attachSockets(io) {
       for (const tid of tokenIds || []) {
         const t = getToken(tid);
         if (!t) continue;
-        entries.push({ tokenId: tid, name: t.name, roll: 1 + Math.floor(Math.random() * 20) });
+        entries.push(rollEntry(t));
       }
       if (entries.length === 0) return cb?.({ error: 'No tokens to roll for' });
       entries.sort((a, b) => b.roll - a.roll);
-      session.initiative = { order: entries, turn: 0 };
+      session.initiative = { order: entries, turn: 0, round: 1, turnState: freshTurn() };
       io.to(R()).emit('init:updated', session.initiative);
-      broadcastSystem(io, R(), `Initiative: ${entries.map(e => `${e.name} (${e.roll})`).join(', ')}`);
+      broadcastSystem(io, R(), `⚔️ Combat! Initiative: ${entries.map(e => `${e.name} (${e.roll})`).join(', ')}`);
       cb?.({ ok: true, initiative: session.initiative });
     }));
 
-    socket.on('init:next', dmOnly((_payload, cb) => {
+    // Next turn: the DM always; a player only to end their own token's turn.
+    socket.on('init:next', (_payload, cb) => {
+      if (!R()) return cb?.({ error: 'Not in a room' });
       const session = getSession(R());
       if (!session.initiative) return cb?.({ error: 'No combat running' });
-      session.initiative.turn = (session.initiative.turn + 1) % session.initiative.order.length;
+      const cur = currentEntry(session);
+      if (socket.data.role !== 'dm' && !(cur && (cur.owner === socket.data.name || cur.owner === socket.id))) {
+        return cb?.({ error: "It's not your turn" });
+      }
+      advanceTurn(session);
       io.to(R()).emit('init:updated', session.initiative);
       cb?.({ ok: true });
+    });
+
+    socket.on('init:add', dmOnly(({ tokenId }, cb) => {
+      const session = getSession(R());
+      const t = getToken(tokenId);
+      if (!t) return cb?.({ error: 'Token not found' });
+      if (!session.initiative) session.initiative = { order: [], turn: 0, round: 1, turnState: freshTurn() };
+      const init = session.initiative;
+      if (init.order.some(e => e.tokenId === tokenId)) return cb?.({ ok: true, initiative: init });
+      const entry = rollEntry(t);
+      // Insert in roll order without disturbing whose turn it is.
+      const curId = currentEntry(session)?.tokenId;
+      init.order.push(entry);
+      init.order.sort((a, b) => b.roll - a.roll);
+      init.turn = Math.max(0, init.order.findIndex(e => e.tokenId === curId));
+      io.to(R()).emit('init:updated', init);
+      broadcastSystem(io, R(), `${t.emoji ? t.emoji + ' ' : ''}${t.name} joins the fight (initiative ${entry.roll})`);
+      cb?.({ ok: true, initiative: init });
+    }));
+
+    socket.on('init:remove', dmOnly(({ tokenId }, cb) => {
+      const session = getSession(R());
+      const init = session.initiative;
+      if (!init) return cb?.({ ok: true });
+      const curId = currentEntry(session)?.tokenId;
+      init.order = init.order.filter(e => e.tokenId !== tokenId);
+      if (init.order.length === 0) {
+        session.initiative = null;
+        io.to(R()).emit('init:updated', null);
+        return cb?.({ ok: true });
+      }
+      if (curId === tokenId) {
+        init.turn = init.turn % init.order.length;
+        init.turnState = freshTurn();
+      } else {
+        init.turn = Math.max(0, init.order.findIndex(e => e.tokenId === curId));
+      }
+      io.to(R()).emit('init:updated', init);
+      cb?.({ ok: true, initiative: init });
     }));
 
     socket.on('init:end', dmOnly((_payload, cb) => {
       const session = getSession(R());
       session.initiative = null;
       io.to(R()).emit('init:updated', null);
-      broadcastSystem(io, R(), 'Combat ended');
+      broadcastSystem(io, R(), 'Combat ended — explore freely');
       cb?.({ ok: true });
     }));
 
@@ -522,12 +616,26 @@ export function attachSockets(io) {
         return cb?.({ error: 'You do not own this token' });
       }
       if (!Array.isArray(path) || path.length < 1) return cb?.({ error: 'Path required' });
+      const session = getSession(R());
+      const gate = turnGate(session, socket, token);
+      if (gate) return cb?.({ error: gate });
+      const scene = getScene(token.sceneId);
+      const distFt = measureMoveFeet({
+        from: { x: token.x, y: token.y }, path, feetPerCell: scene?.feet_per_cell || 5, gridType: scene?.grid_type,
+      });
+      if (socket.data.role !== 'dm' && session.initiative?.order.some(e => e.tokenId === token.id)) {
+        const left = (token.speed ?? 30) - session.initiative.turnState.movedFt;
+        if (distFt > left + 0.01) {
+          return cb?.({ error: left <= 0 ? 'No movement left this turn' : `Only ${formatFeet(left)} of movement left this turn` });
+        }
+      }
       const proposal = {
         id: nanoid(10),
         tokenId,
         sceneId: token.sceneId,
         proposedBy: socket.data.name,
         path: path.slice(0, 50).map(p => ({ x: p.x, y: p.y })),
+        distFt,
         createdAt: Date.now(),
       };
       getSession(R()).proposals.set(proposal.id, proposal);
@@ -544,6 +652,7 @@ export function attachSockets(io) {
         ? proposal.path.slice(0, Math.max(1, stopAtIndex + 1))
         : proposal.path;
       const finalCell = path[path.length - 1];
+      const before = getToken(proposal.tokenId);
       const token = updateToken(proposal.tokenId, { x: finalCell.x, y: finalCell.y });
       io.to(R()).emit('move:approved', {
         proposalId,
@@ -551,6 +660,15 @@ export function attachSockets(io) {
         path,
         interrupted: typeof stopAtIndex === 'number',
       });
+      // Spend the mover's movement budget for this turn.
+      const cur = currentEntry(session);
+      if (before && cur && cur.tokenId === proposal.tokenId) {
+        const scene = getScene(before.sceneId);
+        session.initiative.turnState.movedFt += measureMoveFeet({
+          from: { x: before.x, y: before.y }, path, feetPerCell: scene?.feet_per_cell || 5, gridType: scene?.grid_type,
+        });
+        io.to(R()).emit('init:updated', session.initiative);
+      }
       if (token) refreshFog(io, R(), token.sceneId);
       cb?.({ ok: true });
     }));
@@ -565,6 +683,46 @@ export function attachSockets(io) {
       io.to(R()).emit('move:interrupt', { proposalId, atIndex });
       cb?.({ ok: true });
     }));
+
+    // ---- Tap-to-attack: a player clicks an enemy beside their character ----
+    socket.on('attack', ({ targetId }, cb) => {
+      if (!R()) return cb?.({ error: 'Not in a room' });
+      const target = getToken(targetId);
+      if (!target) return cb?.({ error: 'Target not found' });
+      const state = getSceneState(R(), target.sceneId);
+      const attacker = state.tokens.find(t =>
+        (t.owner === socket.data.name || t.owner === socket.id) &&
+        Math.max(Math.abs(t.x - target.x), Math.abs(t.y - target.y)) <= 1.01);
+      if (socket.data.role !== 'dm' && !attacker) return cb?.({ error: 'Move next to it to attack' });
+      const session = getSession(R());
+      if (attacker) {
+        const gate = turnGate(session, socket, attacker);
+        if (gate) return cb?.({ error: gate });
+        if (socket.data.role !== 'dm' && session.initiative?.order.some(e => e.tokenId === attacker.id)) {
+          const ts = session.initiative.turnState;
+          if (ts.actionUsed && ts.attacksUsed === 0) return cb?.({ error: 'You already used your action this turn' });
+          if (ts.attacksUsed >= (attacker.attacks ?? 1)) return cb?.({ error: 'No attacks left this turn — end your turn' });
+          ts.attacksUsed += 1;
+          ts.actionUsed = true;
+          io.to(R()).emit('init:updated', session.initiative);
+        }
+      }
+      const who = attacker || state.tokens.find(t => t.id !== target.id) || { name: socket.data.name };
+      const roll = rollDice('1d20');
+      const verdict = target.ac != null
+        ? (roll.total >= target.ac ? ' — HIT! 🎯' : ' — miss')
+        : '';
+      emitScene(io, R(), target.sceneId, 'spell:effect', {
+        id: nanoid(8), kind: 'slash', to: cellCenterPx(state.room, target), by: socket.data.name, ts: Date.now(),
+      });
+      const msg = {
+        id: nanoid(10), roomId: R(), from: socket.data.name, type: 'roll',
+        text: `⚔️ ${who.name} attacks ${target.name}: ${formatRoll(roll)}${verdict}`, roll, ts: Date.now(),
+      };
+      pushChat(R(), msg);
+      io.to(R()).emit('chat:message', msg);
+      cb?.({ ok: true, roll: roll.total, hit: target.ac != null ? roll.total >= target.ac : null });
+    });
 
     // ---- Chat & dice ----
 
@@ -634,6 +792,24 @@ export function attachSockets(io) {
     // ---- Spells / animations (scene-scoped: only viewers of this map see them) ----
     socket.on('spell:cast', ({ kind, from, to, color }, cb) => {
       if (!R()) return cb?.({ error: 'Not in a room' });
+      // A player's cast is their action for the turn during combat.
+      if (socket.data.role !== 'dm') {
+        const session = getSession(R());
+        const init = session.initiative;
+        if (init && init.order.length) {
+          const state = getSceneState(R(), S());
+          const mine = state?.tokens.find(t =>
+            (t.owner === socket.data.name || t.owner === socket.id) && init.order.some(e => e.tokenId === t.id));
+          if (mine) {
+            const gate = turnGate(session, socket, mine);
+            if (gate) return cb?.({ error: gate });
+            if (init.turnState.actionUsed) return cb?.({ error: 'You already used your action this turn' });
+            init.turnState.actionUsed = true;
+            init.turnState.attacksUsed = mine.attacks ?? 1;
+            io.to(R()).emit('init:updated', init);
+          }
+        }
+      }
       emitScene(io, R(), S(), 'spell:effect', {
         id: nanoid(8), kind, from, to, color, by: socket.data.name, ts: Date.now(),
       });
