@@ -95,8 +95,9 @@ export default function Room() {
       s.upsertToken(t);
     };
     const onTokenDeleted = ({ id }) => s.removeToken(id);
-    const onTokenMoved = ({ id, x, y }) => {
+    const onTokenMoved = ({ id, x, y, animate }) => {
       s.upsertToken({ id, x, y });
+      if (animate === false) window.dispatchEvent(new CustomEvent('questhub:stop-anim', { detail: { id } }));
     };
     const onWallCreated = (w) => s.upsertWall(w);
     const onWallUpdated = (w) => s.upsertWall(w);
@@ -138,6 +139,10 @@ export default function Room() {
     const onCharUpdated = (c) => s.upsertCharacter(c);
     const onCharDeleted = ({ id }) => s.removeCharacter(id);
     const onCharsUpdated = (list) => s.setCharacters(list);
+    const onHold = ({ paused }) => {
+      s.setPaused(paused);
+      if (useStore.getState().role !== 'dm') setStatus(paused ? '⏸ Hold on…' : '▶ Play on!', 3000);
+    };
 
     sock.on('map:updated', onMapUpdated);
     sock.on('token:created', onTokenCreated);
@@ -168,6 +173,7 @@ export default function Room() {
     sock.on('char:updated', onCharUpdated);
     sock.on('char:deleted', onCharDeleted);
     sock.on('chars:updated', onCharsUpdated);
+    sock.on('hold:updated', onHold);
 
     return () => {
       sock.off('connect', onConnect);
@@ -201,19 +207,33 @@ export default function Room() {
       sock.off('char:updated', onCharUpdated);
       sock.off('char:deleted', onCharDeleted);
       sock.off('chars:updated', onCharsUpdated);
+      sock.off('hold:updated', onHold);
     };
   }, [roomId]);
 
-  // Keyboard shortcuts: Esc returns to Select, Delete removes the selected token (DM)
+  // Keyboard shortcuts: Esc → Select · Delete → remove token (DM) ·
+  // Space/N → next turn (DM) or end my turn (player) · H → hold/resume (DM)
   useEffect(() => {
     function onKey(e) {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName) || e.target?.isContentEditable;
+      if (typing) return;
+      const s = useStore.getState();
       if (e.key === 'Escape') {
-        useStore.getState().setTool('select');
+        s.setTool('select');
         return;
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing) {
-        const s = useStore.getState();
+      if (e.key === ' ' || e.key.toLowerCase() === 'n') {
+        if (!s.initiative) return;
+        e.preventDefault();
+        emit('init:next').catch(err => s.setStatus(err.message, 3000));
+        return;
+      }
+      if (e.key.toLowerCase() === 'h' && s.role === 'dm') {
+        e.preventDefault();
+        holdToggle();
+        return;
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
         if (s.role !== 'dm' || !s.selectedTokenId) return;
         e.preventDefault();
         const token = s.tokens.find(t => t.id === s.selectedTokenId);
@@ -229,6 +249,10 @@ export default function Room() {
   const handleAction = async (action) => {
     try {
       switch (action.type) {
+        case 'approve-to':
+          await emit('move:approve', { proposalId: action.proposalId, stopAtIndex: action.index });
+          useStore.getState().setStatus(`Moved them ${action.index + 1} square${action.index ? 's' : ''} along their route`);
+          break;
         case 'select-token':
           useStore.getState().setSelected(action.id);
           break;
@@ -279,7 +303,7 @@ export default function Room() {
           useStore.getState().setSpell(null);
           break;
         case 'attack': {
-          const r = await emit('attack', { targetId: action.targetId });
+          const r = await emit('attack', { targetId: action.targetId, attackerId: action.attackerId });
           if (r.hit === true) useStore.getState().setStatus(`⚔️ Rolled ${r.roll} — HIT!`);
           else if (r.hit === false) useStore.getState().setStatus(`⚔️ Rolled ${r.roll} — miss`);
           else useStore.getState().setStatus(`⚔️ Rolled ${r.roll}`);
@@ -330,6 +354,8 @@ export default function Room() {
         {role === 'dm' && <ProposalBanner />}
         {role === 'dm' && <StageToolbar />}
         {role === 'dm' && <ViewAsBanner />}
+        {role === 'dm' && <HoldButton />}
+        {role !== 'dm' && <HoldOverlay />}
         <CombatBar />
         <HandoutOverlay />
         <SpellBar />
@@ -341,6 +367,50 @@ export default function Room() {
       </div>
       <div className="side-resizer" onPointerDown={startResize} title="Drag to resize the sidebar" />
       <Sidebar onCopyInvite={copyInvite} />
+    </div>
+  );
+}
+
+// DM: freeze the action. Walking tokens stop where they are; players are told
+// to hold and their moves/attacks/spells are refused until Resume.
+export function holdToggle() {
+  const s = useStore.getState();
+  if (!s.paused) window.dispatchEvent(new CustomEvent('questhub:interrupt-moves'));
+  emit('hold:toggle').catch(err => s.setStatus(err.message, 4000));
+}
+
+function HoldButton() {
+  const paused = useStore(s => s.paused);
+  return (
+    <button onClick={holdToggle}
+      title={paused ? 'Resume play (H)' : 'Interrupt! Freeze everyone (H)'}
+      style={{
+        position: 'absolute', top: 12, right: 12, zIndex: 12,
+        padding: '8px 14px', fontWeight: 700, borderRadius: 20,
+        background: paused ? 'var(--ok)' : 'var(--danger)', color: paused ? '#0a0a14' : '#fff',
+        border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+      }}>
+      {paused ? '▶ Resume (H)' : '⏸ Hold (H)'}
+    </button>
+  );
+}
+
+function HoldOverlay() {
+  const paused = useStore(s => s.paused);
+  if (!paused) return null;
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 25,
+      background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{
+        background: 'rgba(20,20,30,0.95)', border: '2px solid var(--accent)', borderRadius: 16,
+        padding: '18px 28px', fontFamily: 'Cinzel, serif', fontSize: 26, color: 'var(--accent)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
+      }}>
+        ⏸ Hold on… the DM is doing something
+      </div>
     </div>
   );
 }
@@ -404,6 +474,7 @@ function Hint() {
   const role = useStore(s => s.role);
   let msg = '';
   if (tool === 'align-grid') msg = 'Click one corner of a map square, then the OPPOSITE corner of the SAME square';
+  else if (tool === 'attack') msg = 'Attack: select the attacker, then tap the target';
   else if (tool === 'add-token') msg = 'Click a cell to place a token';
   else if (tool === 'draw-wall') msg = 'Click two corners to draw a wall';
   else if (tool === 'draw-door') msg = 'Click two corners to draw a door';

@@ -796,32 +796,6 @@ function AssetCard({ asset, actionLabel, onUse, active, onShow, secondaryLabel, 
   );
 }
 
-function InitiativePanel() {
-  const initiative = useStore(s => s.initiative);
-  const tokens = useStore(s => s.tokens);
-  if (!initiative) return null;
-  return (
-    <div className="tool-section" style={{ padding: 8, background: 'var(--panel-2)', borderRadius: 8 }}>
-      <h3>⚔️ Initiative</h3>
-      {initiative.order.map((e, i) => {
-        const alive = tokens.some(t => t.id === e.tokenId);
-        return (
-          <div key={e.tokenId} style={{
-            display: 'flex', justifyContent: 'space-between', padding: '3px 6px',
-            borderRadius: 4, fontSize: 13,
-            background: i === initiative.turn ? 'rgba(240,165,0,0.25)' : 'transparent',
-            opacity: alive ? 1 : 0.4,
-            textDecoration: alive ? 'none' : 'line-through',
-          }}>
-            <span>{i === initiative.turn ? '▶ ' : ''}{e.name}</span>
-            <span style={{ color: 'var(--muted)' }}>{e.roll}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function ToolButton({ t, tool, setTool, children }) {
   return (
     <button

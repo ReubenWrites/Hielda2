@@ -287,6 +287,57 @@ describe('socket flow', () => {
     dm.close(); seren.close();
   });
 
+  test('DM attacks with a named token; 0 HP announces and leaves initiative', async () => {
+    const { roomId, dm } = await dmFor('DM Attack');
+    const { socket: seren } = await playerFor(roomId, 'Seren');
+    const s = (await emitAck(dm, 'token:create', { name: 'Seren', owner: 'Seren', x: 2, y: 2, ac: 14, hp: 12, maxHp: 12 })).token;
+    const w = (await emitAck(dm, 'token:create', { name: 'Wolf', x: 9, y: 9, hp: 11, maxHp: 11 })).token;
+    const self = await emitAck(dm, 'attack', { targetId: w.id, attackerId: w.id });
+    expect(self.error).toMatch(/cannot attack itself/i);
+    const chat = once(seren, 'chat:message');
+    const res = await emitAck(dm, 'attack', { targetId: s.id, attackerId: w.id }); // range doesn't matter for the DM
+    expect(res.ok).toBe(true);
+    expect((await chat).text).toMatch(/Wolf attacks Seren: 1d20\[\d+\] = \d+ — (HIT|miss)/);
+    // Down at 0 HP
+    await emitAck(dm, 'init:roll', { tokenIds: [s.id, w.id] });
+    const downMsg = new Promise(res => seren.on('chat:message', m => { if (/is down/.test(m.text)) res(m); }));
+    const initUpd = once(dm, 'init:updated');
+    await emitAck(dm, 'token:update', { id: w.id, hp: 0 });
+    expect((await downMsg).text).toMatch(/Wolf is down/);
+    const init = await initUpd;
+    expect(init.order.map(e => e.tokenId)).toEqual([s.id]);
+    dm.close(); seren.close();
+  });
+
+  test('hold freezes player actions; interrupt snaps a walker; approve-to a route step', async () => {
+    const { roomId, dm } = await dmFor('Hold Test');
+    const { socket: seren, join: sj } = await playerFor(roomId, 'Seren');
+    expect(sj.paused).toBe(false);
+    const s = (await emitAck(dm, 'token:create', { name: 'Seren', owner: 'Seren', x: 2, y: 2 })).token;
+    const held = once(seren, 'hold:updated');
+    const h = await emitAck(dm, 'hold:toggle', {});
+    expect(h.paused).toBe(true);
+    expect((await held).paused).toBe(true);
+    const blocked = await emitAck(seren, 'move:propose', { tokenId: s.id, path: [{ x: 3, y: 2 }] });
+    expect(blocked.error).toMatch(/hold on/i);
+    // DM snaps the walker mid-route
+    const snapped = once(seren, 'token:moved');
+    await emitAck(dm, 'move:interrupt', { tokenId: s.id, x: 4, y: 2 });
+    const m = await snapped;
+    expect(m.animate).toBe(false);
+    expect(m.x).toBe(4);
+    await emitAck(dm, 'hold:toggle', {});
+    // Approve only up to step 2 of a 4-step route (the DM clicked on the route)
+    const prop = await emitAck(seren, 'move:propose', { tokenId: s.id, path: [{ x: 5, y: 2 }, { x: 6, y: 2 }, { x: 7, y: 2 }, { x: 8, y: 2 }] });
+    expect(prop.ok).toBe(true);
+    const approved = once(seren, 'move:approved');
+    await emitAck(dm, 'move:approve', { proposalId: prop.proposal.id, stopAtIndex: 1 });
+    const a = await approved;
+    expect(a.path).toEqual([{ x: 5, y: 2 }, { x: 6, y: 2 }]);
+    expect(a.interrupted).toBe(true);
+    dm.close(); seren.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { roomId, dm } = await dmFor('Dice Test');
     const { socket: player } = await playerFor(roomId, 'P');

@@ -50,8 +50,9 @@ export default function CombatBar() {
             <span className="budget">🏃 {formatFeet(moveLeft)} left</span>
             <span className="budget">⚔️ {Math.max(0, attacks - ts.attacksUsed)}/{attacks}</span>
             <span className="budget">{ts.actionUsed ? '✨ action used' : '✨ action ready'}</span>
-            <button className="primary" onClick={() => emit('init:next').catch(err => setStatus(err.message, 4000))}>
-              End turn ▶
+            <button className="primary" onClick={() => emit('init:next').catch(err => setStatus(err.message, 4000))}
+              title="Space">
+              End turn ▶ <kbd>Space</kbd>
             </button>
           </>
         ) : (
@@ -60,7 +61,10 @@ export default function CombatBar() {
         {role === 'dm' && (
           <>
             <span className="budget">🏃 {formatFeet(moveLeft)} · ⚔️ {Math.max(0, attacks - ts.attacksUsed)}/{attacks}</span>
-            <button className="primary" onClick={() => emit('init:next').catch(err => setStatus(err.message, 4000))}>Next ▶</button>
+            <button className="primary next-turn" onClick={() => emit('init:next').catch(err => setStatus(err.message, 4000))}
+              title="Space or N">
+              Next turn ▶ <kbd>Space</kbd>
+            </button>
             <button onClick={() => emit('init:end').catch(err => setStatus(err.message, 4000))}>End combat</button>
           </>
         )}

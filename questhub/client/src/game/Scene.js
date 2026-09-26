@@ -35,6 +35,7 @@ export class Scene {
     this.viewAsYou = null;   // DM previewing a player's view: { name }
     this.mapNatural = null;  // { w, h } of the loaded map image
     this.draftAlign = null;  // first corner clicked with the align-grid tool
+    this.turnBudgetFt = null; // remaining movement this turn for the dragged token (combat only)
   }
 
   // Identity used for VISIBILITY (fog, hidden tokens). The DM can temporarily
@@ -163,6 +164,17 @@ export class Scene {
       this.onAction({ type: 'add-token', cell: cellPos });
       return;
     }
+    if (this.tool === 'attack' && this.role === 'dm') {
+      // DM: the selected token attacks whatever was tapped.
+      const target = this.pickToken(world);
+      if (target && this.selectedId && target.id !== this.selectedId) {
+        this.onAction({ type: 'attack', attackerId: this.selectedId, targetId: target.id });
+      } else if (target) {
+        this.selectedId = target.id;
+        this.onAction({ type: 'select-token', id: target.id });
+      }
+      return;
+    }
     if (this.tool === 'align-grid' && this.role === 'dm') {
       if (!this.draftAlign) {
         this.draftAlign = { x: world.x, y: world.y };
@@ -231,6 +243,12 @@ export class Scene {
         this.dragging = { tokenId: hit.id, startCell: start, path: [start] };
       }
     } else {
+      // DM tapping a point on a player's drawn route moves them exactly that far.
+      const step = this.pickProposalStep(cell);
+      if (step) {
+        this.onAction({ type: 'approve-to', proposalId: step.proposalId, index: step.index });
+        return;
+      }
       // No token under the cursor: a click on a door opens/closes it
       // (players only when standing beside it — the server checks).
       const door = this.pickWall(world, { doorsOnly: true });
@@ -365,10 +383,11 @@ export class Scene {
       const w = cellToWorld(end.x + 0.5, end.y + 0.5, this.room);
       g.circle(w.x, w.y, this.room.grid_size * 0.4)
         .stroke({ width: 2, color: 0xf0a500, alpha: 0.8 });
-      // Distance label
+      // Distance label (with the remaining movement budget during combat)
       const ft = this.isFree
         ? Math.hypot(path[path.length - 1].x - path[0].x, path[path.length - 1].y - path[0].y) * this.feetPerCell
         : (path.length - 1) * this.feetPerCell;
+      const over = this.turnBudgetFt != null && ft > this.turnBudgetFt + 0.01;
       if (!this.cursorText) {
         this.cursorText = new Text({
           text: '', style: { fontSize: 14, fill: 0xf0a500, fontFamily: 'Inter', fontWeight: '600',
@@ -377,7 +396,10 @@ export class Scene {
         this.world.addChild(this.cursorText);
         this.cursorText.zIndex = 11;
       }
-      this.cursorText.text = formatFeet(ft);
+      this.cursorText.text = this.turnBudgetFt != null
+        ? (over ? `${formatFeet(ft)} — too far! (${formatFeet(this.turnBudgetFt)} left)` : `${formatFeet(ft)} · ${formatFeet(this.turnBudgetFt - ft)} left`)
+        : formatFeet(ft);
+      this.cursorText.style.fill = over ? 0xff4d4d : 0xf0a500;
       this.cursorText.x = w.x + this.room.grid_size * 0.5;
       this.cursorText.y = w.y - this.room.grid_size * 0.5;
       this.cursorText.visible = true;
@@ -440,6 +462,10 @@ export class Scene {
   setInitiativeToken(tokenId) {
     this.initTokenId = tokenId;
     this.drawCursorOverlay();
+  }
+
+  setTurnBudget(ft) {
+    this.turnBudgetFt = ft;
   }
 
   shouldShowHp(token) {
@@ -601,6 +627,7 @@ export class Scene {
   }
 
   setProposalGhosts(proposals) {
+    this.proposals = proposals || [];
     this.ghostLayer.removeChildren();
     if (!this.room) return;
     for (const p of proposals) {
@@ -621,6 +648,38 @@ export class Scene {
         .stroke({ width: 2, color: 0x5b9bd5, alpha: 0.85 });
       this.ghostLayer.addChild(g);
     }
+  }
+
+  // DM: which proposed route (and which step of it) is under this point.
+  pickProposalStep(cell) {
+    if (this.role !== 'dm') return null;
+    for (const p of this.proposals || []) {
+      for (let i = 0; i < p.path.length; i++) {
+        const s = p.path[i];
+        if (Math.hypot(s.x + 0.5 - cell.x, s.y + 0.5 - cell.y) <= 0.5) return { proposalId: p.id, index: i };
+      }
+    }
+    return null;
+  }
+
+  // Tokens mid-walk and where they are right now (for the DM's hold).
+  animatingTokens() {
+    const out = [];
+    for (const [id, anim] of this.animations) {
+      const a = anim.path[anim.idx];
+      const b = anim.path[Math.min(anim.idx + 1, anim.path.length - 1)];
+      const f = Math.min(1, anim.progress / CELL_ANIM_MS);
+      const here = f < 0.5 ? a : b;
+      out.push({ tokenId: id, x: here.x, y: here.y });
+    }
+    return out;
+  }
+
+  stopAnimation(tokenId) {
+    this.animations.delete(tokenId);
+    const t = this.tokens.find(x => x.id === tokenId);
+    const v = this.tokenViews.get(tokenId);
+    if (t && v) v.position({ x: t.x, y: t.y });
   }
 
   animateTokenAlong(tokenId, path) {

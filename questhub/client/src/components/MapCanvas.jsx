@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Scene } from '../game/Scene.js';
 import { useStore } from '../state/store.js';
 import { computeFog } from '../game/fog.js';
+import { emit } from '../net/socket.js';
 
 export default function MapCanvas({ onAction }) {
   const hostRef = useRef(null);
@@ -48,15 +49,30 @@ export default function MapCanvas({ onAction }) {
       const t = useStore.getState().tokens.find(x => x.id === e.detail.id);
       if (t) sceneRef.current?.centerOn(t.x + 0.5, t.y + 0.5);
     }
+    function onStopAnim(e) {
+      sceneRef.current?.stopAnimation(e.detail.id);
+    }
+    // DM hold: freeze every walking token where it stands and tell the server.
+    function onInterrupt() {
+      const moving = sceneRef.current?.animatingTokens() || [];
+      for (const m of moving) {
+        sceneRef.current.stopAnimation(m.tokenId);
+        emit('move:interrupt', { tokenId: m.tokenId, x: m.x, y: m.y }).catch(() => {});
+      }
+    }
     window.addEventListener('questhub:animate-move', onAnim);
     window.addEventListener('questhub:spell-fx', onFx);
     window.addEventListener('questhub:focus-token', onFocus);
+    window.addEventListener('questhub:stop-anim', onStopAnim);
+    window.addEventListener('questhub:interrupt-moves', onInterrupt);
 
     return () => {
       cancelled = true;
       window.removeEventListener('questhub:animate-move', onAnim);
       window.removeEventListener('questhub:spell-fx', onFx);
       window.removeEventListener('questhub:focus-token', onFocus);
+      window.removeEventListener('questhub:stop-anim', onStopAnim);
+      window.removeEventListener('questhub:interrupt-moves', onInterrupt);
       sceneRef.current?.destroy();
       sceneRef.current = null;
     };
@@ -90,7 +106,17 @@ export default function MapCanvas({ onAction }) {
   useEffect(() => {
     const current = initiative ? initiative.order[initiative.turn]?.tokenId : null;
     sceneRef.current?.setInitiativeToken(current ?? null);
-  }, [initiative]);
+    // Movement budget for the player's own drag line during their turn.
+    const s = useStore.getState();
+    let budget = null;
+    if (initiative && s.role !== 'dm') {
+      const cur = initiative.order[initiative.turn];
+      const mine = cur && (cur.owner === s.you?.name || cur.owner === s.you?.id);
+      const tok = mine ? s.tokens.find(t => t.id === cur.tokenId) : null;
+      if (tok) budget = Math.max(0, (tok.speed ?? 30) - (initiative.turnState?.movedFt || 0));
+    }
+    sceneRef.current?.setTurnBudget(budget);
+  }, [initiative, tokens]);
   useEffect(() => {
     if (!sceneRef.current) return;
     sceneRef.current.setViewAs(viewAs);

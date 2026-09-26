@@ -35,7 +35,8 @@ export const useStore = create((set, get) => ({
     }, ttl);
   },
 
-  hydrate: ({ role, you, state, chat, proposals, initiative, presence, explored, characters }) => set({
+  hydrate: ({ role, you, state, chat, proposals, initiative, presence, explored, characters, paused }) => set({
+    paused: !!paused,
     role,
     you,
     room: state.room,
@@ -116,6 +117,8 @@ export const useStore = create((set, get) => ({
   setPresence: (presence) => set({ presence }),
   setViewAs: (viewAs) => set({ viewAs }),
   setHandout: (handout) => set({ handout }),
+  paused: false,          // DM has called a hold: players' actions are frozen
+  setPaused: (paused) => set({ paused }),
 
   addProposal: (p) => set((s) => ({
     proposals: [...s.proposals.filter(x => x.id !== p.id), p],

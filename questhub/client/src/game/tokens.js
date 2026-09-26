@@ -37,7 +37,11 @@ export class TokenView {
       return;
     }
     const size = this.room.grid_size;
-    if (this.token.emoji) {
+    const down = this.token.maxHp > 0 && this.token.hp != null && this.token.hp <= 0;
+    if (down) {
+      this.glyph.text = '💀';
+      this.glyph.style.fontSize = Math.max(12, size * 0.42);
+    } else if (this.token.emoji) {
       this.glyph.text = this.token.emoji;
       this.glyph.style.fontSize = Math.max(12, size * 0.42);
     } else {
@@ -89,7 +93,8 @@ export class TokenView {
       }
       g.rect(-w / 2, y, w, h).stroke({ width: 1, color: 0x000000, alpha: 0.7 });
     }
-    this.container.alpha = ghost ? 0.55 : 1;
+    const down = this.token.maxHp > 0 && this.token.hp != null && this.token.hp <= 0;
+    this.container.alpha = ghost ? 0.55 : (down ? 0.45 : 1);
   }
 
   position(cellOverride) {
