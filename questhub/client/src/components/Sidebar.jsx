@@ -84,6 +84,29 @@ export async function autoDetectGrid(url, setStatus) {
   }
 }
 
+// One-click player setup: make sure the player has a character sheet in the
+// cast (creating a PC if not), then arm placement of that character.
+export async function armPlayerCharacter(name, setStatus) {
+  const clean = name.trim();
+  const s = useStore.getState();
+  let ch = s.characters.find(c => c.owner === clean && c.kind === 'pc')
+    || s.characters.find(c => c.owner === clean);
+  if (!ch) {
+    try {
+      const r = await emit('char:create', {
+        name: clean, kind: 'pc', owner: clean, color: '#f0c040', sightRadius: 6, hp: 10, maxHp: 10,
+        notes: '',
+      });
+      ch = r.character;
+      setStatus?.(`${clean} added to the cast — click the map to place them`);
+    } catch (e) {
+      setStatus?.(e.message, 5000);
+      return;
+    }
+  }
+  useStore.getState().setSpawnTemplate({ characterId: ch.id, name: ch.name, single: true });
+}
+
 function DmTab({ tool, setTool }) {
   const room = useStore(s => s.room);
   const tokens = useStore(s => s.tokens);
@@ -118,14 +141,7 @@ function DmTab({ tool, setTool }) {
   function addPlayerToken() {
     const name = window.prompt('Player name — exactly as they type it when joining:', 'Seren');
     if (!name?.trim()) return;
-    setSpawnTemplate({
-      name: name.trim(),
-      owner: name.trim(),
-      color: '#f0c040',
-      sightRadius: 6,
-      hp: 10, maxHp: 10,
-      single: true,
-    });
+    armPlayerCharacter(name, setStatus);
   }
 
   async function saveQuest() {
@@ -300,7 +316,7 @@ function PlayersSection() {
   const room = useStore(s => s.room);
   const viewAs = useStore(s => s.viewAs);
   const setViewAs = useStore(s => s.setViewAs);
-  const setSpawnTemplate = useStore(s => s.setSpawnTemplate);
+  const setStatus = useStore(s => s.setStatus);
 
   const online = presence.filter(p => p.role === 'player');
   const onlineByName = new Map(online.map(p => [p.name, p]));
@@ -341,11 +357,8 @@ function PlayersSection() {
               {!hasToken && p.here && <span style={{ color: 'var(--accent)', fontSize: 11 }}> · no token here!</span>}
             </span>
             <button style={{ fontSize: 11, padding: '3px 8px' }}
-              title={`Create a token owned by ${p.name} on this map — then click to place it`}
-              onClick={() => setSpawnTemplate({
-                name: p.name, owner: p.name, color: '#f0c040',
-                sightRadius: 6, hp: 10, maxHp: 10, single: true,
-              })}>
+              title={`Create ${p.name}'s character (sheet + token) — then click the map to place it`}
+              onClick={() => armPlayerCharacter(p.name, setStatus)}>
               ⭐ Token
             </button>
             <button style={{ fontSize: 11, padding: '3px 8px' }}
