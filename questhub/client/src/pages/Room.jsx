@@ -73,7 +73,24 @@ export default function Room() {
 
     const onMapUpdated = (room) => s.setRoom(room);
     const onTokenCreated = (t) => s.upsertToken(t);
-    const onTokenUpdated = (t) => s.upsertToken(t);
+    const onTokenUpdated = (t) => {
+      // Floating damage/heal numbers when HP changes on a token we can see.
+      const prev = useStore.getState().tokens.find(x => x.id === t.id);
+      const room = useStore.getState().room;
+      if (prev && room && prev.hp != null && t.hp != null && prev.hp !== t.hp) {
+        const delta = Math.round(t.hp - prev.hp);
+        window.dispatchEvent(new CustomEvent('questhub:spell-fx', { detail: {
+          kind: 'number',
+          text: delta > 0 ? `+${delta}` : `${delta}`,
+          color: delta > 0 ? 0x58c267 : 0xff4d4d,
+          to: {
+            x: (room.offset_x || 0) + (t.x + 0.5) * room.grid_size,
+            y: (room.offset_y || 0) + (t.y + 0.5) * room.grid_size,
+          },
+        } }));
+      }
+      s.upsertToken(t);
+    };
     const onTokenDeleted = ({ id }) => s.removeToken(id);
     const onTokenMoved = ({ id, x, y }) => {
       s.upsertToken({ id, x, y });
@@ -107,6 +124,17 @@ export default function Room() {
     const onAssetUpdated = (a) => s.upsertAsset(a);
     const onHandoutShow = (h) => s.setHandout(h);
     const onHandoutHide = () => s.setHandout(null);
+    const onSceneEnter = (payload) => {
+      s.enterScene(payload);
+      if (useStore.getState().role === 'player') setStatus(`📍 ${payload.state.room.scene_name}`, 4000);
+    };
+    const onScenesUpdated = (list) => s.setScenes(list);
+    const onFogExplored = ({ owner, cells }) => s.setExplored(owner, cells);
+    const onFogReset = () => s.resetExplored();
+    const onCharCreated = (c) => s.upsertCharacter(c);
+    const onCharUpdated = (c) => s.upsertCharacter(c);
+    const onCharDeleted = ({ id }) => s.removeCharacter(id);
+    const onCharsUpdated = (list) => s.setCharacters(list);
 
     sock.on('map:updated', onMapUpdated);
     sock.on('token:created', onTokenCreated);
@@ -129,6 +157,14 @@ export default function Room() {
     sock.on('asset:updated', onAssetUpdated);
     sock.on('handout:show', onHandoutShow);
     sock.on('handout:hide', onHandoutHide);
+    sock.on('scene:enter', onSceneEnter);
+    sock.on('scenes:updated', onScenesUpdated);
+    sock.on('fog:explored', onFogExplored);
+    sock.on('fog:reset', onFogReset);
+    sock.on('char:created', onCharCreated);
+    sock.on('char:updated', onCharUpdated);
+    sock.on('char:deleted', onCharDeleted);
+    sock.on('chars:updated', onCharsUpdated);
 
     return () => {
       sock.off('connect', onConnect);
@@ -154,6 +190,14 @@ export default function Room() {
       sock.off('asset:updated', onAssetUpdated);
       sock.off('handout:show', onHandoutShow);
       sock.off('handout:hide', onHandoutHide);
+      sock.off('scene:enter', onSceneEnter);
+      sock.off('scenes:updated', onScenesUpdated);
+      sock.off('fog:explored', onFogExplored);
+      sock.off('fog:reset', onFogReset);
+      sock.off('char:created', onCharCreated);
+      sock.off('char:updated', onCharUpdated);
+      sock.off('char:deleted', onCharDeleted);
+      sock.off('chars:updated', onCharsUpdated);
     };
   }, [roomId]);
 
@@ -187,7 +231,11 @@ export default function Room() {
           break;
         case 'add-token': {
           const tpl = useStore.getState().spawnTemplate;
-          if (tpl) {
+          if (tpl?.characterId) {
+            // Stamp a cast member: identity/stats come from their sheet.
+            await emit('char:place', { characterId: tpl.characterId, x: action.cell.x, y: action.cell.y });
+            if (tpl.single) useStore.getState().setSpawnTemplate(null);
+          } else if (tpl) {
             await emit('token:create', {
               x: action.cell.x, y: action.cell.y,
               name: numberedName(tpl.name, useStore.getState().tokens),
@@ -350,7 +398,7 @@ function Hint() {
   else if (tool === 'erase-wall') msg = 'Click a wall to remove it';
   else if (tool === 'toggle-door') msg = 'Click a door to open/close it';
   else if (tool === 'cast-spell') msg = 'Click target to cast';
-  else if (role === 'player') msg = 'Drag your token to propose a move';
+  else if (role === 'player') msg = 'Drag your token to propose a move · click a door beside you to open it';
   else msg = 'Drag tokens to move · Shift+drag to pan · Scroll to zoom';
   return <div className="hint">{msg}</div>;
 }

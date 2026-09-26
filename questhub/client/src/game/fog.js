@@ -23,14 +23,16 @@ export function computeFog({ role, you, tokens, walls, room }) {
   return unionVisible(sets);
 }
 
-export function drawFog(graphics, visibleSet, room, extent = null) {
+export function drawFog(graphics, visibleSet, room, extent = null, exploredSet = null) {
   graphics.clear();
   if (!visibleSet || visibleSet === 'all' || !room) return; // DM or overland: no fog
   const { grid_size, grid_w, grid_h, offset_x = 0, offset_y = 0 } = room;
-  // Draw the non-visible cells as near-opaque black.
+  // Pass 1: never-seen cells are near-black.
   for (let y = 0; y < grid_h; y++) {
     for (let x = 0; x < grid_w; x++) {
-      if (visibleSet.has(`${x},${y}`)) continue;
+      const key = `${x},${y}`;
+      if (visibleSet.has(key)) continue;
+      if (exploredSet?.has(key)) continue;
       graphics.rect(offset_x + x * grid_size, offset_y + y * grid_size, grid_size, grid_size);
     }
   }
@@ -45,6 +47,18 @@ export function drawFog(graphics, visibleSet, room, extent = null) {
     if (gx1 < extent.w) graphics.rect(gx1, gy0, extent.w - gx1, gy1 - gy0);
   }
   graphics.fill({ color: 0x000000, alpha: 0.92 });
+  // Pass 2: remembered-but-not-currently-visible cells are dimmed, not hidden.
+  if (exploredSet && exploredSet.size) {
+    let any = false;
+    for (const key of exploredSet) {
+      if (visibleSet.has(key)) continue;
+      const [x, y] = key.split(',').map(Number);
+      if (x < 0 || y < 0 || x >= grid_w || y >= grid_h) continue;
+      graphics.rect(offset_x + x * grid_size, offset_y + y * grid_size, grid_size, grid_size);
+      any = true;
+    }
+    if (any) graphics.fill({ color: 0x05050c, alpha: 0.62 });
+  }
 }
 
 export function tokenVisibleToViewer(token, visibleSet, you) {

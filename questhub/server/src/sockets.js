@@ -1,18 +1,21 @@
 import { nanoid } from 'nanoid';
 import { rollDice, formatRoll } from '@questhub/shared/dice';
 import {
-  getRoom, getRoomState, verifyDm, updateRoomMap,
-  createToken, updateToken, deleteToken, getToken,
-  createWall, deleteWall, toggleDoor,
-  createAsset, deleteAsset,
+  getRoom, getScene, getSceneState, verifyDm, setDmScene,
+  createScene, updateScene, deleteScene, listScenes, playerSceneFor,
+  createToken, updateToken, deleteToken, getToken, moveTokenToScene, placeCharacter,
+  createWall, getWall, deleteWall, toggleDoor,
+  createAsset, deleteAsset, getAsset, updateAssetGrid,
+  createCharacter, updateCharacter, deleteCharacter, listCharacters, getCharacter,
 } from './rooms.js';
 import { fetchDdbCharacter } from './dndbeyond.js';
 import { detectGrid } from './gridDetect.js';
-import { updateAssetGrid } from './rooms.js';
 import { uploadPath } from './uploads.js';
+import { getExplored, resetExplored, updateExplored } from './fog.js';
+import { getDb } from './db.js';
 
 // In-memory transient state, keyed by roomId.
-const sessions = new Map(); // roomId -> { proposals: Map(id -> proposal), chat: [] }
+const sessions = new Map(); // roomId -> { proposals: Map(id -> proposal), chat: [], initiative }
 
 function getSession(roomId) {
   let s = sessions.get(roomId);
@@ -33,14 +36,89 @@ function roomPresence(io, roomId, { excludeId } = {}) {
   const list = [];
   for (const [id, s] of io.sockets.sockets) {
     if (s.data?.roomId !== roomId || id === excludeId) continue;
-    list.push({ socketId: id, name: s.data.name, role: s.data.role });
+    list.push({ socketId: id, name: s.data.name, role: s.data.role, sceneId: s.data.sceneId });
   }
   return list;
 }
 
+// Socket.io room for "everyone looking at this scene".
+const sceneRoom = (roomId, sceneId) => `${roomId}#${sceneId}`;
+const emitScene = (io, roomId, sceneId, event, payload) =>
+  io.to(sceneRoom(roomId, sceneId)).emit(event, payload);
+
+function emitDm(io, roomId, event, payload) {
+  for (const [, s] of io.sockets.sockets) {
+    if (s.data?.roomId === roomId && s.data.role === 'dm') s.emit(event, payload);
+  }
+}
+
+// Recompute player vision in a scene after anything that can change it and
+// push the grown "explored" sets to that scene's viewers.
+function refreshFog(io, roomId, sceneId) {
+  if (!sceneId) return;
+  const changed = updateExplored(roomId, sceneId);
+  for (const [owner, cells] of Object.entries(changed)) {
+    emitScene(io, roomId, sceneId, 'fog:explored', { owner, cells });
+  }
+}
+
+function cellCenterPx(room, t) {
+  return {
+    x: (room.offset_x || 0) + (t.x + 0.5) * room.grid_size,
+    y: (room.offset_y || 0) + (t.y + 0.5) * room.grid_size,
+  };
+}
+
+// Dramatic entrance: an effect at the token plus a chat line if players are watching.
+function announceAppearance(io, roomId, token) {
+  const state = getSceneState(roomId, token.sceneId);
+  if (!state) return;
+  emitScene(io, roomId, token.sceneId, 'spell:effect', {
+    id: nanoid(8), kind: 'appear', to: cellCenterPx(state.room, token), by: 'DM', ts: Date.now(),
+  });
+  const playersWatching = roomPresence(io, roomId).some(p => p.role === 'player' && p.sceneId === token.sceneId);
+  if (playersWatching && token.owner === 'dm') {
+    broadcastSystem(io, roomId, `${token.emoji ? token.emoji + ' ' : ''}${token.name} appears!`);
+  }
+}
+
+// Move a socket's view to a scene and send it everything it needs to render.
+function enterScene(io, socket, sceneId) {
+  const roomId = socket.data.roomId;
+  if (socket.data.sceneId) socket.leave(sceneRoom(roomId, socket.data.sceneId));
+  socket.data.sceneId = sceneId;
+  socket.join(sceneRoom(roomId, sceneId));
+  const state = getSceneState(roomId, sceneId);
+  socket.emit('scene:enter', { state, explored: getExplored(roomId, sceneId) });
+  io.to(roomId).emit('presence:updated', roomPresence(io, roomId));
+}
+
+// Players follow their character: after anything that moves tokens between
+// scenes (or changes ownership) make sure each player is viewing the right map.
+function syncPlayers(io, roomId) {
+  for (const [, s] of io.sockets.sockets) {
+    if (s.data?.roomId !== roomId || s.data.role !== 'player') continue;
+    const desired = playerSceneFor(roomId, s.data.name, s.id);
+    if (desired && desired !== s.data.sceneId) enterScene(io, s, desired);
+  }
+}
+
+// After a quest import every viewer re-enters the scene they should be on.
+export function resyncRoom(io, roomId) {
+  const room = getRoom(roomId);
+  if (!room) return;
+  for (const [, s] of io.sockets.sockets) {
+    if (s.data?.roomId !== roomId) continue;
+    const target = s.data.role === 'dm' ? room.dm_scene_id : playerSceneFor(roomId, s.data.name, s.id);
+    enterScene(io, s, target);
+    if (s.data.role === 'dm') s.emit('chars:updated', listCharacters(roomId));
+  }
+  io.to(roomId).emit('scenes:updated', listScenes(roomId));
+}
+
 export function attachSockets(io) {
   io.on('connection', (socket) => {
-    socket.data = { roomId: null, role: null, name: 'Guest', id: socket.id };
+    socket.data = { roomId: null, sceneId: null, role: null, name: 'Guest', id: socket.id };
 
     socket.on('room:join', ({ roomId, name, asDm, dmSecret }, cb) => {
       try {
@@ -55,7 +133,12 @@ export function attachSockets(io) {
         socket.data.roomId = roomId;
         socket.data.role = role;
         socket.data.name = (name || '').trim().slice(0, 32) || (role === 'dm' ? 'DM' : 'Guest');
-        const state = getRoomState(roomId);
+        const sceneId = role === 'dm'
+          ? room.dm_scene_id
+          : playerSceneFor(roomId, socket.data.name, socket.id);
+        socket.data.sceneId = sceneId;
+        socket.join(sceneRoom(roomId, sceneId));
+        const state = getSceneState(roomId, sceneId);
         const session = getSession(roomId);
         cb?.({
           ok: true,
@@ -66,6 +149,8 @@ export function attachSockets(io) {
           proposals: Array.from(session.proposals.values()),
           initiative: session.initiative,
           presence: roomPresence(io, roomId),
+          explored: getExplored(roomId, sceneId),
+          characters: role === 'dm' ? listCharacters(roomId) : [],
         });
         broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
         io.to(roomId).emit('presence:updated', roomPresence(io, roomId));
@@ -88,6 +173,65 @@ export function attachSockets(io) {
       if (socket.data.role !== 'dm') return cb?.({ error: 'DM only' });
       return fn(...args);
     };
+    const R = () => socket.data.roomId;
+    const S = () => socket.data.sceneId;
+
+    // ---- Scenes ----
+
+    socket.on('scene:create', dmOnly(({ name, assetId } = {}, cb) => {
+      const fields = { name: name || 'New scene' };
+      if (assetId) {
+        const asset = getAsset(assetId);
+        if (asset) {
+          fields.map_image_url = asset.url;
+          if (!fields.name || fields.name === 'New scene') fields.name = asset.name;
+          if (asset.grid) {
+            fields.grid_size = asset.grid.gridSize; fields.grid_w = asset.grid.gridW; fields.grid_h = asset.grid.gridH;
+            fields.offset_x = asset.grid.offsetX; fields.offset_y = asset.grid.offsetY;
+            fields.feet_per_cell = asset.grid.feetPerCell ?? 5; fields.grid_type = asset.grid.gridType ?? 'square';
+          }
+        }
+      }
+      const scene = createScene(R(), fields);
+      setDmScene(R(), scene.id);
+      enterScene(io, socket, scene.id);
+      io.to(R()).emit('scenes:updated', listScenes(R()));
+      syncPlayers(io, R());
+      cb?.({ ok: true, scene: { id: scene.id, name: scene.name, needsGrid: !!assetId && !getAsset(assetId)?.grid } });
+    }));
+
+    socket.on('scene:switch', dmOnly(({ sceneId }, cb) => {
+      const scene = getScene(sceneId);
+      if (!scene || scene.room_id !== R()) return cb?.({ error: 'Scene not found' });
+      setDmScene(R(), sceneId);
+      enterScene(io, socket, sceneId);
+      syncPlayers(io, R());
+      cb?.({ ok: true });
+    }));
+
+    socket.on('scene:rename', dmOnly(({ sceneId, name }, cb) => {
+      const scene = getScene(sceneId);
+      if (!scene || scene.room_id !== R()) return cb?.({ error: 'Scene not found' });
+      updateScene(sceneId, { name: String(name || '').slice(0, 60) || scene.name });
+      io.to(R()).emit('scenes:updated', listScenes(R()));
+      emitScene(io, R(), sceneId, 'map:updated', getSceneState(R(), sceneId).room);
+      cb?.({ ok: true });
+    }));
+
+    socket.on('scene:delete', dmOnly(({ sceneId }, cb) => {
+      const scene = getScene(sceneId);
+      if (!scene || scene.room_id !== R()) return cb?.({ error: 'Scene not found' });
+      if (!deleteScene(R(), sceneId)) return cb?.({ error: 'Cannot delete the only scene' });
+      const room = getRoom(R());
+      for (const [, s] of io.sockets.sockets) {
+        if (s.data?.roomId === R() && s.data.sceneId === sceneId) enterScene(io, s, room.dm_scene_id);
+      }
+      io.to(R()).emit('scenes:updated', listScenes(R()));
+      syncPlayers(io, R());
+      cb?.({ ok: true });
+    }));
+
+    // ---- Map / grid (applies to the scene the DM is looking at) ----
 
     socket.on('map:config', dmOnly((cfg, cb) => {
       const fields = {};
@@ -99,9 +243,18 @@ export function attachSockets(io) {
       if (cfg.offsetY !== undefined) fields.offset_y = cfg.offsetY;
       if (cfg.feetPerCell !== undefined) fields.feet_per_cell = cfg.feetPerCell;
       if (cfg.gridType !== undefined) fields.grid_type = cfg.gridType === 'free' ? 'free' : 'square';
-      updateRoomMap(socket.data.roomId, fields);
-      const state = getRoomState(socket.data.roomId);
-      io.to(socket.data.roomId).emit('map:updated', state.room);
+      updateScene(S(), fields);
+      const state = getSceneState(R(), S());
+      emitScene(io, R(), S(), 'map:updated', state.room);
+      // Cell coordinates change meaning when the grid geometry changes, so
+      // explored memory for this scene starts over.
+      const geometryTouched = ['grid_size', 'offset_x', 'offset_y', 'grid_type', 'map_image_url']
+        .some(k => k in fields);
+      if (geometryTouched) {
+        resetExplored(R(), S());
+        emitScene(io, R(), S(), 'fog:reset');
+        refreshFog(io, R(), S());
+      }
       // Remember grid calibration on the matching library asset so it
       // reapplies automatically next time this map is used.
       const gridTouched = ['grid_size', 'grid_w', 'grid_h', 'offset_x', 'offset_y', 'feet_per_cell', 'grid_type']
@@ -110,17 +263,14 @@ export function attachSockets(io) {
         const asset = state.assets.find(a => a.kind === 'map' && a.url === state.room.map_image_url);
         if (asset) {
           const updated = updateAssetGrid(asset.id, {
-            gridSize: state.room.grid_size,
-            gridW: state.room.grid_w,
-            gridH: state.room.grid_h,
-            offsetX: state.room.offset_x,
-            offsetY: state.room.offset_y,
-            feetPerCell: state.room.feet_per_cell,
-            gridType: state.room.grid_type,
+            gridSize: state.room.grid_size, gridW: state.room.grid_w, gridH: state.room.grid_h,
+            offsetX: state.room.offset_x, offsetY: state.room.offset_y,
+            feetPerCell: state.room.feet_per_cell, gridType: state.room.grid_type,
           });
-          io.to(socket.data.roomId).emit('asset:updated', updated);
+          io.to(R()).emit('asset:updated', updated);
         }
       }
+      if ('map_image_url' in fields) io.to(R()).emit('scenes:updated', listScenes(R()));
       cb?.({ ok: true });
     }));
 
@@ -134,65 +284,189 @@ export function attachSockets(io) {
       }
     }));
 
+    // ---- Tokens ----
+
     socket.on('token:create', dmOnly((t, cb) => {
-      const token = createToken(socket.data.roomId, t);
-      io.to(socket.data.roomId).emit('token:created', token);
+      const token = createToken(R(), S(), t);
+      emitScene(io, R(), S(), 'token:created', token);
+      refreshFog(io, R(), S());
+      syncPlayers(io, R());
+      if (token.visibleToPlayers) announceAppearance(io, R(), token);
+      io.to(R()).emit('scenes:updated', listScenes(R()));
       cb?.({ ok: true, token });
     }));
 
     socket.on('token:update', dmOnly((t, cb) => {
+      const before = getToken(t.id);
+      if (!before) return cb?.({ error: 'Token not found' });
       const token = updateToken(t.id, t);
-      io.to(socket.data.roomId).emit('token:updated', token);
+      emitScene(io, R(), token.sceneId, 'token:updated', token);
+      refreshFog(io, R(), token.sceneId);
+      if (before.owner !== token.owner) syncPlayers(io, R());
+      // Revealing a hidden token (ambush!) gets the same drama as a new arrival.
+      if (!before.visibleToPlayers && token.visibleToPlayers) announceAppearance(io, R(), token);
       cb?.({ ok: true, token });
     }));
 
     socket.on('token:delete', dmOnly(({ id }, cb) => {
+      const token = getToken(id);
+      if (!token) return cb?.({ ok: true });
       deleteToken(id);
-      io.to(socket.data.roomId).emit('token:deleted', { id });
+      emitScene(io, R(), token.sceneId, 'token:deleted', { id });
+      refreshFog(io, R(), token.sceneId);
+      syncPlayers(io, R());
+      io.to(R()).emit('scenes:updated', listScenes(R()));
       cb?.({ ok: true });
     }));
 
     socket.on('token:move', dmOnly(({ id, x, y, animate }, cb) => {
       const token = updateToken(id, { x, y });
-      io.to(socket.data.roomId).emit('token:moved', { id, x, y, animate: animate !== false });
+      if (!token) return cb?.({ error: 'Token not found' });
+      emitScene(io, R(), token.sceneId, 'token:moved', { id, x, y, animate: animate !== false });
+      refreshFog(io, R(), token.sceneId);
       cb?.({ ok: true, token });
     }));
 
+    // Send a token to another scene (e.g. the party walks into the next map).
+    socket.on('token:teleport', dmOnly(({ id, sceneId, x, y }, cb) => {
+      const token = getToken(id);
+      const target = getScene(sceneId);
+      if (!token || !target || target.room_id !== R()) return cb?.({ error: 'Token or scene not found' });
+      const from = token.sceneId;
+      const moved = moveTokenToScene(id, sceneId, { x: x ?? 1, y: y ?? 1 });
+      emitScene(io, R(), from, 'token:deleted', { id });
+      emitScene(io, R(), sceneId, 'token:created', moved);
+      refreshFog(io, R(), from);
+      refreshFog(io, R(), sceneId);
+      syncPlayers(io, R());
+      if (moved.visibleToPlayers) announceAppearance(io, R(), moved);
+      io.to(R()).emit('scenes:updated', listScenes(R()));
+      cb?.({ ok: true, token: moved });
+    }));
+
+    // ---- Walls & doors ----
+
     socket.on('wall:create', dmOnly((w, cb) => {
-      const wall = createWall(socket.data.roomId, w);
-      io.to(socket.data.roomId).emit('wall:created', wall);
+      const wall = createWall(R(), S(), w);
+      emitScene(io, R(), S(), 'wall:created', wall);
+      refreshFog(io, R(), S());
       cb?.({ ok: true, wall });
     }));
 
     socket.on('wall:delete', dmOnly(({ id }, cb) => {
+      const wall = getWall(id);
+      if (!wall) return cb?.({ ok: true });
       deleteWall(id);
-      io.to(socket.data.roomId).emit('wall:deleted', { id });
+      emitScene(io, R(), wall.sceneId, 'wall:deleted', { id });
+      refreshFog(io, R(), wall.sceneId);
       cb?.({ ok: true });
     }));
 
-    socket.on('door:toggle', dmOnly(({ id }, cb) => {
+    // Doors: DM always; players only when one of their tokens is beside it.
+    socket.on('door:toggle', ({ id }, cb) => {
+      if (!R()) return cb?.({ error: 'Not in a room' });
+      const door = getWall(id);
+      if (!door || !door.isDoor) return cb?.({ error: 'Not a door' });
+      if (socket.data.role !== 'dm') {
+        const state = getSceneState(R(), door.sceneId);
+        const mid = { x: (door.x1 + door.x2) / 2, y: (door.y1 + door.y2) / 2 };
+        const near = state.tokens.some(t =>
+          (t.owner === socket.data.name || t.owner === socket.id) &&
+          Math.hypot(t.x + 0.5 - mid.x, t.y + 0.5 - mid.y) <= 1.6);
+        if (!near) return cb?.({ error: 'Move next to the door first' });
+      }
       const wall = toggleDoor(id);
-      if (wall) io.to(socket.data.roomId).emit('wall:updated', wall);
+      if (wall) {
+        emitScene(io, R(), wall.sceneId, 'wall:updated', wall);
+        refreshFog(io, R(), wall.sceneId);
+        if (socket.data.role !== 'dm') {
+          broadcastSystem(io, R(), `${socket.data.name} ${wall.doorOpen ? 'opens' : 'closes'} a door`);
+        }
+      }
       cb?.({ ok: true, wall });
+    });
+
+    socket.on('fog:reset', dmOnly((_payload, cb) => {
+      resetExplored(R(), S());
+      emitScene(io, R(), S(), 'fog:reset');
+      refreshFog(io, R(), S());
+      cb?.({ ok: true });
     }));
+
+    // ---- Library ----
 
     socket.on('asset:create', dmOnly((a, cb) => {
       if (!a?.url || typeof a.url !== 'string') return cb?.({ error: 'Asset url required' });
-      const asset = createAsset(socket.data.roomId, a);
-      io.to(socket.data.roomId).emit('asset:created', asset);
+      const asset = createAsset(R(), a);
+      io.to(R()).emit('asset:created', asset);
       cb?.({ ok: true, asset });
     }));
 
     socket.on('asset:delete', dmOnly(({ id }, cb) => {
       deleteAsset(id);
-      io.to(socket.data.roomId).emit('asset:deleted', { id });
+      io.to(R()).emit('asset:deleted', { id });
       cb?.({ ok: true });
+    }));
+
+    // ---- Cast (characters with persistent sheets) — DM eyes only ----
+
+    socket.on('char:create', dmOnly((c, cb) => {
+      const ch = createCharacter(R(), c);
+      emitDm(io, R(), 'char:created', ch);
+      cb?.({ ok: true, character: ch });
+    }));
+
+    socket.on('char:update', dmOnly((c, cb) => {
+      const ch = updateCharacter(c.id, c);
+      if (!ch) return cb?.({ error: 'Character not found' });
+      emitDm(io, R(), 'char:updated', ch);
+      // Placed tokens mirror the sheet — refresh them wherever they are.
+      const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(ch.id);
+      for (const { id } of tokens) {
+        const t = getToken(id);
+        emitScene(io, R(), t.sceneId, 'token:updated', t);
+        refreshFog(io, R(), t.sceneId);
+      }
+      syncPlayers(io, R());
+      cb?.({ ok: true, character: ch });
+    }));
+
+    socket.on('char:delete', dmOnly(({ id }, cb) => {
+      deleteCharacter(id);
+      emitDm(io, R(), 'char:deleted', { id });
+      cb?.({ ok: true });
+    }));
+
+    socket.on('char:place', dmOnly(({ characterId, x, y }, cb) => {
+      const token = placeCharacter(R(), S(), characterId, { x: x ?? 0, y: y ?? 0 });
+      if (!token) return cb?.({ error: 'Character not found' });
+      emitScene(io, R(), S(), 'token:created', token);
+      refreshFog(io, R(), S());
+      syncPlayers(io, R());
+      if (token.visibleToPlayers) announceAppearance(io, R(), token);
+      io.to(R()).emit('scenes:updated', listScenes(R()));
+      cb?.({ ok: true, token });
+    }));
+
+    // Promote an ad-hoc token into a cast member with a sheet.
+    socket.on('token:save-as-character', dmOnly(({ tokenId, kind }, cb) => {
+      const t = getToken(tokenId);
+      if (!t) return cb?.({ error: 'Token not found' });
+      if (t.characterId && getCharacter(t.characterId)) return cb?.({ ok: true, character: getCharacter(t.characterId) });
+      const ch = createCharacter(R(), {
+        name: t.name, kind: kind || (t.owner !== 'dm' ? 'pc' : 'npc'), emoji: t.emoji, color: t.color,
+        imageUrl: t.imageUrl, owner: t.owner, hp: t.hp, maxHp: t.maxHp, ac: t.ac, sightRadius: t.sightRadius,
+      });
+      const updated = updateToken(tokenId, { characterId: ch.id });
+      emitDm(io, R(), 'char:created', ch);
+      emitScene(io, R(), updated.sceneId, 'token:updated', updated);
+      cb?.({ ok: true, character: ch, token: updated });
     }));
 
     // ---- Initiative ----
 
     socket.on('init:roll', dmOnly(({ tokenIds }, cb) => {
-      const session = getSession(socket.data.roomId);
+      const session = getSession(R());
       const entries = [];
       for (const tid of tokenIds || []) {
         const t = getToken(tid);
@@ -202,25 +476,24 @@ export function attachSockets(io) {
       if (entries.length === 0) return cb?.({ error: 'No tokens to roll for' });
       entries.sort((a, b) => b.roll - a.roll);
       session.initiative = { order: entries, turn: 0 };
-      io.to(socket.data.roomId).emit('init:updated', session.initiative);
-      broadcastSystem(io, socket.data.roomId,
-        `Initiative: ${entries.map(e => `${e.name} (${e.roll})`).join(', ')}`);
+      io.to(R()).emit('init:updated', session.initiative);
+      broadcastSystem(io, R(), `Initiative: ${entries.map(e => `${e.name} (${e.roll})`).join(', ')}`);
       cb?.({ ok: true, initiative: session.initiative });
     }));
 
     socket.on('init:next', dmOnly((_payload, cb) => {
-      const session = getSession(socket.data.roomId);
+      const session = getSession(R());
       if (!session.initiative) return cb?.({ error: 'No combat running' });
       session.initiative.turn = (session.initiative.turn + 1) % session.initiative.order.length;
-      io.to(socket.data.roomId).emit('init:updated', session.initiative);
+      io.to(R()).emit('init:updated', session.initiative);
       cb?.({ ok: true });
     }));
 
     socket.on('init:end', dmOnly((_payload, cb) => {
-      const session = getSession(socket.data.roomId);
+      const session = getSession(R());
       session.initiative = null;
-      io.to(socket.data.roomId).emit('init:updated', null);
-      broadcastSystem(io, socket.data.roomId, 'Combat ended');
+      io.to(R()).emit('init:updated', null);
+      broadcastSystem(io, R(), 'Combat ended');
       cb?.({ ok: true });
     }));
 
@@ -232,7 +505,7 @@ export function attachSockets(io) {
           ddbData: data,
           name: data.name || undefined,
         });
-        io.to(socket.data.roomId).emit('token:updated', t);
+        emitScene(io, R(), t.sceneId, 'token:updated', t);
         cb?.({ ok: true, token: t });
       } catch (e) {
         cb?.({ error: e.message });
@@ -242,7 +515,7 @@ export function attachSockets(io) {
     // ---- Player events ----
 
     socket.on('move:propose', ({ tokenId, path }, cb) => {
-      if (!socket.data.roomId) return cb?.({ error: 'Not in a room' });
+      if (!R()) return cb?.({ error: 'Not in a room' });
       const token = getToken(tokenId);
       if (!token) return cb?.({ error: 'Token not found' });
       if (socket.data.role !== 'dm' && token.owner !== socket.id && token.owner !== socket.data.name) {
@@ -252,17 +525,18 @@ export function attachSockets(io) {
       const proposal = {
         id: nanoid(10),
         tokenId,
+        sceneId: token.sceneId,
         proposedBy: socket.data.name,
         path: path.slice(0, 50).map(p => ({ x: p.x, y: p.y })),
         createdAt: Date.now(),
       };
-      getSession(socket.data.roomId).proposals.set(proposal.id, proposal);
-      io.to(socket.data.roomId).emit('move:proposed', proposal);
+      getSession(R()).proposals.set(proposal.id, proposal);
+      io.to(R()).emit('move:proposed', proposal);
       cb?.({ ok: true, proposal });
     });
 
     socket.on('move:approve', dmOnly(({ proposalId, stopAtIndex }, cb) => {
-      const session = getSession(socket.data.roomId);
+      const session = getSession(R());
       const proposal = session.proposals.get(proposalId);
       if (!proposal) return cb?.({ error: 'Proposal not found' });
       session.proposals.delete(proposalId);
@@ -270,32 +544,32 @@ export function attachSockets(io) {
         ? proposal.path.slice(0, Math.max(1, stopAtIndex + 1))
         : proposal.path;
       const finalCell = path[path.length - 1];
-      updateToken(proposal.tokenId, { x: finalCell.x, y: finalCell.y });
-      io.to(socket.data.roomId).emit('move:approved', {
+      const token = updateToken(proposal.tokenId, { x: finalCell.x, y: finalCell.y });
+      io.to(R()).emit('move:approved', {
         proposalId,
         tokenId: proposal.tokenId,
         path,
         interrupted: typeof stopAtIndex === 'number',
       });
+      if (token) refreshFog(io, R(), token.sceneId);
       cb?.({ ok: true });
     }));
 
     socket.on('move:reject', dmOnly(({ proposalId }, cb) => {
-      getSession(socket.data.roomId).proposals.delete(proposalId);
-      io.to(socket.data.roomId).emit('move:rejected', { proposalId });
+      getSession(R()).proposals.delete(proposalId);
+      io.to(R()).emit('move:rejected', { proposalId });
       cb?.({ ok: true });
     }));
 
     socket.on('move:interrupt', dmOnly(({ proposalId, atIndex }, cb) => {
-      // Used while an approved move is animating client-side; broadcast a stop signal.
-      io.to(socket.data.roomId).emit('move:interrupt', { proposalId, atIndex });
+      io.to(R()).emit('move:interrupt', { proposalId, atIndex });
       cb?.({ ok: true });
     }));
 
     // ---- Chat & dice ----
 
     socket.on('chat:send', ({ text }, cb) => {
-      if (!socket.data.roomId) return cb?.({ error: 'Not in a room' });
+      if (!R()) return cb?.({ error: 'Not in a room' });
       const clean = String(text || '').slice(0, 1000).trim();
       if (!clean) return cb?.({ error: 'Empty message' });
       // /r 1d20+5 shortcut
@@ -304,58 +578,39 @@ export function attachSockets(io) {
         try {
           const result = rollDice(m[2]);
           const msg = {
-            id: nanoid(10),
-            roomId: socket.data.roomId,
-            from: socket.data.name,
-            type: 'roll',
-            text: formatRoll(result),
-            roll: result,
-            ts: Date.now(),
+            id: nanoid(10), roomId: R(), from: socket.data.name,
+            type: 'roll', text: formatRoll(result), roll: result, ts: Date.now(),
           };
-          pushChat(socket.data.roomId, msg);
-          io.to(socket.data.roomId).emit('chat:message', msg);
+          pushChat(R(), msg);
+          io.to(R()).emit('chat:message', msg);
           cb?.({ ok: true });
         } catch (e) {
           cb?.({ error: e.message });
         }
         return;
       }
-      const msg = {
-        id: nanoid(10),
-        roomId: socket.data.roomId,
-        from: socket.data.name,
-        type: 'chat',
-        text: clean,
-        ts: Date.now(),
-      };
-      pushChat(socket.data.roomId, msg);
-      io.to(socket.data.roomId).emit('chat:message', msg);
+      const msg = { id: nanoid(10), roomId: R(), from: socket.data.name, type: 'chat', text: clean, ts: Date.now() };
+      pushChat(R(), msg);
+      io.to(R()).emit('chat:message', msg);
       cb?.({ ok: true });
     });
 
-    socket.on('dice:roll', ({ expr, whisperToDm }, cb) => {
-      if (!socket.data.roomId) return cb?.({ error: 'Not in a room' });
+    socket.on('dice:roll', ({ expr, whisperToDm, label }, cb) => {
+      if (!R()) return cb?.({ error: 'Not in a room' });
       try {
         const result = rollDice(expr);
         const msg = {
-          id: nanoid(10),
-          roomId: socket.data.roomId,
-          from: socket.data.name,
-          type: 'roll',
-          text: formatRoll(result),
-          roll: result,
-          ts: Date.now(),
+          id: nanoid(10), roomId: R(), from: socket.data.name,
+          type: 'roll', text: `${label ? label + ': ' : ''}${formatRoll(result)}`, roll: result, ts: Date.now(),
         };
         if (whisperToDm) {
           msg.whisper = true;
           for (const [sid, s] of io.sockets.sockets) {
-            if (s.data?.roomId === socket.data.roomId && (s.data.role === 'dm' || sid === socket.id)) {
-              s.emit('chat:message', msg);
-            }
+            if (s.data?.roomId === R() && (s.data.role === 'dm' || sid === socket.id)) s.emit('chat:message', msg);
           }
         } else {
-          pushChat(socket.data.roomId, msg);
-          io.to(socket.data.roomId).emit('chat:message', msg);
+          pushChat(R(), msg);
+          io.to(R()).emit('chat:message', msg);
         }
         cb?.({ ok: true, roll: result });
       } catch (e) {
@@ -367,30 +622,20 @@ export function attachSockets(io) {
 
     socket.on('handout:show', dmOnly(({ url, title }, cb) => {
       if (!url || typeof url !== 'string') return cb?.({ error: 'Image url required' });
-      io.to(socket.data.roomId).emit('handout:show', {
-        url,
-        title: (title || '').slice(0, 80),
-      });
+      io.to(R()).emit('handout:show', { url, title: (title || '').slice(0, 80) });
       cb?.({ ok: true });
     }));
 
     socket.on('handout:hide', dmOnly((_payload, cb) => {
-      io.to(socket.data.roomId).emit('handout:hide');
+      io.to(R()).emit('handout:hide');
       cb?.({ ok: true });
     }));
 
-    // ---- Spells / animations ----
+    // ---- Spells / animations (scene-scoped: only viewers of this map see them) ----
     socket.on('spell:cast', ({ kind, from, to, color }, cb) => {
-      if (!socket.data.roomId) return cb?.({ error: 'Not in a room' });
-      // Everyone can request a spell effect for now; DM can lock this down later if desired.
-      io.to(socket.data.roomId).emit('spell:effect', {
-        id: nanoid(8),
-        kind,
-        from,
-        to,
-        color,
-        by: socket.data.name,
-        ts: Date.now(),
+      if (!R()) return cb?.({ error: 'Not in a room' });
+      emitScene(io, R(), S(), 'spell:effect', {
+        id: nanoid(8), kind, from, to, color, by: socket.data.name, ts: Date.now(),
       });
       cb?.({ ok: true });
     });

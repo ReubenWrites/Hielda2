@@ -11,17 +11,20 @@ export default function ProposalBanner() {
   const gridType = useStore(s => s.room?.grid_type || 'square');
 
   if (role !== 'dm' || proposals.length === 0) return null;
+  // Only proposals for tokens on the map the DM is looking at.
+  const here = proposals.filter(p => tokens.some(t => t.id === p.tokenId));
+  if (here.length === 0) return null;
 
   return (
     <>
-      {proposals.map(p => {
+      {here.map(p => {
         const token = tokens.find(t => t.id === p.tokenId);
         const cells = p.path.length;
         const dist = token
           ? measureMoveFeet({ from: { x: token.x, y: token.y }, path: p.path, feetPerCell, gridType })
           : cells * feetPerCell;
         return (
-          <div key={p.id} className="proposal-banner" style={{ top: 12 + proposals.indexOf(p) * 60 }}>
+          <div key={p.id} className="proposal-banner" style={{ top: 12 + here.indexOf(p) * 60 }}>
             <span className="text">
               <strong>{p.proposedBy}</strong> wants to move <strong>{token?.name ?? '?'}</strong> {formatFeet(dist)}
             </span>

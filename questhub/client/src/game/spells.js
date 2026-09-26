@@ -1,4 +1,4 @@
-import { Graphics } from 'pixi.js';
+import { Graphics, Text } from 'pixi.js';
 
 // Lightweight spell/attack effect library. Each effect is a function that
 // returns an object { container, tick(dt), done } where `tick` is called each
@@ -12,7 +12,7 @@ export const EFFECTS = {
   lightning:{ label: 'Lightning', emoji: '⚡', color: 0xfff05a },
 };
 
-export function createEffect(kind, { from, to, color }) {
+export function createEffect(kind, { from, to, color, text }) {
   const c = color ?? EFFECTS[kind]?.color ?? 0xffffff;
   switch (kind) {
     case 'fireball': return fireball(from, to, c);
@@ -20,8 +20,60 @@ export function createEffect(kind, { from, to, color }) {
     case 'slash':    return slash(to, c);
     case 'heal':     return heal(to, c);
     case 'lightning':return lightning(from, to, c);
+    case 'appear':   return appear(to);
+    case 'number':   return floatingNumber(to, text, c);
     default: return null;
   }
+}
+
+// Dramatic entrance: dark shockwave rings + a bright flash at the centre.
+function appear(to) {
+  const g = new Graphics();
+  let age = 0;
+  const dur = 1100;
+  return {
+    container: g,
+    tick(dt) {
+      age += dt;
+      const t = Math.min(1, age / dur);
+      g.clear();
+      for (let i = 0; i < 3; i++) {
+        const rt = Math.max(0, Math.min(1, (t - i * 0.15) / 0.7));
+        if (rt <= 0) continue;
+        const r = 20 + rt * 110;
+        g.circle(to.x, to.y, r).stroke({ width: 6 * (1 - rt) + 1, color: 0x8b1a2b, alpha: (1 - rt) * 0.9 });
+      }
+      const flash = Math.max(0, 1 - t * 2.2);
+      if (flash > 0) g.circle(to.x, to.y, 26 + flash * 14).fill({ color: 0xffe3e3, alpha: flash * 0.9 });
+      this.done = age >= dur;
+    },
+    done: false,
+  };
+}
+
+// "-5" / "+3" drifting up from a token when its HP changes.
+function floatingNumber(to, text, color) {
+  const label = new Text({
+    text: String(text ?? ''),
+    style: { fontFamily: 'Inter, sans-serif', fontSize: 26, fontWeight: '800', fill: color,
+      stroke: { color: 0x000000, width: 4 } },
+  });
+  label.anchor.set(0.5);
+  label.x = to.x; label.y = to.y - 20;
+  let age = 0;
+  const dur = 1200;
+  return {
+    container: label,
+    tick(dt) {
+      age += dt;
+      const t = Math.min(1, age / dur);
+      label.y = to.y - 20 - t * 50;
+      label.alpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+      label.scale.set(1 + Math.sin(Math.min(1, t * 4) * Math.PI) * 0.25);
+      this.done = age >= dur;
+    },
+    done: false,
+  };
 }
 
 function fireball(_from, to, color) {

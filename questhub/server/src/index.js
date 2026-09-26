@@ -8,11 +8,11 @@ import { Server as SocketServer } from 'socket.io';
 import { config } from './config.js';
 import { getDb } from './db.js';
 import {
-  createRoom, getRoom, getRoomState, verifyDm,
-  updateRoomMap, replaceRoomContents,
+  createRoom, getRoom, getSceneState, verifyDm, listScenes, listCharacters,
+  replaceRoomContents,
 } from './rooms.js';
 import { upload, uploadUrl, uploadPath } from './uploads.js';
-import { attachSockets } from './sockets.js';
+import { attachSockets, resyncRoom } from './sockets.js';
 
 const MIME_BY_EXT = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -37,7 +37,7 @@ export function createApp() {
   });
   attachSockets(io);
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.2.0' }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.3.0' }));
 
   app.post('/api/rooms', (req, res) => {
     const { name } = req.body || {};
@@ -66,13 +66,14 @@ export function createApp() {
   });
 
   // ---- Quest save/load ----
-  // Everything a session needs (map image and assets embedded as data URLs)
-  // so free-tier hosting with ephemeral disks can restore a prepared scene.
+  // Everything a campaign needs (every scene's map, the library and the cast,
+  // images embedded as data URLs) so free-tier hosting with ephemeral disks
+  // can restore a prepared campaign in one click.
 
   app.get('/api/rooms/:id/export', (req, res) => {
     const { id } = req.params;
     if (!verifyDm(id, req.query.secret)) return res.status(403).json({ error: 'Invalid DM secret' });
-    const state = getRoomState(id);
+    const room = getRoom(id);
     let budget = EXPORT_BUDGET_BYTES;
     let skipped = 0;
     const embed = (url) => {
@@ -82,30 +83,38 @@ export function createApp() {
       budget -= dataUrl.length;
       return dataUrl;
     };
+    // Library assets embed once; scenes reference their map by asset index
+    // when it came from the library, or embed it directly otherwise.
+    const scenesList = listScenes(id);
+    const assetsState = getSceneState(id, scenesList[0].id).assets;
+    const assets = assetsState.map(({ id: _i, roomId: _r, url, ...a }) => ({ ...a, dataUrl: embed(url), url }))
+      .filter(a => a.dataUrl);
+    const scenes = scenesList.map(s => {
+      const st = getSceneState(id, s.id);
+      const viaAsset = assets.findIndex(a => a.url === st.room.map_image_url);
+      return {
+        name: s.name,
+        grid_size: st.room.grid_size, grid_w: st.room.grid_w, grid_h: st.room.grid_h,
+        offset_x: st.room.offset_x, offset_y: st.room.offset_y,
+        feet_per_cell: st.room.feet_per_cell, grid_type: st.room.grid_type,
+        mapAssetIndex: viaAsset >= 0 ? viaAsset : null,
+        mapImageDataUrl: viaAsset >= 0 ? null : embed(st.room.map_image_url),
+        walls: st.walls.map(({ id: _i, roomId: _r, sceneId: _s, ...w }) => w),
+        tokens: st.tokens.map(({ roomId: _r, sceneId: _s, ...t }) => t),
+      };
+    });
     const out = {
-      version: 1,
+      version: 2,
       kind: 'questhub-quest',
-      name: state.room.name,
-      grid: {
-        grid_size: state.room.grid_size,
-        grid_w: state.room.grid_w,
-        grid_h: state.room.grid_h,
-        offset_x: state.room.offset_x,
-        offset_y: state.room.offset_y,
-        feet_per_cell: state.room.feet_per_cell,
-        grid_type: state.room.grid_type,
-      },
-      mapImageDataUrl: embed(state.room.map_image_url),
-      walls: state.walls.map(({ id: _i, roomId: _r, ...w }) => w),
-      tokens: state.tokens.map(({ id: _i, roomId: _r, ...t }) => t),
-      assets: state.assets.map(({ id: _i, roomId: _r, url, ...a }) => ({
-        ...a,
-        dataUrl: embed(url),
-      })).filter(a => a.dataUrl),
+      name: room.name,
+      dmSceneIndex: Math.max(0, scenesList.findIndex(s => s.id === room.dm_scene_id)),
+      scenes,
+      characters: listCharacters(id).map(({ roomId: _r, ...c }) => c),
+      assets: assets.map(({ url: _u, ...a }) => a),
       skippedAssets: skipped,
     };
     res.setHeader('Content-Disposition',
-      `attachment; filename="${(state.room.name || 'quest').replace(/[^\w -]/g, '')}.questhub.json"`);
+      `attachment; filename="${(room.name || 'quest').replace(/[^\w -]/g, '')}.questhub.json"`);
     res.json(out);
   });
 
@@ -113,37 +122,48 @@ export function createApp() {
     const { id } = req.params;
     const { secret, data } = req.body || {};
     if (!verifyDm(id, secret)) return res.status(403).json({ error: 'Invalid DM secret' });
-    if (!data || data.kind !== 'questhub-quest' || data.version !== 1) {
+    if (!data || data.kind !== 'questhub-quest' || ![1, 2].includes(data.version)) {
       return res.status(400).json({ error: 'Not a QuestHub quest file' });
     }
     try {
-      const mapUrl = dataUrlToFile(data.mapImageDataUrl);
-      updateRoomMap(id, {
-        map_image_url: mapUrl,
-        grid_size: data.grid?.grid_size ?? 64,
-        grid_w: data.grid?.grid_w ?? 30,
-        grid_h: data.grid?.grid_h ?? 20,
-        offset_x: data.grid?.offset_x ?? 0,
-        offset_y: data.grid?.offset_y ?? 0,
-        feet_per_cell: data.grid?.feet_per_cell ?? 5,
-        grid_type: data.grid?.grid_type === 'free' ? 'free' : 'square',
-      });
-      const assets = (data.assets || []).map(a => ({
-        kind: a.kind, name: a.name, url: dataUrlToFile(a.dataUrl),
+      // v1 files held a single map; wrap it as one scene.
+      const quest = data.version === 1 ? {
+        scenes: [{
+          name: 'Scene 1', ...(data.grid || {}), mapImageDataUrl: data.mapImageDataUrl,
+          walls: data.walls || [], tokens: data.tokens || [],
+        }],
+        characters: [],
+        assets: data.assets || [],
+      } : data;
+
+      const assets = (quest.assets || []).map(a => ({
+        kind: a.kind, name: a.name, grid: a.grid || null, url: dataUrlToFile(a.dataUrl),
       })).filter(a => a.url);
-      replaceRoomContents(id, {
-        walls: data.walls || [],
-        tokens: (data.tokens || []).map(t => ({
+      const scenes = (quest.scenes || []).map(s => ({
+        name: s.name,
+        grid_size: s.grid_size ?? 64, grid_w: s.grid_w ?? 30, grid_h: s.grid_h ?? 20,
+        offset_x: s.offset_x ?? 0, offset_y: s.offset_y ?? 0,
+        feet_per_cell: s.feet_per_cell ?? 5, grid_type: s.grid_type === 'free' ? 'free' : 'square',
+        map_image_url: (s.mapAssetIndex != null && assets[s.mapAssetIndex])
+          ? assets[s.mapAssetIndex].url
+          : dataUrlToFile(s.mapImageDataUrl),
+        walls: s.walls || [],
+        tokens: (s.tokens || []).map(t => ({
           ...t,
-          // Uploaded token art from a previous server life is embedded per-asset,
-          // not per-token; drop dead /uploads references.
+          // Art from a previous server life is dead unless embedded.
           imageUrl: t.imageUrl?.startsWith('data:') ? t.imageUrl : null,
         })),
-        assets,
-      });
-      const state = getRoomState(id);
-      io.to(id).emit('room:resync', state);
-      res.json({ ok: true });
+      }));
+      const characters = (quest.characters || []).map(c => ({
+        ...c, imageUrl: c.imageUrl?.startsWith('data:') ? c.imageUrl : null,
+      }));
+      replaceRoomContents(id, { scenes, characters, assets });
+      // Honour the saved "which scene was the DM on".
+      const list = listScenes(id);
+      const dmIdx = Math.min(list.length - 1, Math.max(0, quest.dmSceneIndex ?? 0));
+      getDb().prepare('UPDATE rooms SET dm_scene_id = ? WHERE id = ?').run(list[dmIdx].id, id);
+      resyncRoom(io, id);
+      res.json({ ok: true, scenes: list.length });
     } catch (e) {
       res.status(400).json({ error: `Import failed: ${e.message}` });
     }

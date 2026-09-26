@@ -18,6 +18,7 @@ export default function MapCanvas({ onAction }) {
   const selectedTokenId = useStore(s => s.selectedTokenId);
   const initiative = useStore(s => s.initiative);
   const viewAs = useStore(s => s.viewAs);
+  const explored = useStore(s => s.explored);
 
   // Init scene once
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function MapCanvas({ onAction }) {
         scene.setRoom(useStore.getState().room);
         scene.setWalls(useStore.getState().walls);
         scene.setTokens(useStore.getState().tokens);
+        scene.focusStart();
         applyFog(scene);
       }
     });
@@ -60,8 +62,12 @@ export default function MapCanvas({ onAction }) {
   useEffect(() => { sceneRef.current?.setRole(role, you); applyFog(sceneRef.current); }, [role, you]);
   useEffect(() => {
     if (!sceneRef.current || !room) return;
+    // A scene change replaces walls and tokens too; give the scene all three
+    // before it picks where to look.
     sceneRef.current.setRoom(room);
+    sceneRef.current.setWalls(useStore.getState().walls);
     sceneRef.current.setTokens(useStore.getState().tokens);
+    sceneRef.current.focusStart();
     applyFog(sceneRef.current);
   }, [room]);
   useEffect(() => {
@@ -85,6 +91,7 @@ export default function MapCanvas({ onAction }) {
     sceneRef.current.setTokens(useStore.getState().tokens);
     applyFog(sceneRef.current);
   }, [viewAs]);
+  useEffect(() => { applyFog(sceneRef.current); }, [explored]);
   useEffect(() => { sceneRef.current?.setTool(tool, { spell }); }, [tool, spell]);
   useEffect(() => { sceneRef.current?.setSelected(selectedTokenId); }, [selectedTokenId]);
 
@@ -98,5 +105,7 @@ function applyFog(scene) {
   const role = s.viewAs ? 'player' : s.role;
   const you = s.viewAs ? { name: s.viewAs } : s.you;
   const set = computeFog({ role, you, tokens: s.tokens, walls: s.walls, room: s.room });
-  scene.setFog(set);
+  const owner = you?.name;
+  const explored = owner && s.explored[owner] ? new Set(s.explored[owner]) : null;
+  scene.setFog(set, explored);
 }

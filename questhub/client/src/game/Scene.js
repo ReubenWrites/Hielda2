@@ -198,7 +198,9 @@ export class Scene {
       return;
     }
     if (this.tool === 'cast-spell' && this.spell) {
-      const selected = this.tokens.find(t => t.id === this.selectedId);
+      // Cast from the selected token; players default to their own character.
+      const selected = this.tokens.find(t => t.id === this.selectedId)
+        || (this.role !== 'dm' ? this.tokens.find(t => this.canMoveToken(t)) : null);
       const fromCell = selected ? { x: selected.x + 0.5, y: selected.y + 0.5 } : cell;
       const from = cellToWorld(fromCell.x, fromCell.y, this.room);
       const to = cellToWorld(cell.x, cell.y, this.room);
@@ -219,6 +221,13 @@ export class Scene {
         this.dragging = { tokenId: hit.id, startCell: start, path: [start] };
       }
     } else {
+      // No token under the cursor: a click on a door opens/closes it
+      // (players only when standing beside it — the server checks).
+      const door = this.pickWall(world, { doorsOnly: true });
+      if (door) {
+        this.onAction({ type: 'toggle-door', id: door.id });
+        return;
+      }
       this.selectedId = null;
       this.onAction({ type: 'select-token', id: null });
     }
@@ -436,8 +445,17 @@ export class Scene {
     this.rebuildMap();
     this.rebuildGrid();
     drawWalls(this.wallLayer, this.walls, this.room);
-    if (room && this.tokens.length > 0) this.centerOn(this.tokens[0].x + 0.5, this.tokens[0].y + 0.5);
-    else if (room) this.centerOn(room.grid_w / 2, room.grid_h / 2);
+    this.focusStart();
+  }
+
+  // Open the map on what matters: a player's own character, else the first
+  // token, else the middle of the grid.
+  focusStart() {
+    if (!this.room) return;
+    const mine = this.role !== 'dm' ? this.tokens.find(t => this.canMoveToken(t)) : null;
+    const target = mine || this.tokens[0];
+    if (target) this.centerOn(target.x + 0.5, target.y + 0.5);
+    else this.centerOn(this.room.grid_w / 2, this.room.grid_h / 2);
   }
 
   async rebuildMap() {
@@ -455,7 +473,7 @@ export class Scene {
         this.mapNatural = { w: tex.width, h: tex.height };
         this.mapLayer.addChild(sprite);
         // Refresh fog so the out-of-grid area is covered for players.
-        drawFog(this.fogLayer, this.visibleSet, this.room, this.fogExtent());
+        drawFog(this.fogLayer, this.visibleSet, this.room, this.fogExtent(), this.exploredSet);
         return;
       } catch (e) {
         // fall through to checkerboard
@@ -514,7 +532,24 @@ export class Scene {
       v.container.visible = visible;
       v.draw({ selected: this.selectedId === t.id, showHp: this.shouldShowHp(t) });
     }
+    this.followOwnToken();
     this.drawCursorOverlay();
+  }
+
+  // Players keep their character on screen: if the DM moves it out of view
+  // (or it walks through a door into the next room), the camera catches up.
+  followOwnToken() {
+    if (!this.room || this.role === 'dm') return;
+    const mine = this.tokens.find(t => this.canMoveToken(t));
+    if (!mine) return;
+    const w = cellToWorld(mine.x + 0.5, mine.y + 0.5, this.room);
+    const sx = this.camera.x + w.x * this.camera.scale;
+    const sy = this.camera.y + w.y * this.camera.scale;
+    const margin = 48;
+    const cw = this.host.clientWidth, ch = this.host.clientHeight;
+    if (sx < margin || sy < margin || sx > cw - margin || sy > ch - margin) {
+      this.centerOn(mine.x + 0.5, mine.y + 0.5);
+    }
   }
 
   setWalls(walls) {
@@ -522,9 +557,10 @@ export class Scene {
     drawWalls(this.wallLayer, walls, this.room);
   }
 
-  setFog(visibleSet) {
+  setFog(visibleSet, exploredSet = null) {
     this.visibleSet = visibleSet;
-    drawFog(this.fogLayer, visibleSet, this.room, this.fogExtent());
+    this.exploredSet = exploredSet;
+    drawFog(this.fogLayer, visibleSet, this.room, this.fogExtent(), exploredSet);
     // Update token visibility
     for (const [id, v] of this.tokenViews) {
       const t = this.tokens.find(x => x.id === id);
@@ -593,6 +629,7 @@ export class Scene {
       from: payload.from,
       to: payload.to,
       color: payload.color,
+      text: payload.text,
     });
     if (!eff) return;
     this.fxLayer.addChild(eff.container);

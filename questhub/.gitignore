@@ -9,3 +9,4 @@ server/data
 server/uploads
 .vite
 coverage
+e2e/out/

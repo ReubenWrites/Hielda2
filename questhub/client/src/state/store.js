@@ -6,23 +6,27 @@ export const useStore = create((set, get) => ({
   you: null,              // { id, name }
   dmSecret: null,         // stored client-side if you created the room
 
-  // Room state from server
-  room: null,             // { id, name, map_image_url, grid_size, grid_w, grid_h, offset_x, offset_y }
+  // Room state from server. `room` = room identity + the scene being viewed.
+  room: null,             // { id, name, scene_id, scene_name, map_image_url, grid_*, feet_per_cell, grid_type }
+  scenes: [],             // [{ id, name, mapImageUrl, gridType, tokenCount }]
   tokens: [],
   walls: [],
   assets: [],
+  characters: [],         // DM only: the cast with sheets/notes
   proposals: [],
   chat: [],
   initiative: null,       // { order: [{tokenId, name, roll}], turn } | null
-  presence: [],           // [{ socketId, name, role }]
+  presence: [],           // [{ socketId, name, role, sceneId }]
   viewAs: null,           // DM only: player name whose view is being previewed
+  explored: {},           // { owner: string[] } explored cells for the viewed scene
 
   // Local UI state
   selectedTokenId: null,
-  tool: 'select',         // 'select' | 'add-token' | 'draw-wall' | 'draw-door' | 'erase-wall' | 'toggle-door' | 'cast-spell'
+  tool: 'select',         // 'select' | 'add-token' | 'draw-wall' | 'draw-door' | 'erase-wall' | 'toggle-door' | 'align-grid' | 'cast-spell'
   spell: null,            // when picking a target for a cast: { kind, color }
   spawnTemplate: null,    // pending token blueprint while tool === 'add-token'
   status: null,           // transient banner message
+  handout: null,          // { url, title } currently splashed on screen
 
   setStatus: (text, ttl = 3000) => {
     set({ status: text });
@@ -31,27 +35,35 @@ export const useStore = create((set, get) => ({
     }, ttl);
   },
 
-  hydrate: ({ role, you, state, chat, proposals, initiative, presence }) => set({
-    presence: presence || [],
+  hydrate: ({ role, you, state, chat, proposals, initiative, presence, explored, characters }) => set({
     role,
     you,
     room: state.room,
+    scenes: state.scenes || [],
     tokens: state.tokens,
     walls: state.walls,
     assets: state.assets || [],
+    characters: characters || [],
     chat: chat || [],
     proposals: proposals || [],
     initiative: initiative || null,
+    presence: presence || [],
+    explored: explored || {},
   }),
 
-  resync: (state) => set({
+  // Switching maps: everything scene-scoped is replaced in one go.
+  enterScene: ({ state, explored }) => set({
     room: state.room,
+    scenes: state.scenes || [],
     tokens: state.tokens,
     walls: state.walls,
     assets: state.assets || [],
+    explored: explored || {},
+    selectedTokenId: null,
   }),
 
   setRoom: (room) => set({ room }),
+  setScenes: (scenes) => set({ scenes }),
 
   upsertToken: (t) => set((s) => {
     const i = s.tokens.findIndex(x => x.id === t.id);
@@ -86,10 +98,23 @@ export const useStore = create((set, get) => ({
 
   removeAsset: (id) => set((s) => ({ assets: s.assets.filter(a => a.id !== id) })),
 
+  upsertCharacter: (c) => set((s) => {
+    const i = s.characters.findIndex(x => x.id === c.id);
+    if (i === -1) return { characters: [...s.characters, c] };
+    const next = s.characters.slice();
+    next[i] = { ...next[i], ...c };
+    return { characters: next };
+  }),
+
+  removeCharacter: (id) => set((s) => ({ characters: s.characters.filter(c => c.id !== id) })),
+  setCharacters: (characters) => set({ characters }),
+
+  setExplored: (owner, cells) => set((s) => ({ explored: { ...s.explored, [owner]: cells } })),
+  resetExplored: () => set({ explored: {} }),
+
   setInitiative: (initiative) => set({ initiative }),
   setPresence: (presence) => set({ presence }),
   setViewAs: (viewAs) => set({ viewAs }),
-  handout: null,          // { url, title } currently splashed on screen
   setHandout: (handout) => set({ handout }),
 
   addProposal: (p) => set((s) => ({

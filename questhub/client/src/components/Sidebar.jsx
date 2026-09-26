@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../state/store.js';
 import { uploadImage, emit } from '../net/socket.js';
 import { BESTIARY } from '@questhub/shared/bestiary';
+import { computeFog, tokenVisibleToViewer } from '../game/fog.js';
 
 export default function Sidebar({ onCopyInvite }) {
   const role = useStore(s => s.role);
@@ -22,9 +23,11 @@ export default function Sidebar({ onCopyInvite }) {
   return (
     <div className="side">
       <div className="head">
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>Quest</div>
-          <div style={{ fontWeight: 600 }}>{room?.name}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{room?.name}</div>
+          <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            📍 {room?.scene_name || 'Scene'}
+          </div>
         </div>
         <button onClick={onCopyInvite} title="Copy invite link" style={{ padding: '4px 8px' }}>
           <span className="code">{room?.id}</span>
@@ -34,12 +37,14 @@ export default function Sidebar({ onCopyInvite }) {
       <div style={{ overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto 1fr' }}>
         <div className="tabs">
           {role === 'dm' && <button className={tab === 'dm' ? 'active' : ''} onClick={() => setTab('dm')}>DM</button>}
+          {role === 'dm' && <button className={tab === 'cast' ? 'active' : ''} onClick={() => setTab('cast')}>Cast</button>}
           {role === 'dm' && <button className={tab === 'library' ? 'active' : ''} onClick={() => setTab('library')}>Library</button>}
           <button className={tab === 'characters' ? 'active' : ''} onClick={() => setTab('characters')}>Tokens</button>
           <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>Chat</button>
         </div>
         <div className="body">
           {tab === 'dm' && role === 'dm' && <DmTab tool={tool} setTool={setTool} />}
+          {tab === 'cast' && role === 'dm' && <CastTab />}
           {tab === 'library' && role === 'dm' && <LibraryTab />}
           {tab === 'characters' && (
             <>
@@ -133,7 +138,7 @@ function DmTab({ tool, setTool }) {
       a.download = `${(room.name || 'quest').replace(/[^\w -]/g, '')}.questhub.json`;
       a.click();
       URL.revokeObjectURL(a.href);
-      setStatus('Quest saved to your Downloads');
+      setStatus('Quest saved to your Downloads (all scenes, cast and library)');
     } catch (e) {
       setStatus(e.message, 5000);
     }
@@ -152,7 +157,7 @@ function DmTab({ tool, setTool }) {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Import failed');
-      setStatus('Quest loaded');
+      setStatus(`Quest loaded — ${j.scenes} scene${j.scenes === 1 ? '' : 's'}`);
     } catch (err) {
       setStatus(`Load failed: ${err.message}`, 6000);
     } finally {
@@ -166,6 +171,7 @@ function DmTab({ tool, setTool }) {
   return (
     <>
       <PlayersSection />
+      <ScenesSection />
       <div className="tool-section">
         <h3>Quest file</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -176,7 +182,7 @@ function DmTab({ tool, setTool }) {
       </div>
 
       <div className="tool-section">
-        <h3>Map</h3>
+        <h3>This scene's map</h3>
         <button onClick={() => fileRef.current?.click()} style={{ width: '100%', marginBottom: 8 }}>
           Upload map image
         </button>
@@ -211,6 +217,10 @@ function DmTab({ tool, setTool }) {
           corners of ONE printed square (on hex/overland maps, drag across one hex
           or the scale bar — it just sets the reference size).
         </div>
+        <button onClick={() => emit('fog:reset').then(() => setStatus('Explored fog reset for this scene'))}
+          style={{ width: '100%', marginTop: 8 }} title="Players forget everything they've seen on this map">
+          🌫 Reset explored fog
+        </button>
       </div>
 
       <div className="tool-section">
@@ -240,7 +250,7 @@ function DmTab({ tool, setTool }) {
           <button style={{ width: '100%' }}
             onClick={() => emit('init:roll', { tokenIds: tokens.map(t => t.id) })
               .catch(e => setStatus(e.message, 4000))}>
-            🎲 Roll initiative (everyone)
+            🎲 Roll initiative (everyone here)
           </button>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
@@ -273,7 +283,7 @@ function DmTab({ tool, setTool }) {
             </button>
           ))}
         </div>
-        {spawnTemplate && (
+        {spawnTemplate && !spawnTemplate.characterId && (
           <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 6 }}>
             Click the map to place {spawnTemplate.name} — keep clicking for more, Esc to stop.
           </div>
@@ -286,18 +296,25 @@ function DmTab({ tool, setTool }) {
 function PlayersSection() {
   const presence = useStore(s => s.presence);
   const tokens = useStore(s => s.tokens);
+  const scenes = useStore(s => s.scenes);
+  const room = useStore(s => s.room);
   const viewAs = useStore(s => s.viewAs);
   const setViewAs = useStore(s => s.setViewAs);
   const setSpawnTemplate = useStore(s => s.setSpawnTemplate);
 
-  const onlineNames = new Set(presence.filter(p => p.role === 'player').map(p => p.name));
-  // Players = everyone online now + every token owner (so the DM can preview
-  // a player's view even while they're offline).
-  const names = new Set(onlineNames);
+  const online = presence.filter(p => p.role === 'player');
+  const onlineByName = new Map(online.map(p => [p.name, p]));
+  // Players = everyone online now + every token owner on this map (so the DM
+  // can preview a player's view even while they're offline).
+  const names = new Set(onlineByName.keys());
   for (const t of tokens) {
     if (t.owner && t.owner !== 'dm') names.add(t.owner);
   }
-  const unique = [...names].map(name => ({ name, online: onlineNames.has(name) }));
+  const unique = [...names].map(name => {
+    const p = onlineByName.get(name);
+    const sceneName = p ? scenes.find(sc => sc.id === p.sceneId)?.name : null;
+    return { name, online: !!p, sceneName, here: !p || p.sceneId === room?.scene_id };
+  });
 
   return (
     <div className="tool-section">
@@ -315,13 +332,16 @@ function PlayersSection() {
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '6px 8px', background: 'var(--panel-2)', borderRadius: 6, marginBottom: 4,
           }}>
-            <span style={{ flex: 1, fontSize: 13 }}>
+            <span style={{ flex: 1, fontSize: 13, minWidth: 0 }}>
               {p.online ? '🟢' : '⚪'} <strong>{p.name}</strong>
               {!p.online && <span style={{ color: 'var(--muted)', fontSize: 11 }}> · offline</span>}
-              {!hasToken && <span style={{ color: 'var(--accent)', fontSize: 11 }}> · no token yet!</span>}
+              {p.online && p.sceneName && !p.here && (
+                <span style={{ color: 'var(--accent-2)', fontSize: 11 }}> · in {p.sceneName}</span>
+              )}
+              {!hasToken && p.here && <span style={{ color: 'var(--accent)', fontSize: 11 }}> · no token here!</span>}
             </span>
             <button style={{ fontSize: 11, padding: '3px 8px' }}
-              title={`Create a token owned by ${p.name} — then click the map to place it`}
+              title={`Create a token owned by ${p.name} on this map — then click to place it`}
               onClick={() => setSpawnTemplate({
                 name: p.name, owner: p.name, color: '#f0c040',
                 sightRadius: 6, hp: 10, maxHp: 10, single: true,
@@ -341,6 +361,221 @@ function PlayersSection() {
   );
 }
 
+function ScenesSection() {
+  const scenes = useStore(s => s.scenes);
+  const room = useStore(s => s.room);
+  const setStatus = useStore(s => s.setStatus);
+
+  async function newScene() {
+    const name = window.prompt('Scene name (e.g. "Death House — ground floor"):', 'New scene');
+    if (name === null) return;
+    try {
+      await emit('scene:create', { name: name.trim() || 'New scene' });
+      setStatus('New blank scene — upload a map or pick one from the Library');
+    } catch (e) { setStatus(e.message, 4000); }
+  }
+  async function rename(sc) {
+    const name = window.prompt('Rename scene:', sc.name);
+    if (!name?.trim()) return;
+    await emit('scene:rename', { sceneId: sc.id, name: name.trim() }).catch(e => setStatus(e.message, 4000));
+  }
+  async function remove(sc) {
+    if (!window.confirm(`Delete scene "${sc.name}" and everything on it?`)) return;
+    await emit('scene:delete', { sceneId: sc.id }).catch(e => setStatus(e.message, 4000));
+  }
+
+  return (
+    <div className="tool-section">
+      <h3>Scenes (maps)</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {scenes.map(sc => {
+          const current = sc.id === room?.scene_id;
+          return (
+            <div key={sc.id} style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px',
+              background: 'var(--panel-2)', borderRadius: 6,
+              border: `1px solid ${current ? 'var(--accent)' : 'transparent'}`,
+            }}>
+              {sc.mapImageUrl
+                ? <img src={sc.mapImageUrl} alt="" style={{ width: 34, height: 26, objectFit: 'cover', borderRadius: 3 }} />
+                : <div style={{ width: 34, height: 26, borderRadius: 3, background: '#11111a' }} />}
+              <span style={{ flex: 1, fontSize: 12, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {current ? '📍 ' : ''}{sc.name}
+                <span style={{ color: 'var(--muted)' }}> · {sc.tokenCount} token{sc.tokenCount === 1 ? '' : 's'}</span>
+              </span>
+              {!current && (
+                <button style={{ fontSize: 10, padding: '2px 6px' }} className="primary"
+                  onClick={() => emit('scene:switch', { sceneId: sc.id }).catch(e => setStatus(e.message, 4000))}>
+                  Go
+                </button>
+              )}
+              <button style={{ fontSize: 10, padding: '2px 5px' }} title="Rename" onClick={() => rename(sc)}>✎</button>
+              {scenes.length > 1 && (
+                <button style={{ fontSize: 10, padding: '2px 5px' }} title="Delete scene" onClick={() => remove(sc)}>✕</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={newScene} style={{ width: '100%', marginTop: 6 }}>＋ New blank scene</button>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+        Tip: in the Library, every map has a "＋ Scene" button. Players automatically
+        see whichever scene their character is on.
+      </div>
+    </div>
+  );
+}
+
+const KIND_LABEL = { pc: '⭐ Player characters', npc: '🎭 NPCs', monster: '👹 Monsters' };
+
+function CastTab() {
+  const characters = useStore(s => s.characters);
+  const setStatus = useStore(s => s.setStatus);
+  const spawnTemplate = useStore(s => s.spawnTemplate);
+  const setSpawnTemplate = useStore(s => s.setSpawnTemplate);
+  const [draft, setDraft] = useState({ name: '', kind: 'npc', emoji: '', color: '#8d99ae', notes: '' });
+  const [openId, setOpenId] = useState(null);
+
+  async function create(e) {
+    e.preventDefault();
+    if (!draft.name.trim()) return;
+    try {
+      await emit('char:create', {
+        ...draft, name: draft.name.trim(),
+        owner: draft.kind === 'pc' ? draft.name.trim() : 'dm',
+        hp: draft.kind === 'pc' ? 10 : null, maxHp: draft.kind === 'pc' ? 10 : null,
+      });
+      setDraft({ name: '', kind: draft.kind, emoji: '', color: '#8d99ae', notes: '' });
+      setStatus(`${draft.name.trim()} added to the cast`);
+    } catch (err) { setStatus(err.message, 4000); }
+  }
+
+  const groups = ['pc', 'npc', 'monster'].map(k => [k, characters.filter(c => c.kind === k)]);
+
+  return (
+    <>
+      <div className="tool-section">
+        <h3>New character</h3>
+        <form onSubmit={create}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 6 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Name</label>
+              <input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="Ismark Kolyanovich" />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Type</label>
+              <select value={draft.kind} onChange={e => setDraft({ ...draft, kind: e.target.value })}>
+                <option value="npc">NPC</option>
+                <option value="pc">Player</option>
+                <option value="monster">Monster</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 6, marginTop: 6 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Emoji</label>
+              <input value={draft.emoji} onChange={e => setDraft({ ...draft, emoji: e.target.value })} placeholder="🧔" />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Colour</label>
+              <input type="color" value={draft.color} onChange={e => setDraft({ ...draft, color: e.target.value })} style={{ height: 36, padding: 2 }} />
+            </div>
+          </div>
+          <div className="field" style={{ marginTop: 6 }}>
+            <label>Notes (DM only) — accent, motives, secrets, voice</label>
+            <textarea rows={3} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })}
+              placeholder="Gruff Eastern-European accent. Grieving sister. Wants the party to escort Ireena." />
+          </div>
+          <button className="primary" type="submit" style={{ width: '100%', marginTop: 6 }}>Add to cast</button>
+        </form>
+      </div>
+
+      {groups.map(([kind, list]) => list.length > 0 && (
+        <div className="tool-section" key={kind}>
+          <h3>{KIND_LABEL[kind]}</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {list.map(c => (
+              <CharacterCard key={c.id} c={c}
+                open={openId === c.id}
+                onToggle={() => setOpenId(openId === c.id ? null : c.id)}
+                placing={spawnTemplate?.characterId === c.id}
+                onPlace={() => spawnTemplate?.characterId === c.id
+                  ? setSpawnTemplate(null)
+                  : setSpawnTemplate({ characterId: c.id, name: c.name, single: c.kind === 'pc' })} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {characters.length === 0 && (
+        <div style={{ color: 'var(--muted)', fontSize: 12 }}>
+          Your cast is empty. Add NPCs here with their accent and secrets, then
+          place them on any scene — the notes follow them everywhere.
+        </div>
+      )}
+    </>
+  );
+}
+
+function CharacterCard({ c, open, onToggle, placing, onPlace }) {
+  const setStatus = useStore(s => s.setStatus);
+  const [notes, setNotes] = useState(c.notes || '');
+  useEffect(() => { setNotes(c.notes || ''); }, [c.notes]);
+  function save(fields) {
+    emit('char:update', { id: c.id, ...fields }).catch(e => setStatus(e.message, 4000));
+  }
+  return (
+    <div style={{ background: 'var(--panel-2)', borderRadius: 6, border: `1px solid ${placing ? 'var(--accent)' : 'transparent'}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px' }}>
+        <div style={{ width: 24, height: 24, borderRadius: '50%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+          {c.emoji || c.name.charAt(0).toUpperCase()}
+        </div>
+        <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={onToggle}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
+          {!open && c.notes && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.notes}</div>
+          )}
+        </div>
+        <button style={{ fontSize: 10, padding: '3px 7px' }} className={placing ? 'primary' : ''}
+          title="Click, then click the map to place" onClick={onPlace}>{placing ? 'Placing…' : '📍 Place'}</button>
+        <button style={{ fontSize: 10, padding: '3px 6px' }} title={open ? 'Collapse' : 'Edit sheet'} onClick={onToggle}>{open ? '▴' : '✎'}</button>
+      </div>
+      {open && (
+        <div style={{ padding: '0 8px 8px' }}>
+          <div className="field">
+            <label>Name</label>
+            <input value={c.name} onChange={e => save({ name: e.target.value })} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            <div className="field"><label>HP</label>
+              <input type="number" value={c.hp ?? ''} placeholder="—" onChange={e => save({ hp: e.target.value === '' ? null : parseFloat(e.target.value) })} /></div>
+            <div className="field"><label>Max</label>
+              <input type="number" value={c.maxHp ?? ''} placeholder="—" onChange={e => save({ maxHp: e.target.value === '' ? null : parseFloat(e.target.value) })} /></div>
+            <div className="field"><label>AC</label>
+              <input type="number" value={c.ac ?? ''} placeholder="—" onChange={e => save({ ac: e.target.value === '' ? null : parseInt(e.target.value, 10) })} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div className="field"><label>Emoji</label>
+              <input value={c.emoji || ''} onChange={e => save({ emoji: e.target.value || null })} /></div>
+            <div className="field"><label>Owner (player name or dm)</label>
+              <input value={c.owner} onChange={e => save({ owner: e.target.value })} /></div>
+          </div>
+          <div className="field">
+            <label>Notes (DM only)</label>
+            <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
+              onBlur={() => notes !== c.notes && save({ notes })} />
+            <div style={{ fontSize: 10, color: 'var(--muted)' }}>Saves when you click away.</div>
+          </div>
+          <button className="danger" style={{ width: '100%' }}
+            onClick={() => window.confirm(`Remove ${c.name} from the cast? Placed tokens stay on their maps.`) &&
+              emit('char:delete', { id: c.id }).catch(e => setStatus(e.message, 4000))}>
+            Remove from cast
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LibraryTab() {
   const assets = useStore(s => s.assets);
   const setStatus = useStore(s => s.setStatus);
@@ -355,6 +590,18 @@ function LibraryTab() {
     emit('handout:show', { url: a.url, title: a.name })
       .then(() => setStatus(`Showing "${a.name}" to everyone`))
       .catch(e => setStatus(e.message, 4000));
+  }
+
+  async function newSceneFrom(a) {
+    try {
+      const r = await emit('scene:create', { name: a.name, assetId: a.id });
+      if (a.grid) setStatus(`New scene "${a.name}" — saved grid applied`);
+      else {
+        setStatus(`New scene "${a.name}" — detecting grid…`);
+        await autoDetectGrid(a.url, setStatus);
+      }
+      return r;
+    } catch (e) { setStatus(e.message, 4000); }
   }
 
   async function handleFiles(e, kind) {
@@ -384,24 +631,6 @@ function LibraryTab() {
 
   return (
     <>
-      <Collapsible title="Handouts" count={handouts.length}>
-        <button disabled={busy} onClick={() => handRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
-          {busy ? 'Uploading…' : '⬆ Upload handout images'}
-        </button>
-        <input ref={handRef} type="file" accept="image/*" multiple onChange={e => handleFiles(e, 'handout')} style={{ display: 'none' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 6 }}>
-          {handouts.map(a => (
-            <AssetTile key={a.id} asset={a} title={`Show "${a.name}" to everyone`}
-              onUse={() => showHandout(a)} />
-          ))}
-        </div>
-        {handouts.length === 0 && (
-          <div style={{ color: 'var(--muted)', fontSize: 12 }}>
-            Scene art, villain portraits, letters… click one mid-game to flash it
-            on every player's screen.
-          </div>
-        )}
-      </Collapsible>
       <Collapsible title="Maps" count={maps.length}>
         <button disabled={busy} onClick={() => mapRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
           {busy ? 'Uploading…' : '⬆ Upload maps (multi-select ok)'}
@@ -411,12 +640,13 @@ function LibraryTab() {
           {maps.map(a => (
             <AssetCard key={a.id} asset={a}
               onShow={() => showHandout(a)}
-              actionLabel={a.grid ? 'Use as map ✓' : 'Use as map'}
-              onUse={async () => {
+              actionLabel="＋ Scene"
+              onUse={() => newSceneFrom(a)}
+              secondaryLabel={a.grid ? 'Use here ✓' : 'Use here'}
+              onSecondary={async () => {
                 try {
                   await emit('map:config', { mapImageUrl: a.url });
                   if (a.grid) {
-                    // Reapply the calibration saved with this map
                     await emit('map:config', {
                       gridSize: a.grid.gridSize, gridW: a.grid.gridW, gridH: a.grid.gridH,
                       offsetX: a.grid.offsetX, offsetY: a.grid.offsetY,
@@ -434,7 +664,26 @@ function LibraryTab() {
               }} />
           ))}
         </div>
-        {maps.length === 0 && <div style={{ color: 'var(--muted)', fontSize: 12 }}>Upload your battle maps once, then switch scenes with one click.</div>}
+        {maps.length === 0 && <div style={{ color: 'var(--muted)', fontSize: 12 }}>Upload your battle maps once. "＋ Scene" makes a new map screen from one; "Use here" swaps this scene's map.</div>}
+      </Collapsible>
+
+      <Collapsible title="Handouts" count={handouts.length}>
+        <button disabled={busy} onClick={() => handRef.current?.click()} style={{ width: '100%', marginBottom: 6 }}>
+          {busy ? 'Uploading…' : '⬆ Upload handout images'}
+        </button>
+        <input ref={handRef} type="file" accept="image/*" multiple onChange={e => handleFiles(e, 'handout')} style={{ display: 'none' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 6 }}>
+          {handouts.map(a => (
+            <AssetTile key={a.id} asset={a} title={`Show "${a.name}" to everyone`}
+              onUse={() => showHandout(a)} />
+          ))}
+        </div>
+        {handouts.length === 0 && (
+          <div style={{ color: 'var(--muted)', fontSize: 12 }}>
+            Scene art, villain portraits, letters… click one mid-game to flash it
+            on every player's screen.
+          </div>
+        )}
       </Collapsible>
 
       <Collapsible title="Token art" count={tokenArt.length}>
@@ -499,7 +748,7 @@ function AssetTile({ asset, onUse, active, title }) {
   );
 }
 
-function AssetCard({ asset, actionLabel, onUse, active, onShow }) {
+function AssetCard({ asset, actionLabel, onUse, active, onShow, secondaryLabel, onSecondary }) {
   const setStatus = useStore(s => s.setStatus);
   return (
     <div style={{
@@ -512,7 +761,10 @@ function AssetCard({ asset, actionLabel, onUse, active, onShow }) {
       <div style={{ padding: '4px 6px' }}>
         <div style={{ fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
         <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
-          <button onClick={onUse} style={{ fontSize: 10, padding: '2px 6px', flex: 1 }}>{actionLabel}</button>
+          <button onClick={onUse} className="primary" style={{ fontSize: 10, padding: '2px 6px', flex: 1 }}>{actionLabel}</button>
+          {onSecondary && (
+            <button onClick={onSecondary} style={{ fontSize: 10, padding: '2px 6px', flex: 1 }}>{secondaryLabel}</button>
+          )}
           {onShow && (
             <button title="Flash on every player's screen" onClick={onShow}
               style={{ fontSize: 10, padding: '2px 6px' }}>📣</button>
@@ -575,8 +827,20 @@ function NumberField({ label, value, onChange, min, max }) {
 function TokenListTab({ tokens, selectedId, setSelected, role }) {
   const setStatus = useStore(s => s.setStatus);
   const you = useStore(s => s.you);
-  const filtered = role === 'dm' ? tokens : tokens.filter(t => t.visibleToPlayers || t.owner === you?.name);
-  if (filtered.length === 0) return <div style={{ color: 'var(--muted)' }}>No tokens yet.</div>;
+  const walls = useStore(s => s.walls);
+  const room = useStore(s => s.room);
+  // Players only get listed what they can actually see right now — the
+  // sidebar must not leak a monster lurking in the fog.
+  let filtered = tokens;
+  if (role !== 'dm') {
+    const vis = computeFog({ role, you, tokens, walls, room });
+    filtered = tokens.filter(t => tokenVisibleToViewer(t, vis, you));
+  }
+  if (filtered.length === 0) {
+    return <div style={{ color: 'var(--muted)' }}>
+      {role === 'dm' ? 'No tokens on this map yet.' : 'Nothing in sight.'}
+    </div>;
+  }
   return (
     <div className="token-list">
       {filtered.map(t => (
@@ -584,9 +848,11 @@ function TokenListTab({ tokens, selectedId, setSelected, role }) {
           className={`token-row ${selectedId === t.id ? 'selected' : ''}`}
           onClick={() => setSelected(t.id === selectedId ? null : t.id)}
         >
-          <div className="swatch" style={{ background: t.color || '#5b9bd5' }} />
+          <div className="swatch" style={{ background: t.color || '#5b9bd5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+            {t.emoji || ''}
+          </div>
           <div>
-            <div className="name">{t.name}</div>
+            <div className="name">{t.name}{t.characterId && role === 'dm' ? ' 📇' : ''}</div>
             <div className="meta">
               {t.owner === 'dm' ? 'DM' : t.owner}
               {t.maxHp > 0 && (role === 'dm' || t.owner === you?.name) && ` · ${t.hp ?? '?'}/${t.maxHp} hp`}
@@ -603,7 +869,12 @@ function TokenListTab({ tokens, selectedId, setSelected, role }) {
 
 function TokenEditor({ tokenId, setStatus }) {
   const token = useStore(s => s.tokens.find(t => t.id === tokenId));
+  const character = useStore(s => s.characters.find(c => c.id === token?.characterId));
+  const scenes = useStore(s => s.scenes);
+  const room = useStore(s => s.room);
   const [ddbId, setDdbId] = useState('');
+  const [notes, setNotes] = useState(character?.notes || '');
+  useEffect(() => { setNotes(character?.notes || ''); }, [character?.notes]);
   if (!token) return null;
 
   function update(fields) {
@@ -625,10 +896,39 @@ function TokenEditor({ tokenId, setStatus }) {
       setStatus(`Link failed: ${e.message}`, 6000);
     }
   }
+  async function saveAsCharacter() {
+    try {
+      await emit('token:save-as-character', { tokenId });
+      setStatus(`${token.name} added to the cast — notes live in the Cast tab and here`);
+    } catch (e) { setStatus(e.message, 5000); }
+  }
+  async function teleport(sceneId) {
+    if (!sceneId) return;
+    const target = scenes.find(s => s.id === sceneId);
+    try {
+      await emit('token:teleport', { id: tokenId, sceneId, x: 1, y: 1 });
+      setStatus(`${token.name} sent to ${target?.name}`);
+    } catch (e) { setStatus(e.message, 5000); }
+  }
 
   return (
     <div style={{ marginTop: 12, padding: 10, background: 'var(--panel-2)', borderRadius: 8 }}>
       <h3 style={{ fontSize: 12, color: 'var(--muted)' }}>Edit token</h3>
+      {character ? (
+        <div className="field">
+          <label>📇 Sheet notes (DM only) — {character.name}</label>
+          <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
+            onBlur={() => notes !== character.notes &&
+              emit('char:update', { id: character.id, notes }).catch(e => setStatus(e.message, 4000))}
+            placeholder="Accent, motives, secrets…" />
+          <div style={{ fontSize: 10, color: 'var(--muted)' }}>Follows this character onto every map. Saves when you click away.</div>
+        </div>
+      ) : (
+        <button onClick={saveAsCharacter} style={{ width: '100%', marginBottom: 10 }}
+          title="Give this token a persistent sheet with notes that follow it across maps">
+          📇 Save as character (adds notes sheet)
+        </button>
+      )}
       <div className="field">
         <label>Name</label>
         <input value={token.name} onChange={e => update({ name: e.target.value })} />
@@ -664,7 +964,7 @@ function TokenEditor({ tokenId, setStatus }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
         <div className="field">
-          <label>Sight (cells)</label>
+          <label>Sight (squares)</label>
           <input type="number" min={0} max={30} value={token.sightRadius}
             onChange={e => update({ sightRadius: parseFloat(e.target.value) })} />
         </div>
@@ -679,8 +979,20 @@ function TokenEditor({ tokenId, setStatus }) {
         <label>
           <input type="checkbox" checked={token.visibleToPlayers}
             onChange={e => update({ visibleToPlayers: e.target.checked })} /> Visible to players
+          {!token.visibleToPlayers && <span style={{ color: 'var(--muted)' }}> (ticking it triggers a dramatic reveal)</span>}
         </label>
       </div>
+      {scenes.length > 1 && (
+        <div className="field">
+          <label>Send to another scene</label>
+          <select value="" onChange={e => teleport(e.target.value)}>
+            <option value="">Choose a scene…</option>
+            {scenes.filter(s => s.id !== room?.scene_id).map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="field">
         <label>Link to D&D Beyond character ID</label>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -705,10 +1017,48 @@ function TokenEditor({ tokenId, setStatus }) {
   );
 }
 
+const DICE = [4, 6, 8, 10, 12, 20, 100];
+
+// Big friendly dice buttons — no /r syntax needed.
+function DicePanel() {
+  const setStatus = useStore(s => s.setStatus);
+  const [mod, setMod] = useState(0);
+  const [adv, setAdv] = useState('none'); // none | adv | dis
+  function roll(sides) {
+    let expr = sides === 20 && adv !== 'none' ? `2d20k${adv === 'adv' ? 'h' : 'l'}1` : `1d${sides}`;
+    if (mod) expr += mod > 0 ? `+${mod}` : `${mod}`;
+    const label = sides === 20 && adv !== 'none' ? (adv === 'adv' ? 'd20 advantage' : 'd20 disadvantage') : `d${sides}`;
+    emit('dice:roll', { expr, label }).catch(e => setStatus(e.message, 4000));
+  }
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
+        {DICE.map(d => (
+          <button key={d} onClick={() => roll(d)} title={`Roll a d${d}`}
+            style={{ padding: '8px 0', fontWeight: 700, fontSize: d === 20 ? 14 : 12,
+              ...(d === 20 ? { borderColor: 'var(--accent)' } : {}) }}>
+            d{d}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px', gap: 4, alignItems: 'center' }}>
+        <button onClick={() => setAdv(adv === 'adv' ? 'none' : 'adv')}
+          style={adv === 'adv' ? { borderColor: 'var(--ok)', background: 'rgba(88,194,103,0.2)' } : {}}>Advantage</button>
+        <button onClick={() => setAdv(adv === 'dis' ? 'none' : 'dis')}
+          style={adv === 'dis' ? { borderColor: 'var(--danger)', background: 'rgba(210,69,58,0.2)' } : {}}>Disadv.</button>
+        <label style={{ margin: 0, textAlign: 'right', fontSize: 12 }}>Bonus</label>
+        <input type="number" value={mod} onChange={e => setMod(parseInt(e.target.value || '0', 10))} />
+      </div>
+    </div>
+  );
+}
+
 function ChatTab() {
   const chat = useStore(s => s.chat);
   const [text, setText] = useState('');
   const setStatus = useStore(s => s.setStatus);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView?.({ block: 'end' }); }, [chat.length]);
   async function send(e) {
     e.preventDefault();
     if (!text.trim()) return;
@@ -721,6 +1071,7 @@ function ChatTab() {
   }
   return (
     <>
+      <DicePanel />
       <div className="chat-msgs" style={{ marginBottom: 12 }}>
         {chat.map(m => (
           <div key={m.id} className={`chat-msg ${m.type} ${m.whisper ? 'whisper' : ''}`}>
@@ -728,12 +1079,13 @@ function ChatTab() {
             <span>{m.text}</span>
           </div>
         ))}
+        <div ref={endRef} />
       </div>
       <form onSubmit={send} className="dice-bar">
         <input
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder="Type a message or /r 1d20+5"
+          placeholder="Say something… (or /r 1d20+5)"
         />
         <button className="primary">Send</button>
       </form>
