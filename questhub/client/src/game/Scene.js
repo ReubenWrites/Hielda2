@@ -80,6 +80,11 @@ export class Scene {
 
     this.attachInput();
 
+    // Window/tablet rotation changes the stage size; keep the player's
+    // character in view rather than stranding it off-screen.
+    this._onResize = () => setTimeout(() => this.followOwnToken(), 50);
+    window.addEventListener('resize', this._onResize);
+
     this.app.ticker.add((ticker) => this.tick(ticker.deltaMS));
   }
 
@@ -669,6 +674,7 @@ export class Scene {
   }
 
   destroy() {
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
     try { this.app.destroy(true, { children: true, texture: true }); } catch {}
   }
 }

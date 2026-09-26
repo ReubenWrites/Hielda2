@@ -17,7 +17,9 @@ export default function Room() {
   const [joinError, setJoinError] = useState(null);
   const [sideWidth, setSideWidth] = useState(() => {
     const saved = parseInt(localStorage.getItem('questhub:sideWidth') || '', 10);
-    return Number.isFinite(saved) ? Math.min(720, Math.max(240, saved)) : 320;
+    // Tablets in portrait get a slimmer panel so the map keeps most of the screen.
+    const fallback = window.innerWidth < 900 ? 240 : 320;
+    return Number.isFinite(saved) ? Math.min(720, Math.max(200, saved)) : fallback;
   });
 
   function startResize(e) {
@@ -25,11 +27,11 @@ export default function Room() {
     const startX = e.clientX;
     const startW = sideWidth;
     function onMove(ev) {
-      const w = Math.min(720, Math.max(240, startW + (startX - ev.clientX)));
+      const w = Math.min(720, Math.max(200, startW + (startX - ev.clientX)));
       setSideWidth(w);
     }
     function onUp(ev) {
-      const w = Math.min(720, Math.max(240, startW + (startX - ev.clientX)));
+      const w = Math.min(720, Math.max(200, startW + (startX - ev.clientX)));
       localStorage.setItem('questhub:sideWidth', String(w));
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
