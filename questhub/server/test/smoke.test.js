@@ -313,6 +313,48 @@ describe('socket flow', () => {
     player.close();
   });
 
+  test('quest export/import carries library assets, handouts and map calibration', async () => {
+    const roomA = await call('POST', '/api/rooms', { name: 'Library Source' });
+    const dm = connect();
+    await once(dm, 'connect');
+    await emitAck(dm, 'room:join', { roomId: roomA.id, name: 'GM', asDm: true, dmSecret: roomA.dmSecret });
+    // A tiny real PNG so the exporter can embed it as a data URL
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    const form = new FormData();
+    form.append('image', new Blob([png], { type: 'image/png' }), 'gates.png');
+    const up = await (await fetch(`${baseUrl}/api/upload`, { method: 'POST', body: form })).json();
+    expect(up.url).toMatch(/^\/uploads\//);
+    await emitAck(dm, 'asset:create', { kind: 'handout', name: 'Gates', url: up.url });
+    await emitAck(dm, 'asset:create', { kind: 'map', name: 'Barovia', url: up.url });
+    await emitAck(dm, 'map:config', { mapImageUrl: up.url, gridType: 'free', feetPerCell: 1320, gridSize: 80 });
+    dm.close();
+
+    const quest = await (await fetch(`${baseUrl}/api/rooms/${roomA.id}/export?secret=${roomA.dmSecret}`)).json();
+    expect(quest.assets).toHaveLength(2);
+    expect(quest.assets.every(a => a.dataUrl?.startsWith('data:image/png'))).toBe(true);
+    expect(quest.grid.grid_type).toBe('free');
+    expect(quest.grid.feet_per_cell).toBe(1320);
+    // map:config auto-saved the calibration onto the map asset
+    const mapAsset = quest.assets.find(a => a.kind === 'map');
+    expect(mapAsset.grid.gridType).toBe('free');
+    expect(mapAsset.grid.feetPerCell).toBe(1320);
+
+    const roomB = await call('POST', '/api/rooms', { name: 'Library Target' });
+    const imp = await fetch(`${baseUrl}/api/rooms/${roomB.id}/import`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: roomB.dmSecret, data: quest }),
+    });
+    expect(imp.ok).toBe(true);
+    const dm2 = connect();
+    await once(dm2, 'connect');
+    const join = await emitAck(dm2, 'room:join', { roomId: roomB.id, name: 'GM', asDm: true, dmSecret: roomB.dmSecret });
+    expect(join.state.assets.map(a => a.kind).sort()).toEqual(['handout', 'map']);
+    expect(join.state.room.grid_type).toBe('free');
+    expect(join.state.room.feet_per_cell).toBe(1320);
+    expect(join.state.room.map_image_url).toMatch(/^\/uploads\//);
+    dm2.close();
+  });
+
   test('chat /r rolls dice', async () => {
     const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: 'Dice Test' });
 

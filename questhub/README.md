@@ -22,27 +22,46 @@ invite link in a second tab/browser to join as a player.
 ## How to play
 
 - **DM**: create the room. The DM tab in the sidebar has map upload, grid
-  settings, and tools for tokens, walls and doors.
+  settings, and tools for tokens, walls and doors. A floating toolbar on the
+  left edge of the map switches cursor modes; **Esc** returns to Select and
+  **Delete** removes the selected token. Drag the strip between map and
+  sidebar to resize the sidebar.
 - **Players**: join with the 6-character room code. You can only see what
   your character can see (sight radius, blocked by walls and closed doors).
+- **Players panel** (top of DM tab): everyone connected, plus every token
+  owner even when offline. **⭐ Token** creates that player's token in one
+  click; **👁 View** shows the map exactly as they see it (fog, hidden tokens,
+  only their HP) with a "Back to DM view" banner — no player needs to be
+  online to preview.
+- **Maps & grids**: maps display at native resolution. When you set a map,
+  the app detects its printed square grid automatically (works on clean
+  battle maps); for faint or missing grids use **📐 Align Grid** and click
+  two opposite corners of one printed square. Calibration is remembered on
+  the Library asset. **Grid style** per map: *Squares* (battle maps, fog on)
+  or *Free* (overland/hex maps: no overlay, smooth movement, no fog).
+  Scale presets 5 ft / 10 ft / ¼ mile drive distance labels, which read in
+  feet or miles as appropriate.
 - **Movement**: players drag their token to *propose* a move (shown as a
-  dotted ghost path with distance in feet). The DM gets an Approve / Reject /
+  dotted ghost path with distance). The DM gets an Approve / Reject /
   Stop-halfway banner. Approved moves animate cell by cell.
 - **Dice**: type `/r 1d20+5` in chat. Advantage: `/r 2d20kh1+3`.
 - **Bestiary**: DM tab → search a monster → click it → click the map repeatedly
-  to place auto-numbered tokens (Wolf, Wolf 2…) with SRD HP/AC/darkvision.
+  to place auto-numbered tokens (Wolf, Wolf 2…) with SRD HP/AC/darkvision and
+  the monster's emoji on the token face. Tokens without art show a monogram.
 - **Player tokens**: DM tab → "Add player token" → type the player's join name;
   the token is owned by them with vision configured.
 - **HP**: bars over tokens (DM sees all; players see their own). Quick −5/−1/+1/+5
   buttons in the token editor.
 - **Initiative**: DM tab → "Roll initiative"; order shows for everyone in the
   Tokens tab, the active creature gets a ring on the map, DM clicks Next turn.
-- **Asset library**: Library tab → bulk-upload your battle maps and token art;
-  one click sets a map or stamps token art onto the board.
+- **Asset library**: Library tab → bulk-upload maps, token art and
+  **handouts**. Big images are compressed in the browser before upload.
+  One click sets a map or stamps token art onto the board; **📣** flashes an
+  image full-screen on every player's view (click to close for everyone).
 - **Save/Load quest**: DM tab → Save downloads a `.questhub.json` with the map,
-  walls, tokens and library embedded; Load restores it. Use one file per
-  prepared scene ("Death House", "Castle Ravenloft") — this also survives
-  free-tier restarts.
+  walls, tokens, library (images embedded) and grid calibration; Load restores
+  it. Use one file per prepared scene ("Death House", "Castle Ravenloft") —
+  this also survives free-tier restarts.
 - **Spells**: pick an effect from the bar at the bottom (fireball, magic
   missile, slash, heal, lightning), then click a target on the map.
 - **D&D Beyond**: select a token → "Link to D&D Beyond character ID". The
@@ -56,8 +75,9 @@ invite link in a second tab/browser to join as a player.
 3. Render reads `render.yaml` automatically (free plan, Node 22).
 4. Free-tier caveats: the service sleeps after ~15 min idle (first load takes
    ~30s to wake) and storage is ephemeral — uploaded maps and rooms reset on
-   restart. Open the app 5 minutes before a session and re-upload the map, or
-   move to a paid plan with a persistent disk (see render.yaml).
+   restart **and on every deploy** (each push to the branch redeploys). Save
+   quest files after uploading so a restore is one click, or move to a paid
+   plan with a persistent disk (see render.yaml).
 
 ## Moving to its own repo
 

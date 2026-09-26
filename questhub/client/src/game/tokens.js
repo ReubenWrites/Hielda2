@@ -106,6 +106,15 @@ export class TokenView {
     this.room = room;
     if (nextToken.imageUrl && (!this.sprite || this.sprite?.texture?.label !== nextToken.imageUrl)) {
       this.loadImage(nextToken.imageUrl);
+    } else if (this.sprite) {
+      // Grid re-alignment changes the square size; keep art sized to the square.
+      const s = this.room.grid_size * 0.86;
+      this.sprite.width = s; this.sprite.height = s;
+    }
+    if (!nextToken.imageUrl && this.sprite) {
+      this.container.removeChild(this.sprite);
+      this.sprite.destroy();
+      this.sprite = null;
     }
     this.label.text = nextToken.name;
     this.updateGlyph();

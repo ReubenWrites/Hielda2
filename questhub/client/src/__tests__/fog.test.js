@@ -37,6 +37,20 @@ describe('computeFog', () => {
     const set = computeFog({ role: 'player', you: { name: 'P' }, tokens, walls, room });
     expect(set.has('6,5')).toBe(true);
   });
+
+  test('free/overland maps have no fog for players', () => {
+    const freeRoom = { ...room, grid_type: 'free' };
+    const set = computeFog({ role: 'player', you: { name: 'P' }, tokens: [], walls: [], room: freeRoom });
+    expect(set).toBe('all');
+  });
+});
+
+describe('tokenVisibleToViewer on overland maps', () => {
+  test("'all' reveals normal tokens but keeps DM-hidden ones hidden", () => {
+    expect(tokenVisibleToViewer({ owner: 'dm', x: 50, y: 50, visibleToPlayers: true }, 'all', { name: 'P' })).toBe(true);
+    expect(tokenVisibleToViewer({ owner: 'dm', x: 50, y: 50, visibleToPlayers: false }, 'all', { name: 'P' })).toBe(false);
+    expect(tokenVisibleToViewer({ owner: 'P', x: 50, y: 50, visibleToPlayers: false }, 'all', { name: 'P' })).toBe(true);
+  });
 });
 
 describe('tokenVisibleToViewer', () => {
