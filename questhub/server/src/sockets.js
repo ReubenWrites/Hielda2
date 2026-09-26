@@ -2,13 +2,14 @@ import { nanoid } from 'nanoid';
 import { rollDice, formatRoll } from '@questhub/shared/dice';
 import { measureMoveFeet, formatFeet } from '@questhub/shared/measure';
 import { tokenCenter, withinReach } from '@questhub/shared/geometry';
+import { computeDerived } from '@questhub/shared/rules';
 import {
   getRoom, getScene, getSceneState, verifyDm, setDmScene,
   createScene, updateScene, deleteScene, listScenes, playerSceneFor,
   createToken, updateToken, deleteToken, getToken, moveTokenToScene, placeCharacter,
   createWall, getWall, deleteWall, toggleDoor,
   createAsset, deleteAsset, getAsset, updateAssetGrid,
-  createCharacter, updateCharacter, deleteCharacter, listCharacters, getCharacter,
+  createCharacter, updateCharacter, deleteCharacter, listCharacters, getCharacter, listCharactersFor,
 } from './rooms.js';
 import { fetchDdbCharacter, ddbToStats } from './dndbeyond.js';
 import { detectGrid } from './gridDetect.js';
@@ -173,8 +174,10 @@ async function syncRoomDdb(io, roomId) {
       delete stats.imageUrl;
       // Live HP belongs to QuestHub during play; only max HP and the rest refresh.
       delete stats.hp;
-      const ch = updateCharacter(ch0.id, { ...stats, ddbSyncedAt: Date.now() });
+      updateCharacter(ch0.id, { ...stats, ddbSyncedAt: Date.now() });
+      const ch = syncDerived(io, roomId, ch0.id) || getCharacter(ch0.id);
       emitDm(io, roomId, 'char:updated', ch);
+      emitToOwner(io, roomId, ch.owner, 'sheet:updated', stripNotes(ch));
       const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(ch0.id);
       for (const { id } of tokens) {
         const t = getToken(id);
@@ -193,6 +196,109 @@ function ensureDdbTimer(io, roomId) {
     syncRoomDdb(io, roomId);
   }, DDB_SYNC_MS);
   if (typeof session.ddbTimer.unref === 'function') session.ddbTimer.unref();
+}
+
+function attackSpecFor(token) {
+  if (!token) return null;
+  if (token.characterId) {
+    const ch = getCharacter(token.characterId);
+    const list = ch ? computeDerived(ch.sheet).attacks : [];
+    if (list.length) return list.find(a => a.id === ch.sheet.activeAttack) || list[0];
+  }
+  return token.attackSpec || null;
+}
+
+// A sheet's derived numbers (AC, initiative, reach) land on the character
+// row and every token placed from it, so the map always agrees with the sheet.
+function syncDerived(io, roomId, characterId) {
+  const ch = getCharacter(characterId);
+  if (!ch) return null;
+  const d = computeDerived(ch.sheet);
+  const hasSheet = ch.sheet && (ch.sheet.abilities || ch.sheet.attacks?.length);
+  if (!hasSheet) return ch;
+  const reach = Math.max(5, ...d.attacks.map(a => a.reach || 5));
+  const updated = updateCharacter(characterId, { ac: d.ac, initBonus: d.initiative, reach });
+  const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(characterId);
+  for (const { id } of tokens) {
+    const t = updateToken(id, { ac: d.ac, initBonus: d.initiative, reach });
+    if (t) emitScene(io, roomId, t.sceneId, 'token:updated', t);
+  }
+  return updated;
+}
+
+// Reduce a token's HP (temp HP first), mirror to its sheet, announce going down.
+function applyDamage(io, roomId, target, damage) {
+  const session = getSession(roomId);
+  let remaining = damage;
+  const ch = target.characterId ? getCharacter(target.characterId) : null;
+  if (ch && ch.sheet?.tempHp > 0) {
+    const absorbed = Math.min(ch.sheet.tempHp, remaining);
+    remaining -= absorbed;
+    updateCharacter(ch.id, { sheet: { tempHp: ch.sheet.tempHp - absorbed } });
+  }
+  const before = target.hp;
+  const after = Math.max(0, before - remaining);
+  const token = updateToken(target.id, { hp: after });
+  emitScene(io, roomId, token.sceneId, 'token:updated', token);
+  if (ch) {
+    const fresh = getCharacter(ch.id);
+    emitDm(io, roomId, 'char:updated', fresh);
+    emitToOwner(io, roomId, fresh.owner, 'sheet:updated', stripNotes(fresh));
+  }
+  if (before > 0 && after <= 0) {
+    broadcastSystem(io, roomId, `💀 ${token.emoji ? token.emoji + ' ' : ''}${token.name} is down!`);
+    if (session.initiative?.order.some(e => e.tokenId === token.id)) {
+      const curId = currentEntry(session)?.tokenId;
+      session.initiative.order = session.initiative.order.filter(e => e.tokenId !== token.id);
+      if (session.initiative.order.length === 0) session.initiative = null;
+      else if (curId === token.id) {
+        session.initiative.turn = session.initiative.turn % session.initiative.order.length;
+        session.initiative.turnState = freshTurn();
+      } else {
+        session.initiative.turn = Math.max(0, session.initiative.order.findIndex(e => e.tokenId === curId));
+      }
+      io.to(roomId).emit('init:updated', session.initiative);
+    }
+  }
+  return token;
+}
+
+const stripNotes = ({ notes: _n, ...c }) => c;
+
+function emitToOwner(io, roomId, owner, event, payload) {
+  for (const [id, s] of io.sockets.sockets) {
+    if (s.data?.roomId === roomId && s.data.role === 'player' && (s.data.name === owner || id === owner)) s.emit(event, payload);
+  }
+}
+
+// Player-editable sheet keys. Notes, ownership and kind stay with the DM.
+const PLAYER_SHEET_KEYS = new Set(['tempHp', 'slots', 'inventory', 'money', 'conditions', 'activeAttack', 'spells', 'attacks', 'hitDice', 'xp',
+  'tempBonuses', 'skillProfs', 'expertise', 'saveProfs', 'abilities', 'armour', 'level', 'proficiency']);
+
+// What changed since the last D&D Beyond sync — the end-of-session checklist.
+function sessionDiff(c) {
+  const snap = c.sheet?.ddbSnapshot;
+  const lines = [];
+  if (!snap) return ['Not linked to D&D Beyond — update by hand: ' + (c.hp != null ? `HP ${c.hp}/${c.maxHp}` : '')];
+  if (c.hp != null && snap.hp != null && c.hp !== snap.hp) lines.push(`HP: ${snap.hp} → ${c.hp}${c.maxHp ? ` / ${c.maxHp}` : ''}`);
+  const slots = c.sheet?.slots || {};
+  for (const [lvl, sl] of Object.entries(slots)) {
+    const was = snap.slots?.[lvl]?.used ?? 0;
+    if ((sl.used || 0) !== was) lines.push(`Level ${lvl} spell slots used: ${was} → ${sl.used || 0}`);
+  }
+  const before = new Map((snap.inventory || []).map(i => [i.name, i.qty ?? 1]));
+  const after = new Map((c.sheet?.inventory || []).map(i => [i.name, i.qty ?? 1]));
+  for (const [name, qty] of after) {
+    const b = before.get(name);
+    if (b == null) lines.push(`New item: ${name}${qty > 1 ? ` ×${qty}` : ''}`);
+    else if (b !== qty) lines.push(`${name}: ${b} → ${qty}`);
+  }
+  for (const [name, qty] of before) if (!after.has(name)) lines.push(`Removed: ${name}${qty > 1 ? ` ×${qty}` : ''}`);
+  const m = c.sheet?.money || {}, sm = snap.money || {};
+  for (const k of ['gp', 'sp', 'cp']) if ((m[k] || 0) !== (sm[k] || 0)) lines.push(`${k.toUpperCase()}: ${sm[k] || 0} → ${m[k] || 0}`);
+  if ((c.sheet?.xp || 0) !== (snap.xp || 0)) lines.push(`XP: ${snap.xp || 0} → ${c.sheet.xp}`);
+  if (c.sheet?.conditions?.length) lines.push(`Conditions: ${c.sheet.conditions.join(', ')}`);
+  return lines.length ? lines : ['Nothing changed — already in sync'];
 }
 
 export function attachSockets(io) {
@@ -233,6 +339,7 @@ export function attachSockets(io) {
           presence: roomPresence(io, roomId),
           explored: getExplored(roomId, sceneId),
           characters: role === 'dm' ? listCharacters(roomId) : [],
+          mySheets: role === 'dm' ? [] : listCharactersFor(roomId, socket.data.name),
           paused: session.paused,
         });
         if (!alreadyHere) broadcastSystem(io, roomId, `${socket.data.name} joined as ${role}`);
@@ -541,9 +648,11 @@ export function attachSockets(io) {
     }));
 
     socket.on('char:update', dmOnly((c, cb) => {
-      const ch = updateCharacter(c.id, c);
+      let ch = updateCharacter(c.id, c);
       if (!ch) return cb?.({ error: 'Character not found' });
+      if (c.sheet) ch = syncDerived(io, R(), c.id) || ch;
       emitDm(io, R(), 'char:updated', ch);
+      emitToOwner(io, R(), ch.owner, 'sheet:updated', stripNotes(ch));
       // Placed tokens mirror the sheet — refresh them wherever they are.
       const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(ch.id);
       for (const { id } of tokens) {
@@ -605,6 +714,74 @@ export function attachSockets(io) {
       emitScene(io, R(), token.sceneId, 'token:moved', { id: tokenId, x, y, animate: false });
       refreshFog(io, R(), token.sceneId);
       cb?.({ ok: true, token });
+    }));
+
+    // ---- Character sheets (players: their own; DM: anyone's) ----
+
+    socket.on('sheet:update', ({ characterId, patch }, cb) => {
+      if (!R()) return cb?.({ error: 'Not in a room' });
+      const ch = getCharacter(characterId);
+      if (!ch || ch.roomId !== R()) return cb?.({ error: 'Character not found' });
+      const isOwner = ch.owner === socket.data.name || ch.owner === socket.id;
+      if (socket.data.role !== 'dm' && !isOwner) return cb?.({ error: 'Not your character' });
+      const fields = {};
+      const sheetPatch = {};
+      for (const [k, v] of Object.entries(patch || {})) {
+        if (k === 'hp' || k === 'maxHp' || k === 'ac') fields[k] = v;
+        else if (socket.data.role === 'dm' || PLAYER_SHEET_KEYS.has(k)) sheetPatch[k] = v;
+      }
+      if (fields.hp != null && ch.maxHp != null) fields.hp = Math.max(0, Math.min(ch.maxHp, fields.hp));
+      if (Object.keys(sheetPatch).length) fields.sheet = sheetPatch;
+      let updated = updateCharacter(characterId, fields);
+      if (fields.sheet) updated = syncDerived(io, R(), characterId) || updated;
+      // HP on the sheet is the token's HP.
+      const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(characterId);
+      for (const { id } of tokens) {
+        const t = ('hp' in fields || 'maxHp' in fields || 'ac' in fields)
+          ? updateToken(id, { hp: updated.hp, maxHp: updated.maxHp, ac: updated.ac })
+          : getToken(id);
+        if (t) emitScene(io, R(), t.sceneId, 'token:updated', t);
+        if (t && 'hp' in fields && updated.hp <= 0 && ch.hp > 0) {
+          broadcastSystem(io, R(), `💀 ${updated.name} is down!`);
+        }
+      }
+      emitDm(io, R(), 'char:updated', updated);
+      emitToOwner(io, R(), updated.owner, 'sheet:updated', stripNotes(updated));
+      cb?.({ ok: true, character: socket.data.role === 'dm' ? updated : stripNotes(updated) });
+    });
+
+    // Rests: long = full HP, temp HP gone, all slots back. Short = nothing automatic.
+    socket.on('rest', ({ characterId, kind }, cb) => {
+      if (!R()) return cb?.({ error: 'Not in a room' });
+      const ch = getCharacter(characterId);
+      if (!ch || ch.roomId !== R()) return cb?.({ error: 'Character not found' });
+      const isOwner = ch.owner === socket.data.name || ch.owner === socket.id;
+      if (socket.data.role !== 'dm' && !isOwner) return cb?.({ error: 'Not your character' });
+      if (kind === 'long') {
+        const slots = {};
+        for (const [lvl, sl] of Object.entries(ch.sheet?.slots || {})) slots[lvl] = { ...sl, used: 0 };
+        const updated = updateCharacter(characterId, { hp: ch.maxHp ?? ch.hp, sheet: { tempHp: 0, slots, conditions: [] } });
+        const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(characterId);
+        for (const { id } of tokens) {
+          const t = updateToken(id, { hp: updated.hp });
+          if (t) emitScene(io, R(), t.sceneId, 'token:updated', t);
+        }
+        emitDm(io, R(), 'char:updated', updated);
+        emitToOwner(io, R(), updated.owner, 'sheet:updated', stripNotes(updated));
+        broadcastSystem(io, R(), `🌙 ${ch.name} takes a long rest`);
+      } else {
+        broadcastSystem(io, R(), `☕ ${ch.name} takes a short rest`);
+      }
+      cb?.({ ok: true });
+    });
+
+    // End of session: what to copy back to D&D Beyond, shown to everyone.
+    socket.on('session:end', dmOnly((_p, cb) => {
+      const pcs = listCharacters(R()).filter(c => c.kind === 'pc');
+      const summary = pcs.map(c => ({ name: c.name, owner: c.owner, lines: sessionDiff(c) }));
+      io.to(R()).emit('session:summary', { summary, at: Date.now() });
+      broadcastSystem(io, R(), '📜 Session over — update your D&D Beyond sheets together (see the checklist)');
+      cb?.({ ok: true, summary });
     }));
 
     // ---- Initiative / combat ----
@@ -698,8 +875,9 @@ export function attachSockets(io) {
         if (before.imageUrl) delete stats.imageUrl;
         const t = updateToken(tokenId, { ...stats, ddbCharacterId: characterId || null, ddbData: data });
         if (t.characterId) {
-          const ch = updateCharacter(t.characterId, { ...stats, ddbCharacterId: characterId || null, ddbSyncedAt: Date.now() });
-          if (ch) emitDm(io, R(), 'char:updated', ch);
+          updateCharacter(t.characterId, { ...stats, ddbCharacterId: characterId || null, ddbSyncedAt: Date.now() });
+          const ch = syncDerived(io, R(), t.characterId);
+          if (ch) { emitDm(io, R(), 'char:updated', ch); emitToOwner(io, R(), ch.owner, 'sheet:updated', stripNotes(ch)); }
         }
         emitScene(io, R(), t.sceneId, 'token:updated', t);
         refreshFog(io, R(), t.sceneId);
@@ -719,11 +897,43 @@ export function attachSockets(io) {
         const data = manualData || await fetchDdbCharacter(id);
         const stats = ddbToStats(data);
         if (ch0.imageUrl) delete stats.imageUrl;
-        const ch = updateCharacter(characterId, { ...stats, ddbCharacterId: id || null, ddbSyncedAt: Date.now() });
+        // A re-sync (level-up, new magic item) refreshes the numbers but must
+        // not throw away what happened at the table: keep live HP, temp HP,
+        // slot usage, and items gained here since the last sync.
+        if (ch0.ddbSyncedAt && ch0.sheet?.ddbSnapshot && !manualData?.force) {
+          const live = ch0.sheet;
+          const merged = { ...stats.sheet };
+          merged.tempHp = live.tempHp ?? 0;
+          merged.conditions = live.conditions || [];
+          for (const [lvl, sl] of Object.entries(merged.slots || {})) {
+            if (live.slots?.[lvl]) merged.slots[lvl] = { ...sl, used: Math.min(sl.max, live.slots[lvl].used || 0) };
+          }
+          const ddbNames = new Set((stats.sheet.inventory || []).map(i => i.name));
+          const snapNames = new Set((live.ddbSnapshot.inventory || []).map(i => i.name));
+          for (const it of live.inventory || []) {
+            if (!ddbNames.has(it.name) && !snapNames.has(it.name)) merged.inventory.push(it); // gained at the table
+          }
+          merged.activeAttack = live.activeAttack;
+          stats.sheet = merged;
+          if (ch0.maxHp && stats.maxHp) {
+            // Keep damage taken; grow current HP by any max-HP increase (level-up).
+            const taken = Math.max(0, ch0.maxHp - (ch0.hp ?? ch0.maxHp));
+            stats.hp = Math.max(0, stats.maxHp - taken);
+          }
+        }
+        updateCharacter(characterId, { ...stats, ddbCharacterId: id || null, ddbSyncedAt: Date.now() });
+        const ch = syncDerived(io, R(), characterId) || getCharacter(characterId);
         emitDm(io, R(), 'char:updated', ch);
+        emitToOwner(io, R(), ch.owner, 'sheet:updated', stripNotes(ch));
         const tokens = getDb().prepare('SELECT id FROM tokens WHERE character_id = ?').all(characterId);
         for (const { id: tid } of tokens) {
-          const t = updateToken(tid, { hp: ch.hp, maxHp: ch.maxHp, ddbCharacterId: id || null, ddbData: data });
+          const t = updateToken(tid, {
+            hp: ch.hp, maxHp: ch.maxHp, ac: ch.ac, ddbCharacterId: id || null, ddbData: data,
+            ...(stats.speed != null ? { speed: stats.speed } : {}),
+            ...(stats.sightRadius != null ? { sightRadius: stats.sightRadius } : {}),
+            ...(stats.initBonus != null ? { initBonus: stats.initBonus } : {}),
+            ...(stats.reach != null ? { reach: stats.reach } : {}),
+          });
           emitScene(io, R(), t.sceneId, 'token:updated', t);
           refreshFog(io, R(), t.sceneId);
         }
@@ -844,20 +1054,42 @@ export function attachSockets(io) {
         }
       }
       const who = attacker || state.tokens.find(t => t.id !== target.id) || { name: socket.data.name };
-      const roll = rollDice('1d20');
-      const verdict = target.ac != null
-        ? (roll.total >= target.ac ? ' — HIT! 🎯' : ' — miss')
-        : '';
+      // Which weapon: a character's chosen attack from their sheet, or a monster's spec.
+      const spec = attackSpecFor(who);
+      const d20 = rollDice('1d20');
+      const natural = d20.total;
+      const toHit = spec?.toHit || 0;
+      const total = natural + toHit;
+      const crit = natural === 20;
+      const hit = target.ac != null ? (crit || (natural !== 1 && total >= target.ac)) : null;
+      let damage = 0, dmgText = '';
+      if (hit && spec?.damage) {
+        try {
+          const dr = rollDice(spec.damage);
+          damage = Math.max(0, dr.total);
+          if (crit) {
+            const extra = rollDice(spec.damage.replace(/([+-]\d+)$/, '')); // dice again, no modifier
+            damage += Math.max(0, extra.total);
+          }
+          dmgText = ` for ${damage} ${spec.damageType || ''}damage${crit ? ' (CRIT!)' : ''}`;
+        } catch { damage = 0; }
+      }
       emitScene(io, R(), target.sceneId, 'spell:effect', {
         id: nanoid(8), kind: 'slash', to: cellCenterPx(state.room, target), by: socket.data.name, ts: Date.now(),
       });
+      const weapon = spec?.name ? ` with ${spec.name}` : '';
+      const rollText = toHit ? `${natural}${toHit > 0 ? '+' : ''}${toHit} = ${total}` : `${natural}`;
+      const verdict = hit === null ? '' : (hit ? ` — HIT! 🎯${dmgText}` : ' — miss');
       const msg = {
         id: nanoid(10), roomId: R(), from: socket.data.name, type: 'roll',
-        text: `⚔️ ${who.name} attacks ${target.name}: ${formatRoll(roll)}${verdict}`, roll, ts: Date.now(),
+        text: `⚔️ ${who.name} attacks ${target.name}${weapon}: d20 ${rollText}${verdict}`, roll: d20, ts: Date.now(),
       };
       pushChat(R(), msg);
       io.to(R()).emit('chat:message', msg);
-      cb?.({ ok: true, roll: roll.total, hit: target.ac != null ? roll.total >= target.ac : null });
+      if (damage > 0 && target.maxHp > 0 && target.hp != null) {
+        applyDamage(io, R(), target, damage);
+      }
+      cb?.({ ok: true, roll: total, natural, hit, damage });
     });
 
     // ---- Chat & dice ----

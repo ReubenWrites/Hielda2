@@ -184,6 +184,9 @@ export function createCharacter(roomId, c) {
     c.reach ?? 5,
     c.initBonus ?? 0,
   );
+  if (c.sheet && typeof c.sheet === 'object') {
+    db.prepare('UPDATE characters SET sheet = ? WHERE id = ?').run(JSON.stringify(c.sheet), id);
+  }
   return getCharacter(id);
 }
 
@@ -214,6 +217,14 @@ export function updateCharacter(id, fields) {
       sets.push(`${col} = ?`);
       vals.push(v);
     }
+  }
+  // The sheet is a JSON blob; patches replace top-level keys.
+  if (fields.sheet && typeof fields.sheet === 'object') {
+    const row = db.prepare('SELECT sheet FROM characters WHERE id = ?').get(id);
+    let cur = {};
+    try { cur = JSON.parse(row?.sheet || '{}') || {}; } catch {}
+    sets.push('sheet = ?');
+    vals.push(JSON.stringify({ ...cur, ...fields.sheet }));
   }
   if (sets.length) {
     vals.push(id);
@@ -265,6 +276,7 @@ export function createToken(roomId, sceneId, t) {
     t.reach ?? 5,
     t.initBonus ?? 0,
   );
+  if (t.attackSpec) db.prepare('UPDATE tokens SET attack_json = ? WHERE id = ?').run(JSON.stringify(t.attackSpec), id);
   return getToken(id);
 }
 
@@ -292,6 +304,7 @@ export function updateToken(id, fields) {
     visibleToPlayers: 'visible_to_players',
     hp: 'hp', maxHp: 'max_hp', ac: 'ac', emoji: 'emoji',
     speed: 'speed', attacks: 'attacks', size: 'size', reach: 'reach', initBonus: 'init_bonus',
+    attackSpec: 'attack_json',
     characterId: 'character_id',
     ddbCharacterId: 'ddb_character_id', ddbData: 'ddb_data',
   };
@@ -301,7 +314,7 @@ export function updateToken(id, fields) {
     if (k in fields) {
       let v = fields[k];
       if (k === 'visibleToPlayers') v = v ? 1 : 0;
-      if (k === 'ddbData' && typeof v !== 'string' && v != null) v = JSON.stringify(v);
+      if ((k === 'ddbData' || k === 'attackSpec') && typeof v !== 'string' && v != null) v = JSON.stringify(v);
       sets.push(`${col} = ?`);
       vals.push(v);
     }
@@ -449,6 +462,7 @@ function serializeToken(row) {
     size: row.size ?? 1,
     reach: row.reach ?? 5,
     initBonus: row.init_bonus ?? 0,
+    attackSpec: row.attack_json ? safeParse(row.attack_json) : null,
     ddbCharacterId: row.ddb_character_id,
     ddbData: row.ddb_data ? safeParse(row.ddb_data) : null,
   };
@@ -498,7 +512,13 @@ function serializeCharacter(row) {
     initBonus: row.init_bonus ?? 0,
     ddbCharacterId: row.ddb_character_id || null,
     ddbSyncedAt: row.ddb_synced_at || null,
+    sheet: safeParse(row.sheet || '{}') || {},
   };
+}
+
+// Characters a player may see: their own, with DM notes stripped.
+export function listCharactersFor(roomId, owner) {
+  return listCharacters(roomId).filter(c => c.owner === owner).map(({ notes: _n, ...c }) => c);
 }
 
 function safeParse(s) {

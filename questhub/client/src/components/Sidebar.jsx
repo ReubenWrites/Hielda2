@@ -3,6 +3,7 @@ import { useStore } from '../state/store.js';
 import { uploadImage, emit } from '../net/socket.js';
 import { BESTIARY } from '@questhub/shared/bestiary';
 import { computeFog, tokenVisibleToViewer } from '../game/fog.js';
+import SheetPanel from './SheetPanel.jsx';
 
 export default function Sidebar({ onCopyInvite }) {
   const role = useStore(s => s.role);
@@ -16,9 +17,11 @@ export default function Sidebar({ onCopyInvite }) {
   const [tab, setTab] = useState('characters');
 
   // Role arrives async after the socket join; land DMs on their tools tab.
+  const mySheets = useStore(s => s.mySheets);
   useEffect(() => {
     if (role === 'dm') setTab('dm');
-  }, [role]);
+    else if (role === 'player' && mySheets.length) setTab('sheet');
+  }, [role, mySheets.length]);
 
   return (
     <div className="side">
@@ -39,6 +42,7 @@ export default function Sidebar({ onCopyInvite }) {
           {role === 'dm' && <button className={tab === 'dm' ? 'active' : ''} onClick={() => setTab('dm')}>DM</button>}
           {role === 'dm' && <button className={tab === 'cast' ? 'active' : ''} onClick={() => setTab('cast')}>Cast</button>}
           {role === 'dm' && <button className={tab === 'library' ? 'active' : ''} onClick={() => setTab('library')}>Library</button>}
+          {role !== 'dm' && <button className={tab === 'sheet' ? 'active' : ''} onClick={() => setTab('sheet')}>Sheet</button>}
           <button className={tab === 'characters' ? 'active' : ''} onClick={() => setTab('characters')}>Tokens</button>
           <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>Chat</button>
         </div>
@@ -46,6 +50,7 @@ export default function Sidebar({ onCopyInvite }) {
           {tab === 'dm' && role === 'dm' && <DmTab tool={tool} setTool={setTool} />}
           {tab === 'cast' && role === 'dm' && <CastTab />}
           {tab === 'library' && role === 'dm' && <LibraryTab />}
+          {tab === 'sheet' && role !== 'dm' && <MySheetTab />}
           {tab === 'characters' && (
             <TokenListTab
               tokens={tokens}
@@ -191,6 +196,11 @@ function DmTab({ tool, setTool }) {
           <button onClick={saveQuest}>💾 Save quest</button>
           <button onClick={() => loadRef.current?.click()}>📂 Load quest</button>
         </div>
+        <button style={{ width: '100%', marginTop: 6 }}
+          title="Show everyone what changed on each character since the last D&D Beyond sync"
+          onClick={() => emit('session:end').catch(e => setStatus(e.message, 4000))}>
+          📜 End session — update D&D Beyond together
+        </button>
         <input ref={loadRef} type="file" accept=".json,application/json" onChange={loadQuest} style={{ display: 'none' }} />
       </div>
 
@@ -287,6 +297,7 @@ function DmTab({ tool, setTool }) {
                     sightRadius: m.sight, hp: m.hp, maxHp: m.hp, ac: m.ac,
                     speed: m.speed ?? 30, attacks: m.attacks ?? 1,
                     size: m.size ?? 1, reach: m.reach ?? 5, initBonus: m.initBonus ?? 0,
+                    attackSpec: m.attack || null,
                   })}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -306,6 +317,16 @@ function DmTab({ tool, setTool }) {
       </div>
     </>
   );
+}
+
+function MySheetTab() {
+  const mySheets = useStore(s => s.mySheets);
+  if (!mySheets.length) {
+    return <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+      No character yet — ask the DM to add you (they click ⭐ Token next to your name).
+    </div>;
+  }
+  return <>{mySheets.map(c => <SheetPanel key={c.id} character={c} />)}</>;
 }
 
 function PlayersSection() {
@@ -594,6 +615,9 @@ function CharacterCard({ c, open, onToggle, placing, onPlace }) {
             <textarea rows={4} value={notes} onChange={e => setNotes(e.target.value)}
               onBlur={() => notes !== c.notes && save({ notes })} />
             <div style={{ fontSize: 10, color: 'var(--muted)' }}>Saves when you click away.</div>
+          </div>
+          <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+            <SheetPanel character={c} dm />
           </div>
           <button className="danger" style={{ width: '100%' }}
             onClick={() => window.confirm(`Remove ${c.name} from the cast? Placed tokens stay on their maps.`) &&

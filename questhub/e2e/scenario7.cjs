@@ -60,7 +60,7 @@ const ack = (s, ev, p) => new Promise(res => s.emit(ev, p, res));
     await dm.mouse.click(dcx + (s.x - 10) * 64, dcy + (s.y - 10) * 64); // Seren
     await dm.waitForTimeout(500);
     const chat = await (async () => { await seren.click('.tabs button:has-text("Chat")'); return seren.locator('.chat-msgs').textContent(); })();
-    check("Wolf's turn: DM attack tool → 'Wolf attacks Seren' with d20 vs AC 14 in Seren's chat", /Wolf attacks Seren: 1d20\[\d+\] = \d+ — (HIT|miss)/.test(chat), chat.slice(-60));
+    check("Wolf's turn: DM attack tool → 'Wolf attacks Seren' with d20 vs AC 14 in Seren's chat", /Wolf attacks Seren(?: with [^:]+)?: d20 \d+(?:[+-]\d+ = \d+)? — (HIT|miss)/.test(chat), chat.slice(-60));
     await dm.keyboard.press('Escape');
     // DM applies 5 damage to Seren from the token editor
     await dm.click('.tabs button:has-text("Tokens")');

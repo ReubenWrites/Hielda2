@@ -139,6 +139,8 @@ export default function Room() {
     const onCharUpdated = (c) => s.upsertCharacter(c);
     const onCharDeleted = ({ id }) => s.removeCharacter(id);
     const onCharsUpdated = (list) => s.setCharacters(list);
+    const onSheetUpdated = (c) => s.upsertMySheet(c);
+    const onSessionSummary = (payload) => s.setSessionSummary(payload);
     const onHold = ({ paused }) => {
       s.setPaused(paused);
       if (useStore.getState().role !== 'dm') setStatus(paused ? '⏸ Hold on…' : '▶ Play on!', 3000);
@@ -174,6 +176,8 @@ export default function Room() {
     sock.on('char:deleted', onCharDeleted);
     sock.on('chars:updated', onCharsUpdated);
     sock.on('hold:updated', onHold);
+    sock.on('sheet:updated', onSheetUpdated);
+    sock.on('session:summary', onSessionSummary);
 
     return () => {
       sock.off('connect', onConnect);
@@ -208,6 +212,8 @@ export default function Room() {
       sock.off('char:deleted', onCharDeleted);
       sock.off('chars:updated', onCharsUpdated);
       sock.off('hold:updated', onHold);
+      sock.off('sheet:updated', onSheetUpdated);
+      sock.off('session:summary', onSessionSummary);
     };
   }, [roomId]);
 
@@ -274,6 +280,7 @@ export default function Room() {
               emoji: tpl.emoji ?? null,
               speed: tpl.speed ?? 30, attacks: tpl.attacks ?? 1,
               size: tpl.size ?? 1, reach: tpl.reach ?? 5, initBonus: tpl.initBonus ?? 0,
+              attackSpec: tpl.attackSpec ?? null,
             });
             // Single-shot templates (player tokens) disarm; bestiary stays armed
             if (tpl.single) useStore.getState().setSpawnTemplate(null);
@@ -361,6 +368,7 @@ export default function Room() {
         {role === 'dm' && <HoldButton />}
         {role !== 'dm' && <HoldOverlay />}
         <CombatBar />
+        <SessionSummaryOverlay />
         <HandoutOverlay />
         <SpellBar />
         {status && (
@@ -414,6 +422,41 @@ function HoldOverlay() {
         boxShadow: '0 12px 40px rgba(0,0,0,0.8)',
       }}>
         ⏸ Hold on… the DM is doing something
+      </div>
+    </div>
+  );
+}
+
+// End of session: the "update D&D Beyond together" checklist, for everyone.
+function SessionSummaryOverlay() {
+  const summary = useStore(s => s.sessionSummary);
+  const setSummary = useStore(s => s.setSessionSummary);
+  if (!summary) return null;
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 31, background: 'rgba(0,0,0,0.8)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: 'var(--panel)', border: '2px solid var(--accent)', borderRadius: 16,
+        padding: 24, maxWidth: 560, width: '90%', maxHeight: '85%', overflowY: 'auto',
+        boxShadow: '0 12px 48px rgba(0,0,0,0.9)',
+      }}>
+        <h2 style={{ color: 'var(--accent)', marginBottom: 4 }}>📜 Session over</h2>
+        <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 14 }}>
+          Update each D&D Beyond sheet together, then tick it off.
+        </div>
+        {summary.summary.map(c => (
+          <div key={c.name} style={{ marginBottom: 14, padding: 10, background: 'var(--panel-2)', borderRadius: 8 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{c.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({c.owner})</span></div>
+            {c.lines.map((l, i) => (
+              <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, margin: '4px 0', color: 'var(--text)' }}>
+                <input type="checkbox" /> <span>{l}</span>
+              </label>
+            ))}
+          </div>
+        ))}
+        <button className="primary" style={{ width: '100%' }} onClick={() => setSummary(null)}>Done — see you next time!</button>
       </div>
     </div>
   );

@@ -35,8 +35,9 @@ export const useStore = create((set, get) => ({
     }, ttl);
   },
 
-  hydrate: ({ role, you, state, chat, proposals, initiative, presence, explored, characters, paused }) => set({
+  hydrate: ({ role, you, state, chat, proposals, initiative, presence, explored, characters, paused, mySheets }) => set({
     paused: !!paused,
+    mySheets: mySheets || [],
     role,
     you,
     room: state.room,
@@ -119,6 +120,14 @@ export const useStore = create((set, get) => ({
   setHandout: (handout) => set({ handout }),
   paused: false,          // DM has called a hold: players' actions are frozen
   setPaused: (paused) => set({ paused }),
+  mySheets: [],           // players: their own characters (no DM notes)
+  upsertMySheet: (c) => set((s) => {
+    const i = s.mySheets.findIndex(x => x.id === c.id);
+    if (i === -1) return { mySheets: [...s.mySheets, c] };
+    const next = s.mySheets.slice(); next[i] = c; return { mySheets: next };
+  }),
+  sessionSummary: null,
+  setSessionSummary: (sessionSummary) => set({ sessionSummary }),
 
   addProposal: (p) => set((s) => ({
     proposals: [...s.proposals.filter(x => x.id !== p.id), p],

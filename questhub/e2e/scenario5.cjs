@@ -53,7 +53,7 @@ const once = (s, ev) => new Promise(res => s.once(ev, res));
   check('Seren gets an instant HIT/miss toast', /Rolled \d+ — (HIT|miss)/.test(s2), s2);
   await seren.click('.tabs button:has-text("Chat")');
   const chat = await seren.locator('.chat-msgs').textContent();
-  check('Chat shows "Seren attacks Wolf" with the d20 vs AC 13', /Seren attacks Wolf: 1d20\[\d+\] = \d+ — (HIT|miss)/.test(chat), chat.slice(-70));
+  check('Chat shows "Seren attacks Wolf" with the d20 vs AC 13', /Seren attacks Wolf(?: with [^:]+)?: d20 \d+(?:[+-]\d+ = \d+)? — (HIT|miss)/.test(chat), chat.slice(-70));
 
   // ---- Combat: initiative bar + turn economy from Seren's chair
   const serenTok = (await ack(gm, 'room:join', { roomId, name: 'GM', asDm: true, dmSecret })).state.tokens.find(t => t.name === 'Seren');

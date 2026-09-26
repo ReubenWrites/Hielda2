@@ -11,7 +11,8 @@
     "./bestiary": "./bestiary.js",
     "./gridcalib": "./gridcalib.js",
     "./measure": "./measure.js",
-    "./geometry": "./geometry.js"
+    "./geometry": "./geometry.js",
+    "./rules": "./rules.js"
   },
   "scripts": {
     "test": "vitest run"

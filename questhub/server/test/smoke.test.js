@@ -45,6 +45,14 @@ function emitAck(socket, event, payload) {
   return new Promise((resolve) => socket.emit(event, payload, resolve));
 }
 
+// Resolve with the first chat message matching `re` (ignores unrelated system lines).
+function waitChat(socket, re) {
+  return new Promise((resolve) => {
+    const h = (m) => { if (re.test(m.text)) { socket.off('chat:message', h); resolve(m); } };
+    socket.on('chat:message', h);
+  });
+}
+
 async function dmFor(roomName) {
   const { id: roomId, dmSecret } = await call('POST', '/api/rooms', { name: roomName });
   const dm = connect();
@@ -220,14 +228,14 @@ describe('socket flow', () => {
     expect(far.error).toMatch(/next to it/i);
     await emitAck(dm, 'token:move', { id: wolf.id, x: 3, y: 3 }); // diagonal neighbour
     const fx = once(seren, 'spell:effect');
-    const chat = once(dm, 'chat:message');
+    const chat = waitChat(dm, /attacks Wolf/);
     const res = await emitAck(seren, 'attack', { targetId: wolf.id });
     expect(res.ok).toBe(true);
     expect(res.roll).toBeGreaterThanOrEqual(1);
     expect(typeof res.hit).toBe('boolean');
     expect((await fx).kind).toBe('slash');
     const msg = await chat;
-    expect(msg.text).toMatch(/Seren attacks Wolf: 1d20\[\d+\] = \d+ — (HIT|miss)/);
+    expect(msg.text).toMatch(/Seren attacks Wolf: d20 \d+ — (HIT|miss)/);
     dm.close(); seren.close();
   });
 
@@ -294,10 +302,10 @@ describe('socket flow', () => {
     const w = (await emitAck(dm, 'token:create', { name: 'Wolf', x: 9, y: 9, hp: 11, maxHp: 11 })).token;
     const self = await emitAck(dm, 'attack', { targetId: w.id, attackerId: w.id });
     expect(self.error).toMatch(/cannot attack itself/i);
-    const chat = once(seren, 'chat:message');
+    const chat = waitChat(seren, /attacks Seren/);
     const res = await emitAck(dm, 'attack', { targetId: s.id, attackerId: w.id }); // range doesn't matter for the DM
     expect(res.ok).toBe(true);
-    expect((await chat).text).toMatch(/Wolf attacks Seren: 1d20\[\d+\] = \d+ — (HIT|miss)/);
+    expect((await chat).text).toMatch(/Wolf attacks Seren: d20 \d+ — (HIT|miss)/);
     // Down at 0 HP
     await emitAck(dm, 'init:roll', { tokenIds: [s.id, w.id] });
     const downMsg = new Promise(res => seren.on('chat:message', m => { if (/is down/.test(m.text)) res(m); }));
@@ -336,6 +344,142 @@ describe('socket flow', () => {
     expect(a.path).toEqual([{ x: 5, y: 2 }, { x: 6, y: 2 }]);
     expect(a.interrupted).toBe(true);
     dm.close(); seren.close();
+  });
+
+  test('sheets: player edits own sheet only, notes never leak, HP mirrors to token', async () => {
+    const { roomId, dm } = await dmFor('Sheet Test');
+    const { socket: seren, join: sj } = await playerFor(roomId, 'Seren');
+    const { socket: mira } = await playerFor(roomId, 'Mira');
+    const ch = (await emitAck(dm, 'char:create', {
+      name: 'Seren', kind: 'pc', owner: 'Seren', hp: 12, maxHp: 12, notes: 'SECRET: is secretly a Vistani spy',
+      sheet: { level: 3, abilities: { STR: 10, DEX: 16, CON: 14, INT: 12, WIS: 13, CHA: 8 }, skillProfs: ['Stealth'], attacks: [{ id: 'r', name: 'Rapier', dice: '1d8', ability: 'finesse' }] },
+    })).character;
+    const tok = (await emitAck(dm, 'char:place', { characterId: ch.id, x: 2, y: 2 })).token;
+    // Join payload for the owner carries the sheet without notes
+    const { socket: seren2, join: sj2 } = await playerFor(roomId, 'Seren');
+    expect(sj2.mySheets).toHaveLength(1);
+    expect(sj2.mySheets[0].notes).toBeUndefined();
+    expect(sj2.mySheets[0].sheet.abilities.DEX).toBe(16);
+    seren2.close();
+    // Derived AC/initiative/reach landed on the token when placed from a sheet with abilities
+    const placedTok = (await new Promise(res => { const s = connect(); s.on('connect', () => s.emit('room:join', { roomId, name: 'Probe' }, r => { res(r.state.tokens); s.close(); })); })).find(t => t.id === tok.id);
+    expect(placedTok.initBonus).toBe(0); // not yet synced: place copies the row; sheet:update below syncs
+    // Another player cannot touch it
+    const denied = await emitAck(mira, 'sheet:update', { characterId: ch.id, patch: { hp: 1 } });
+    expect(denied.error).toMatch(/not your character/i);
+    // Owner takes damage on the sheet → token follows, floor at 0, ceiling at max
+    const upd = once(dm, 'token:updated');
+    const r1 = await emitAck(seren, 'sheet:update', { characterId: ch.id, patch: { hp: 7 } });
+    expect(r1.ok).toBe(true);
+    expect((await upd).hp).toBe(7);
+    const r2 = await emitAck(seren, 'sheet:update', { characterId: ch.id, patch: { hp: 99 } });
+    expect(r2.character.hp).toBe(12);
+    // Owner can't write DM-only fields; they are silently ignored
+    const r3 = await emitAck(seren, 'sheet:update', { characterId: ch.id, patch: { notes: 'hacked', owner: 'Mira', tempHp: 5 } });
+    expect(r3.character.notes).toBeUndefined();
+    expect(r3.character.owner).toBe('Seren');
+    expect(r3.character.sheet.tempHp).toBe(5);
+    const dmView = (await emitAck(dm, 'char:update', { id: ch.id })).character;
+    expect(dmView.notes).toBe('SECRET: is secretly a Vistani spy');
+    // Temporary DEX bonus → derived AC and initiative reach the token
+    const synced = once(dm, 'token:updated');
+    await emitAck(seren, 'sheet:update', { characterId: ch.id, patch: { tempBonuses: { DEX: 2 } } });
+    const t2 = await synced;
+    expect(t2.ac).toBe(10 + 4);
+    expect(t2.initBonus).toBe(4);
+    dm.close(); seren.close(); mira.close();
+  });
+
+  test('attacks with a sheet weapon roll damage, eat temp HP first, and can drop a creature', async () => {
+    const { roomId, dm } = await dmFor('Damage Test');
+    const { socket: seren } = await playerFor(roomId, 'Seren');
+    const ch = (await emitAck(dm, 'char:create', {
+      name: 'Seren', kind: 'pc', owner: 'Seren', hp: 12, maxHp: 12,
+      sheet: { level: 5, abilities: { STR: 10, DEX: 16, CON: 14, INT: 12, WIS: 13, CHA: 8 },
+        attacks: [{ id: 'r', name: 'Rapier', dice: '1d8', ability: 'finesse', magic: 1 }], tempHp: 4 },
+    })).character;
+    const serenTok = (await emitAck(dm, 'char:place', { characterId: ch.id, x: 2, y: 2 })).token;
+    // A wolf with AC 0 so every swing hits; 5 HP so a rapier (1d8+4 ≥ 5) always drops it
+    const wolf = (await emitAck(dm, 'token:create', { name: 'Wolf', x: 3, y: 2, ac: 0, hp: 5, maxHp: 5, attackSpec: { name: 'Bite', toHit: 4, damage: '2d4+2' } })).token;
+    const chat = waitChat(seren, /attacks Wolf/);
+    const res = await emitAck(seren, 'attack', { targetId: wolf.id });
+    expect(res.ok).toBe(true);
+    expect(res.hit).toBe(true);
+    expect(res.damage).toBeGreaterThanOrEqual(5);
+    expect((await chat).text).toMatch(/Seren attacks Wolf with Rapier: d20 \d+\+7 = \d+ — HIT! 🎯 for \d+ damage/);
+    const wolfNow = (await new Promise(res => { const s = connect(); s.on('connect', () => s.emit('room:join', { roomId, name: 'Probe' }, r => { res(r.state.tokens); s.close(); })); })).find(t => t.id === wolf.id);
+    expect(wolfNow.hp).toBe(0);
+    // Wolf (DM attack tool) bites Seren: temp HP absorbs first
+    await emitAck(dm, 'token:update', { id: wolf.id, hp: 5 });
+    await emitAck(dm, 'token:update', { id: serenTok.id, ac: 0 });
+    const r2 = await emitAck(dm, 'attack', { targetId: serenTok.id, attackerId: wolf.id });
+    expect(r2.hit).toBe(true);
+    expect(r2.damage).toBeGreaterThanOrEqual(4);
+    const after = (await emitAck(dm, 'char:update', { id: ch.id })).character;
+    expect(after.sheet.tempHp).toBe(0);
+    expect(after.hp).toBe(12 - Math.max(0, r2.damage - 4));
+    dm.close(); seren.close();
+  });
+
+  test('rests and the end-of-session checklist', async () => {
+    const { roomId, dm } = await dmFor('Rest Test');
+    const { socket: seren } = await playerFor(roomId, 'Seren');
+    const ch = (await emitAck(dm, 'char:create', {
+      name: 'Seren', kind: 'pc', owner: 'Seren', hp: 5, maxHp: 12,
+      sheet: {
+        slots: { 1: { max: 4, used: 3 } }, tempHp: 2, conditions: ['Poisoned'],
+        inventory: [{ id: 'a', name: 'Rope', qty: 1 }, { id: 'b', name: 'Torch', qty: 3 }], money: { gp: 10, sp: 0, cp: 0 },
+        ddbSnapshot: { hp: 12, slots: { 1: { max: 4, used: 0 } }, inventory: [{ name: 'Torch', qty: 5 }], money: { gp: 12, sp: 0, cp: 0 }, xp: 0 },
+      },
+    })).character;
+    const summary = await emitAck(dm, 'session:end', {});
+    const lines = summary.summary.find(c => c.name === 'Seren').lines;
+    expect(lines).toContain('HP: 12 → 5 / 12');
+    expect(lines).toContain('Level 1 spell slots used: 0 → 3');
+    expect(lines).toContain('New item: Rope');
+    expect(lines).toContain('Torch: 5 → 3');
+    expect(lines).toContain('GP: 12 → 10');
+    expect(lines).toContain('Conditions: Poisoned');
+    // Players get the checklist too
+    const gotSummary = once(seren, 'session:summary');
+    await emitAck(dm, 'session:end', {});
+    expect((await gotSummary).summary[0].lines.length).toBeGreaterThan(0);
+    // Long rest restores everything
+    const rested = await (async () => { const p = once(dm, 'char:updated'); await emitAck(seren, 'rest', { characterId: ch.id, kind: 'long' }); return p; })();
+    expect(rested.hp).toBe(12);
+    expect(rested.sheet.slots[1].used).toBe(0);
+    expect(rested.sheet.tempHp).toBe(0);
+    expect(rested.sheet.conditions).toEqual([]);
+    dm.close(); seren.close();
+  });
+
+  test('re-syncing from D&D Beyond after a level-up keeps what happened at the table', async () => {
+    const { roomId, dm } = await dmFor('Resync Test');
+    const ch = (await emitAck(dm, 'char:create', { name: 'Seren', kind: 'pc', owner: 'Seren' })).character;
+    const v1 = {
+      name: 'Seren', level: 4, classes: [{ name: 'Rogue', level: 4 }], hp: { current: 30, max: 30, temp: 0 }, ac: 15, speed: 30,
+      senses: { darkvision: 60 }, abilities: { STR: 10, DEX: 16, CON: 14, INT: 12, WIS: 13, CHA: 8 }, initBonus: 3, proficiency: 2,
+      slots: { 1: { max: 3, used: 0 } }, inventory: [{ id: 'x', name: 'Rapier', qty: 1 }], spells: [], attacks: [{ id: 'x', name: 'Rapier', dice: '1d8', ability: 'finesse', reach: 5 }],
+      money: { gp: 0, sp: 0, cp: 0 }, xp: 2700, armour: { base: 12, maxDex: null, shield: 0, bonus: 0 }, skillProfs: [], expertise: [], saveProfs: [],
+    };
+    const first = await emitAck(dm, 'char:ddb-link', { characterId: ch.id, ddbId: '1', manualData: v1 });
+    expect(first.ok).toBe(true);
+    expect(first.character.maxHp).toBe(30);
+    // Play happens: damage, a slot spent, loot found
+    await emitAck(dm, 'sheet:update', { characterId: ch.id, patch: { hp: 18, slots: { 1: { max: 3, used: 2 } }, inventory: [...first.character.sheet.inventory, { id: 'loot', name: 'Silver dagger', qty: 1 }] } });
+    // Level up on DDB: more HP, a 2nd-level slot, new proficiency
+    const v2 = { ...v1, level: 5, classes: [{ name: 'Rogue', level: 5 }], hp: { current: 38, max: 38, temp: 0 }, proficiency: 3,
+      slots: { 1: { max: 4, used: 0 }, 2: { max: 2, used: 0 } }, skillProfs: ['Animal Handling'] };
+    const second = await emitAck(dm, 'char:ddb-link', { characterId: ch.id, manualData: v2 });
+    const c2 = second.character;
+    expect(c2.maxHp).toBe(38);
+    expect(c2.hp).toBe(38 - 12);                       // damage taken carried over
+    expect(c2.sheet.slots[1]).toEqual({ max: 4, used: 2 }); // slot usage kept, new max
+    expect(c2.sheet.slots[2]).toEqual({ max: 2, used: 0 });
+    expect(c2.sheet.inventory.some(i => i.name === 'Silver dagger')).toBe(true); // table loot kept
+    expect(c2.sheet.skillProfs).toEqual(['Animal Handling']);
+    expect(c2.initBonus).toBe(3);
+    dm.close();
   });
 
   test('chat /r rolls dice', async () => {
