@@ -501,7 +501,7 @@ function CastTab() {
                 placing={spawnTemplate?.characterId === c.id}
                 onPlace={() => spawnTemplate?.characterId === c.id
                   ? setSpawnTemplate(null)
-                  : setSpawnTemplate({ characterId: c.id, name: c.name, single: c.kind === 'pc' })} />
+                  : setSpawnTemplate({ characterId: c.id, name: c.name, single: c.kind !== 'monster' })} />
             ))}
           </div>
         </div>
