@@ -71,13 +71,15 @@ export class TokenView {
     const g = this.body;
     g.clear();
     const r = this.room.grid_size * 0.4;
-    const color = parseInt((this.token.color || '#5b9bd5').replace('#', ''), 16);
+    const down = this.token.maxHp > 0 && this.token.hp != null && this.token.hp <= 0;
+    // Downed creatures go grey so nobody mistakes a corpse for a threat.
+    const color = down ? 0x555a60 : parseInt((this.token.color || '#5b9bd5').replace('#', ''), 16);
     if (!this.sprite) {
       g.circle(0, 0, r).fill({ color, alpha: ghost ? 0.45 : 1 });
     }
     g.circle(0, 0, r).stroke({
       width: selected ? 3 : 2,
-      color: selected ? 0xf0a500 : (ghost ? 0xaaaaaa : 0xffffff),
+      color: selected ? 0xf0a500 : (ghost || down ? 0xaaaaaa : 0xffffff),
       alpha: ghost ? 0.6 : 1,
     });
     // HP bar above the token (DM always; players only on their own tokens)
@@ -93,8 +95,8 @@ export class TokenView {
       }
       g.rect(-w / 2, y, w, h).stroke({ width: 1, color: 0x000000, alpha: 0.7 });
     }
-    const down = this.token.maxHp > 0 && this.token.hp != null && this.token.hp <= 0;
-    this.container.alpha = ghost ? 0.55 : (down ? 0.45 : 1);
+    this.container.alpha = ghost ? 0.55 : (down ? 0.7 : 1);
+    if (this.sprite) this.sprite.alpha = down ? 0.35 : 1;
   }
 
   position(cellOverride) {
