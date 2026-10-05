@@ -17,7 +17,7 @@ const SITE = "https://hielda.com"
 
 // Route table shared with App.jsx so the head a crawler gets at first
 // fetch and the head the client sets after mounting are the same thing.
-const { SEO_ROUTES } = await import("../src/data/seoRoutes.js")
+const { SEO_ROUTES, breadcrumbSchema } = await import("../src/data/seoRoutes.js")
 const routes = SEO_ROUTES.filter((r) => r.file).map((r) => ({ ...r, canonical: r.path === "/" ? `${SITE}/` : `${SITE}${r.path}` }))
 
 function escapeAttr(s) {
@@ -96,7 +96,9 @@ for (const route of routes) {
     html = setMetaContent(html, 'property="og:image:alt"', route.title)
     html = setMetaContent(html, 'name="twitter:image"', route.ogImage)
   }
-  html = injectSchemas(html, route.extraSchemas)
+  // Guides emit their own BreadcrumbList (with Article) inside GuideLayout.
+  const crumbs = route.path !== "/" && !route.path.startsWith("/guides/") ? [breadcrumbSchema(route)] : []
+  html = injectSchemas(html, [...(route.extraSchemas || []), ...crumbs])
 
   fs.writeFileSync(path.join(DIST, route.file), html)
   written++

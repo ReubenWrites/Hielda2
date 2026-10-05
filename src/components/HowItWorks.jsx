@@ -45,7 +45,7 @@ export default function HowItWorks() {
 
       <div className={s.topGrid}>
         <Card>
-          <h3 className={s.sectionTitle}>Your Legal Rights</h3>
+          <h2 className={s.sectionTitle}>Your legal rights when a client pays late</h2>
           <div className={s.bodyText}>
             <p className={s.bodyParagraph}>
               If a company doesn't pay you on time, you have the right to charge interest and additional fines under the{" "}
@@ -69,7 +69,7 @@ export default function HowItWorks() {
         </Card>
 
         <Card>
-          <h3 className={s.sectionTitle}>Why It Works</h3>
+          <h2 className={s.sectionTitle}>Why automated invoice chasing works</h2>
           <div className={s.bodyText}>
             <p className={s.bodyParagraph}>Companies pay late because there are no consequences.</p>
             <p className={s.bodyParagraph}>A third-party notice citing legislation changes everything:</p>
@@ -85,7 +85,7 @@ export default function HowItWorks() {
       </div>
 
       <Card>
-        <h3 className={s.timelineTitle}>Chase Timeline</h3>
+        <h2 className={s.timelineTitle}>The late invoice chase timeline</h2>
         <p className={s.timelineIntro}>
           Every step is preceded by a check-in with you. We always ask "have you been paid?" before sending anything to your client.
         </p>
@@ -105,7 +105,7 @@ export default function HowItWorks() {
 
       <div className={s.bottomGrid}>
         <Card>
-          <h3 className={s.faqTitle}>Frequently Asked</h3>
+          <h2 className={s.faqTitle}>Frequently asked questions</h2>
           {HOW_FAQS.map((faq, i) => (
             <div key={i} className={i < 3 ? s.faqItem : s.faqItemLast}>
               <div className={s.faqQuestion}>{faq.q}</div>
@@ -115,7 +115,7 @@ export default function HowItWorks() {
         </Card>
 
         <Card>
-          <h3 className={s.penaltyTitle}>Fixed debt recovery cost</h3>
+          <h2 className={s.penaltyTitle}>Fixed debt recovery cost by invoice value</h2>
           <p className={s.penaltyIntro}>
             The fixed debt recovery cost depends on the invoice value:
           </p>
@@ -135,7 +135,7 @@ export default function HowItWorks() {
             Interest accrues daily at {getRate()}% per annum from the day after the due date. For a £5,000 invoice, that's roughly £1.61 per day.
           </p>
 
-          <h3 className={s.exampleTitle}>Example</h3>
+          <h2 className={s.exampleTitle}>Example: what a late £3,000 invoice is owed</h2>
           <div className={s.exampleBox}>
             <div className={s.exampleRow}>
               <span className={s.exampleLabel}>Invoice</span>

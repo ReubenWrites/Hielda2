@@ -175,9 +175,9 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
           background: "#fff", borderRadius: 12, border: "1px solid #dce1e8",
           padding: "24px 28px", marginBottom: 16,
         }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>
-            Your invoice details
-          </div>
+          <h2 style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", margin: "0 0 14px" }}>
+            Your overdue invoice details
+          </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Client name</label>
@@ -340,9 +340,9 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
             </>
           ) : (
             <>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#0f172a", marginBottom: 4 }}>
-                Get this template emailed to you
-              </div>
+              <h2 style={{ fontWeight: 700, fontSize: 16, color: "#0f172a", margin: "0 0 4px" }}>
+                Get this late payment letter template emailed to you
+              </h2>
               <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 16px" }}>
                 Plus tips on enforcing late payment under UK law. No spam, ever.
               </p>
@@ -400,9 +400,9 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
           background: "#0f172a", borderRadius: 12, padding: "28px", marginTop: 24,
           textAlign: "center", color: "#fff",
         }}>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>
-            Why write letters when Hielda does it for you?
-          </div>
+          <h2 style={{ fontWeight: 700, fontSize: 18, margin: "0 0 8px" }}>
+            Why write late payment letters when Hielda does it for you?
+          </h2>
           <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 20px", lineHeight: 1.7 }}>
             Hielda sends escalating chase emails automatically — eight in the first 30 days, then monthly formal reminders — calculates statutory interest daily,
             and checks in with you before every step. You never have to write another letter.

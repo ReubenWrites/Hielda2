@@ -98,7 +98,7 @@ export default function ClientNotPayingInvoice({ onBack, onGetStarted }) {
         You usually can't tell which one you're dealing with from the outside. That's fine — the step-by-step sequence below tests each explanation in turn, cheapest first.
       </p>
 
-      <h2>The five steps, in order</h2>
+      <h2>Five steps to get an unpaid invoice paid, in order</h2>
 
       <h3>Step 1: Rule out the boring explanations</h3>
       <p>
@@ -159,7 +159,7 @@ export default function ClientNotPayingInvoice({ onBack, onGetStarted }) {
         <li><strong>Solicitor.</strong> The most expensive option, appropriate for large debts, messy facts, or where you expect the client to defend the claim. For a simple unpaid invoice with a clear paper trail, you rarely need one.</li>
       </ul>
 
-      <h2>What NOT to do</h2>
+      <h2>What not to do when a client won't pay</h2>
       <p>
         A few tactics feel satisfying in the moment and reliably make things worse:
       </p>
@@ -170,7 +170,7 @@ export default function ClientNotPayingInvoice({ onBack, onGetStarted }) {
         <li><strong>Discounting to make it go away.</strong> Knocking 15% off an invoice to get it paid teaches the client that paying late earns a discount. You'll be negotiating every invoice from then on. The law lets you charge <em>more</em> for late payment, not less — use it.</li>
       </ul>
 
-      <h2>A worked example</h2>
+      <h2>Worked example: a late invoice, chased properly</h2>
       <div className={s.workedExample}>
         <h3>£2,400 invoice, paid 38 days late</h3>
         <p style={{ fontSize: 14, lineHeight: 1.7, margin: "12px 0" }}>

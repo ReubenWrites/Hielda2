@@ -25,6 +25,15 @@ export const FAQ_SCHEMA = {
   })),
 }
 
+export const WEBSITE_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Hielda",
+  url: SITE,
+  inLanguage: "en-GB",
+  publisher: { "@type": "Organization", name: "Hielda", url: SITE },
+}
+
 export const HOWTO_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "HowTo",
@@ -45,17 +54,19 @@ export const SEO_ROUTES = [
   {
     path: "/",
     file: "index.html",
+    // WebSite + FAQ on the home page; Organization/SoftwareApplication live in index.html.
+
     title: "Late Payment Chasing for UK Freelancers — Hielda",
     description:
-      "Hielda automatically chases late-paying clients for UK freelancers and SMEs and enforces statutory interest plus the fixed debt recovery cost under the Late Payment of Commercial Debts (Interest) Act 1998. 6-week free trial, no credit card.",
-    extraSchemas: [FAQ_SCHEMA],
+      "Hielda chases late invoices for UK freelancers and SMEs and adds the statutory interest and fixed recovery fee the Late Payment Act allows. Free 6-week trial.",
+    extraSchemas: [WEBSITE_SCHEMA, FAQ_SCHEMA],
   },
   {
     path: "/calculator",
     file: "calculator.html",
     title: "Late Payment Interest Calculator (UK) — Hielda",
     description:
-      "Free calculator for the statutory interest and fixed debt recovery cost owed on overdue UK invoices under the Late Payment of Commercial Debts (Interest) Act 1998. For freelancers and small businesses.",
+      "Free UK late payment interest calculator: statutory interest at 8% above base rate plus the £40–£100 fixed recovery fee on any overdue B2B invoice.",
     ogImage: `${SITE}/og/calculator.png`,
   },
   {
@@ -63,7 +74,7 @@ export const SEO_ROUTES = [
     file: "late-payment-letter-template.html",
     title: "Free Late Payment Letter Generator (UK) — Hielda",
     description:
-      "Free late payment demand letter generator for UK freelancers. Fill in your invoice details and get a ready-to-send letter citing the Late Payment of Commercial Debts (Interest) Act 1998, with statutory interest calculated.",
+      "Free late payment letter generator for UK freelancers: enter your invoice and get a formal demand citing the Late Payment Act 1998 with interest worked out.",
     ogImage: `${SITE}/og/late-payment-letter-template.png`,
   },
   {
@@ -71,7 +82,7 @@ export const SEO_ROUTES = [
     file: "how.html",
     title: "How Hielda Works — Automatic Late Payment Chasing",
     description:
-      "Step by step: how Hielda chases late-paying clients automatically with escalating, legally-backed reminders so freelancers don't have to ask for their own money.",
+      "How Hielda chases late invoices automatically: escalating, legally backed reminders, statutory charges applied, and a Letter Before Action at 30 days.",
     extraSchemas: [HOWTO_SCHEMA],
   },
   {
@@ -98,6 +109,7 @@ export const SEO_ROUTES = [
   },
   {
     path: "/guides/late-payment-act-1998-explained",
+    datePublished: "2026-05-18",
     file: "guides-late-payment-act-1998-explained.html",
     title: "Late Payment Act 1998 explained for freelancers — Hielda",
     description:
@@ -106,6 +118,7 @@ export const SEO_ROUTES = [
   },
   {
     path: "/guides/how-to-chase-late-invoices",
+    datePublished: "2026-05-18",
     file: "guides-how-to-chase-late-invoices.html",
     title: "How to chase late invoices: a UK playbook — Hielda",
     description:
@@ -114,38 +127,43 @@ export const SEO_ROUTES = [
   },
   {
     path: "/guides/client-not-paying-invoice",
+    datePublished: "2026-06-11",
     file: "guides-client-not-paying-invoice.html",
     title: "Client not paying your invoice? What to do — Hielda",
     description:
-      "A practical, step-by-step escalation path for UK freelancers when a client won't pay: polite chases, statutory charges, Letter Before Action, and court — plus what not to do.",
+      "Step-by-step for UK freelancers when a client won't pay: polite chases, statutory charges, a Letter Before Action, court — and the mistakes to avoid.",
     ogImage: `${SITE}/og/guide-client-not-paying.png`,
   },
   {
     path: "/guides/letter-before-action",
+    datePublished: "2026-06-11",
     file: "guides-letter-before-action.html",
     title: "Letter Before Action for an unpaid invoice (UK) — Hielda",
     description:
-      "How to write and send a Letter Before Action for an unpaid invoice in the UK: what it must contain, response windows for companies vs sole traders, and why it usually gets you paid.",
+      "How to write and send a Letter Before Action for an unpaid invoice in the UK: what it must say, the 14- or 30-day deadline, and why it usually gets paid.",
     ogImage: `${SITE}/og/guide-letter-before-action.png`,
   },
   {
     path: "/guides/small-claims-court-unpaid-invoice",
+    datePublished: "2026-06-11",
     file: "guides-small-claims-court-unpaid-invoice.html",
     title: "Small claims court for an unpaid invoice — Hielda",
     description:
-      "Honest guide to Money Claim Online for unpaid invoices: when court is worth it, current fees, what to write, what happens after filing, and enforcement if they still don't pay.",
+      "Money Claim Online for an unpaid invoice: when court is worth it, current fees, what to write, what happens after filing, and enforcement if they don't pay.",
     ogImage: `${SITE}/og/guide-small-claims.png`,
   },
   {
     path: "/guides/how-much-interest-late-invoice",
+    datePublished: "2026-06-11",
     file: "guides-how-much-interest-late-invoice.html",
     title: "How much interest on a late invoice in the UK? — Hielda",
     description:
-      "The statutory rate is 8% above Bank of England base rate, accruing daily, plus a £40–£100 fixed recovery cost. The exact formula, worked examples, and how to claim it.",
+      "The UK statutory rate is 8% above base rate, accruing daily, plus a £40–£100 fixed recovery cost. The formula, worked examples, and how to claim it.",
     ogImage: `${SITE}/og/guide-how-much-interest.png`,
   },
   {
     path: "/guides/invoice-payment-terms-uk",
+    datePublished: "2026-06-11",
     file: "guides-invoice-payment-terms-uk.html",
     title: "Invoice payment terms for UK freelancers — Hielda",
     description:
@@ -154,20 +172,35 @@ export const SEO_ROUTES = [
   },
   {
     path: "/guides/debt-collection-agency-vs-diy",
+    datePublished: "2026-06-11",
     file: "guides-debt-collection-agency-vs-diy.html",
     title: "Debt collection agency vs DIY for unpaid invoices — Hielda",
     description:
-      "Honest comparison of the ways to recover an unpaid invoice in the UK: chasing it yourself, debt collection agencies and their fees, solicitors and court, and automation — with a clear decision guide.",
+      "Chasing an unpaid invoice yourself, a debt collection agency, a solicitor, or automation: fees, speed and trade-offs compared for UK freelancers.",
     ogImage: `${SITE}/og/guide-debt-collection-agency.png`,
   },
   {
     path: "/guides/freelancer-rights-late-payment",
+    datePublished: "2026-06-11",
     file: "guides-freelancer-rights-late-payment.html",
     title: "Your legal rights when a client pays late (UK) — Hielda",
     description:
-      "UK freelancers have unusually strong late-payment rights: statutory interest, fixed recovery costs, six years to claim, and court access without a solicitor. Here's how to use them.",
+      "UK freelancers' late-payment rights: statutory interest, fixed recovery costs, six years to claim, and court access without a solicitor. How to use them.",
     ogImage: `${SITE}/og/guide-freelancer-rights.png`,
   },
 ]
 
 export const seoForPath = (pathname) => SEO_ROUTES.find((r) => r.path === pathname) || null
+
+/** BreadcrumbList for a route: Home › (Guides ›) Page. The guides render
+ *  their own inside GuideLayout; prerender adds this for everything else. */
+export const breadcrumbSchema = (route) => {
+  const items = [{ name: "Home", item: SITE + "/" }]
+  if (route.path.startsWith("/guides/")) items.push({ name: "Guides", item: SITE + "/guides" })
+  items.push({ name: route.title.replace(/\s+[—-]\s+Hielda$/, ""), item: SITE + route.path })
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, item: it.item })),
+  }
+}

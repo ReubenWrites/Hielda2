@@ -160,7 +160,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile, inApp = fal
           ← Back to home
         </button>
         <h1 className={s.title}>
-          UK Late Payment Calculator
+          UK Late Payment Interest Calculator
         </h1>
         <p className={s.subtitle}>
           Calculate the statutory interest and penalties you're legally owed on overdue B2B invoices under UK law.
@@ -296,9 +296,9 @@ export default function Calculator({ onBack, onGetStarted, isMobile, inApp = fal
 
         {/* Debt recovery cost tiers info */}
         <Card style={{ marginTop: 16, padding: isMobile ? "20px" : "24px 28px" }}>
-          <h3 className={s.infoTitle}>
-            How it's calculated
-          </h3>
+          <h2 className={s.infoTitle}>
+            How late payment interest is calculated
+          </h2>
           <div className={s.infoBody}>
             <p className={s.infoText}>
               The <strong>Late Payment of Commercial Debts (Interest) Act 1998</strong> gives businesses the right to charge interest and a fixed debt recovery cost on overdue B2B invoices.

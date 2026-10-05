@@ -226,7 +226,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
       {/* The Problem */}
       <section className={s.problemSection}>
         <h2 className={s.sectionTitle}>
-          The trap every freelancer knows
+          Late payment: the trap every freelancer knows
         </h2>
         <p className={s.sectionSubtitle}>
           Late payment isn't an accident. It's a system — and it's designed to work against you.
@@ -335,7 +335,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
       {/* Features grid */}
       <section className={s.featuresSection}>
         <h2 className={s.sectionTitle}>
-          Everything your accounts department would do
+          Automatic late invoice chasing — everything your accounts department would do
         </h2>
         <p className={s.sectionSubtitle}>
           Hielda handles the uncomfortable conversations so you never have to.
@@ -355,7 +355,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
       <section id="how-it-works" className={s.timelineSection}>
         <div className={s.timelineInner}>
           <h2 className={s.sectionTitle}>
-            How Hielda chases for you
+            How Hielda chases late invoices for you
           </h2>
           <p className={s.sectionSubtitle}>
             We check in with you before every step. You're always in control.
@@ -378,7 +378,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
       {/* Debt recovery cost breakdown */}
       <section className={s.penaltySection}>
         <h2 className={s.sectionTitle}>
-          What you're legally owed
+          Late payment interest and fees: what you're legally owed
         </h2>
         <p className={s.sectionSubtitle}>
           Under the Late Payment of Commercial Debts (Interest) Act 1998

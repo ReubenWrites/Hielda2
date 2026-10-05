@@ -2,6 +2,29 @@ import { useState } from "react"
 import { ShieldLogo } from "../ui"
 import { trackEvent } from "../../posthog"
 import s from "./guides.module.css"
+import { seoForPath, breadcrumbSchema } from "../../data/seoRoutes"
+
+// Article rich results want an image and dates; the route table has the
+// share image and the publish date, the build supplies dateModified. A
+// BreadcrumbList (Home › Guides › this) goes into the same @graph so
+// Search Console's Breadcrumbs report has something to validate.
+function enrichGuideSchema(schema, canonicalPath, title) {
+  const route = seoForPath(canonicalPath)
+  const graph = Array.isArray(schema?.["@graph"]) ? schema["@graph"].map((node) => (
+    node["@type"] === "Article"
+      ? {
+          ...node,
+          ...(route?.ogImage ? { image: route.ogImage } : {}),
+          ...(route?.datePublished ? { datePublished: route.datePublished } : {}),
+          dateModified: typeof __BUILD_DATE__ !== "undefined" ? __BUILD_DATE__ : undefined,
+        }
+      : node
+  )) : null
+  if (!graph) return schema
+  const crumbs = breadcrumbSchema(route || { path: canonicalPath, title })
+  delete crumbs["@context"]
+  return { ...schema, "@graph": [...graph, crumbs] }
+}
 
 // Wraps a guide article with nav, breadcrumbs, body, CTA, and a Related
 // section. Each concrete guide imports this and passes its content as
@@ -32,7 +55,7 @@ export default function GuideLayout({
       {schema && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(enrichGuideSchema(schema, canonicalPath, title)).replace(/</g, "\\u003c") }}
         />
       )}
       <nav className={s.nav}>

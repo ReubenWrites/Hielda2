@@ -85,7 +85,7 @@ export default function HowMuchInterestLateInvoice({ onBack, onGetStarted }) {
         { href: "/guides/how-to-chase-late-invoices", title: "How to chase late invoices professionally", desc: "The day-by-day playbook for actually collecting what you're owed." },
       ]}
     >
-      <h2>The headline answer</h2>
+      <h2>The headline answer: 8% above base rate, plus a fixed fee</h2>
       <p>
         For business-to-business invoices, UK law lets you charge <strong>statutory interest at 8% above the Bank of England base rate</strong>. With the base rate currently at {getBoe()}%, that's <strong>{getRate()}% per annum</strong>, accruing daily from the day after the invoice's due date until it's paid. The right comes from the Late Payment of Commercial Debts (Interest) Act 1998 and applies automatically — no contract clause, no invoice small print, no advance warning required.
       </p>
@@ -93,7 +93,7 @@ export default function HowMuchInterestLateInvoice({ onBack, onGetStarted }) {
         On top of the interest, the Act adds a <strong>fixed debt recovery sum</strong> per overdue invoice, and you can claim both together. More on that below.
       </p>
 
-      <h2>The exact formula</h2>
+      <h2>The statutory interest formula for a late invoice</h2>
       <p>
         Statutory interest is simple (non-compounding) interest, calculated daily:
       </p>
@@ -112,7 +112,7 @@ export default function HowMuchInterestLateInvoice({ onBack, onGetStarted }) {
         Not life-changing on its own — but it accrues every single day the client delays, and it sits on top of the fixed sum below. Together they comfortably cover the cost of chasing, which is exactly what Parliament intended.
       </p>
 
-      <h2>The fixed sums on top</h2>
+      <h2>The fixed debt recovery costs on top: £40, £70 or £100</h2>
       <p>
         Separately from interest, every overdue B2B invoice entitles you to a one-off <strong>fixed sum for debt recovery costs</strong>, banded by invoice value:
       </p>
@@ -156,7 +156,7 @@ export default function HowMuchInterestLateInvoice({ onBack, onGetStarted }) {
         If your B2B contract specifies its own late payment interest rate, that rate generally applies <em>instead of</em> the statutory rate — but only if it provides a "substantial remedy". A contract clause that sets interest at a token level (say, 1% a year) doesn't oust the Act; the statutory rate steps back in. In practice: if your contract is silent, you get {getRate()}%; if it names a meaningful rate, you get that rate.
       </p>
 
-      <h2>When the clock starts</h2>
+      <h2>When late payment interest starts accruing</h2>
       <p>
         Interest runs from <strong>the day after the due date</strong>:
       </p>
@@ -170,7 +170,7 @@ export default function HowMuchInterestLateInvoice({ onBack, onGetStarted }) {
         Statutory interest is calculated on the <strong>gross, VAT-inclusive</strong> amount of the unpaid invoice — the whole debt is overdue, including the VAT element. The interest you receive is itself outside the scope of VAT, so you don't charge VAT on it or issue a VAT invoice for it.
       </p>
 
-      <h2>How to actually claim it</h2>
+      <h2>How to claim late payment interest from a client</h2>
       <p>
         The mechanics are simple: state the figures and keep them updated. Add a line to your chase emails — <em>"this invoice is now accruing statutory interest at {getRate()}% per annum under the Late Payment of Commercial Debts (Interest) Act 1998, plus a £70 fixed debt recovery cost"</em> — and show the running total on any statement or formal letter. The <a href="/calculator">calculator</a> gives you exact figures to paste in, and our <a href="/guides/how-to-chase-late-invoices">chasing playbook</a> covers when in the sequence to introduce them.
       </p>
