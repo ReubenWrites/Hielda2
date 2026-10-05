@@ -115,8 +115,7 @@ ${routes.map((r) => `  <url>
     <lastmod>${today}</lastmod>
     <changefreq>${r.path === "/" ? "weekly" : "monthly"}</changefreq>
     <priority>${r.path === "/" ? "1.0" : r.path.startsWith("/guides/") ? "0.7" : r.path === "/privacy" ? "0.3" : "0.8"}</priority>
-  </url>`).join("
-")}
+  </url>`).join("\n")}
 </urlset>
 `
 fs.writeFileSync(path.join(DIST, "sitemap.xml"), sitemap)
