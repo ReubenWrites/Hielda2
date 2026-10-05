@@ -578,6 +578,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <a href="https://launchpadly.co/startup/hielda?ref=badge" target="_blank" rel="noopener noreferrer" data-launchpadly-badge="hielda" data-launchpadly-badge-variant="listed-on">
           <img loading="lazy" className={s.badgeImg} src="https://launchpadly.co/embed/badges/startup/hielda.svg?variant=listed-on" alt="Launchpadly Startup Directory" width="260" height="48" />
         </a>
+        <a href="https://krispitech.com/why-late-payment-isnt-an-accident-and-how-hielda-fights-back-for-freelancers/" target="_blank" rel="noopener noreferrer" className={s.badgeText}>
+          <span className={s.badgeTextLabel}>As featured in</span> KrispiTech
+        </a>
       </div>
 
       {/* Footer */}
