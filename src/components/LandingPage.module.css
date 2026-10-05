@@ -99,8 +99,8 @@
   width: 430px;
   height: 510px;
   background: var(--ac);
-  -webkit-mask: url("/shield-d6-single.png?v=2") no-repeat center / contain;
-  mask: url("/shield-d6-single.png?v=2") no-repeat center / contain;
+  -webkit-mask: url("/shield-d6-single.webp") no-repeat center / contain;
+  mask: url("/shield-d6-single.webp") no-repeat center / contain;
   opacity: 0.08;
   transform: rotate(10deg);
   pointer-events: none;

@@ -41,6 +41,31 @@ function setCanonical(html, url) {
   return html.replace(/(<link\s+rel="canonical"\s+href=")[^"]*(")/i, `$1${escapeAttr(url)}$2`)
 }
 
+// Each marketing page's styles live in a lazy chunk's CSS file, which the
+// browser only discovered after the entry JS ran and imported the route
+// (~1.5 s into the load on mobile). Until then the prerendered body sat
+// unstyled. Linking the stylesheet and preloading the chunk in <head>
+// gives a styled first paint; Vite's preload helper skips a stylesheet
+// that is already in the document, so nothing loads twice.
+const ROUTE_CHUNK = { "index.html": "LandingPage", "how.html": "HowItWorks", "calculator.html": "Calculator" }
+const assetNames = fs.readdirSync(path.join(DIST, "assets"))
+function routeAssets(file) {
+  const name = file.startsWith("guides") ? "guides" : ROUTE_CHUNK[file]
+  if (!name) return ""
+  const css = assetNames.filter((f) => new RegExp(`^${name}-[\\w-]+\\.css$`).test(f))
+  const js = assetNames.filter((f) => new RegExp(`^${name}-[\\w-]+\\.js$`).test(f))
+  return [
+    ...css.map((f) => `    <link rel="stylesheet" href="/assets/${f}" />`),
+    ...js.map((f) => `    <link rel="modulepreload" href="/assets/${f}" />`),
+  ].join("\n")
+}
+function injectRouteAssets(html, file) {
+  const tags = routeAssets(file)
+  if (!tags) return html
+  // Before the entry script's own tags so the CSS is requested first.
+  return html.replace(/(\s*<script type="module" crossorigin)/, `\n${tags}$1`)
+}
+
 function injectSchemas(html, schemas) {
   if (!schemas?.length) return html
   const blocks = schemas
@@ -99,6 +124,7 @@ for (const route of routes) {
   // Guides emit their own BreadcrumbList (with Article) inside GuideLayout.
   const crumbs = route.path !== "/" && !route.path.startsWith("/guides/") ? [breadcrumbSchema(route)] : []
   html = injectSchemas(html, [...(route.extraSchemas || []), ...crumbs])
+  html = injectRouteAssets(html, route.file)
 
   fs.writeFileSync(path.join(DIST, route.file), html)
   written++

@@ -318,7 +318,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
 
       {/* Stats bar */}
       <section className={s.statsBar}>
-        <img src="/shield-d6-single.png?v=2" alt="" className={s.statsShield} aria-hidden="true" />
+        <img src="/shield-d6-single.webp" alt="" className={s.statsShield} aria-hidden="true" width="432" height="478" />
         {[
           { val: `${getRate()}%`, label: "Statutory interest rate" },
           { val: "£40–100", label: "Fixed recovery cost per invoice" },
@@ -510,7 +510,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
 
       {/* CTA */}
       <section className={s.ctaSection}>
-        <img src="/shield-d6-single.png?v=2" alt="" className={s.ctaShieldBg} aria-hidden="true" />
+        <img src="/shield-d6-single.webp" alt="" className={s.ctaShieldBg} aria-hidden="true" width="432" height="478" loading="lazy" />
         <div className={s.ctaShieldMark} aria-hidden="true">
           <ShieldLogo size={42} white />
         </div>
@@ -567,16 +567,16 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           width/height attributes for the directories' verifiers. */}
       <div className={s.badgeStrip} aria-label="Featured on">
         <a href="https://www.producthunt.com/products/hielda?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hielda" target="_blank" rel="noopener noreferrer">
-          <img className={s.badgeImg} alt="Hielda - Winning interest & fees for freelancers on late invoices | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light&t=1787929808370" />
+          <img loading="lazy" className={s.badgeImg} alt="Hielda - Winning interest & fees for freelancers on late invoices | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1235052&theme=light&t=1787929808370" />
         </a>
         <a href="https://techbasedirectory.com/product/hielda?utm_source=featured_embed" target="_blank" rel="noopener noreferrer">
-          <img className={s.badgeImg} src="https://techbasedirectory.com/api/featured-embed" alt="Hielda | Techbasedirectory.com" width="200" height="60" />
+          <img loading="lazy" className={s.badgeImg} src="https://techbasedirectory.com/api/featured-embed" alt="Hielda | Techbasedirectory.com" width="200" height="60" />
         </a>
         <a href="https://launchstag.com/p/hielda" target="_blank" rel="noopener noreferrer">
-          <img className={s.badgeImg} src="https://launchstag.com/badge-light.svg" alt="Featured on Launchstag" width="198" height="62" />
+          <img loading="lazy" className={s.badgeImg} src="https://launchstag.com/badge-light.svg" alt="Featured on Launchstag" width="198" height="62" />
         </a>
         <a href="https://launchpadly.co/startup/hielda?ref=badge" target="_blank" rel="noopener noreferrer" data-launchpadly-badge="hielda" data-launchpadly-badge-variant="listed-on">
-          <img className={s.badgeImg} src="https://launchpadly.co/embed/badges/startup/hielda.svg?variant=listed-on" alt="Launchpadly Startup Directory" width="260" height="48" />
+          <img loading="lazy" className={s.badgeImg} src="https://launchpadly.co/embed/badges/startup/hielda.svg?variant=listed-on" alt="Launchpadly Startup Directory" width="260" height="48" />
         </a>
       </div>
 
