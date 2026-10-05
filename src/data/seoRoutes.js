@@ -64,9 +64,9 @@ export const SEO_ROUTES = [
   {
     path: "/calculator",
     file: "calculator.html",
-    title: "Late Payment Interest Calculator (UK) — Hielda",
+    title: "Late Payment of Commercial Debts Act 1998 Calculator (UK) — Hielda",
     description:
-      "Free UK late payment interest calculator: statutory interest at 8% above base rate plus the £40–£100 fixed recovery fee on any overdue B2B invoice.",
+      "Free UK late payment interest calculator under the Late Payment of Commercial Debts (Interest) Act 1998: 8% above base rate plus the £40–£100 fixed fee.",
     ogImage: `${SITE}/og/calculator.png`,
   },
   {

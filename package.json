@@ -8,6 +8,7 @@
     "build": "vite build && node scripts/build-og-image.mjs && node scripts/prerender.mjs",
     "preview": "vite preview",
     "test": "vitest run",
+    "indexnow": "node scripts/indexnow.mjs",
     "test:watch": "vitest",
     "test:mobile": "node scripts/mobile-check.mjs"
   },

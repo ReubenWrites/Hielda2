@@ -160,13 +160,13 @@ export default function Calculator({ onBack, onGetStarted, isMobile, inApp = fal
           ← Back to home
         </button>
         <h1 className={s.title}>
-          UK Late Payment Interest Calculator
+          Late Payment of Commercial Debts (Interest) Act 1998 Calculator
         </h1>
         <p className={s.subtitle}>
-          Calculate the statutory interest and penalties you're legally owed on overdue B2B invoices under UK law.
+          The free UK late payment interest calculator: the statutory interest and fixed penalties you're legally owed on any overdue B2B invoice.
         </p>
         <p className={s.legalRef}>
-          Based on the Late Payment of Commercial Debts (Interest) Act 1998
+          Rates and fees as set by the Late Payment of Commercial Debts (Interest) Act 1998
         </p>
       </section>
 

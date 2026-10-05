@@ -5,8 +5,6 @@ import { loadLiveBoeRate } from "./constants"
 import { fmt, todayStr, outstanding, chargeableExtras } from "./utils"
 import { identifyUser, resetUser, trackPageView, trackEvent } from "./posthog"
 import { ShieldLogo, Spinner } from "./components/ui"
-import AuthScreen from "./components/AuthScreen"
-import Dashboard from "./components/Dashboard"
 import SubscriptionGate from "./components/SubscriptionGate"
 const shouldShowTour = (userId) => { try { return !localStorage.getItem(`hielda_tour_done_${userId}`) } catch { return false } }
 import s from "./App.module.css"
@@ -31,6 +29,11 @@ const lazyRetry = (factory) => lazy(() =>
       throw err
     }))
 
+// AuthScreen and Dashboard are only needed once someone signs in; keeping
+// them out of the entry chunk roughly halves what a landing-page visitor
+// downloads before first paint.
+const AuthScreen = lazyRetry(() => import("./components/AuthScreen"))
+const Dashboard = lazyRetry(() => import("./components/Dashboard"))
 const Onboarding = lazyRetry(() => import("./components/Onboarding"))
 const Detail = lazyRetry(() => import("./components/Detail"))
 const Create = lazyRetry(() => import("./components/Create"))
