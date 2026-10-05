@@ -103,4 +103,22 @@ for (const route of routes) {
   console.log(`prerender: wrote ${route.file}`)
 }
 await vite.close()
+
+// sitemap.xml from the same route table, with a current lastmod. The static
+// file said every page was last modified on 2026-04-29, so Google had no
+// reason to recrawl the nine guides it had discovered but never indexed.
+const today = new Date().toISOString().split("T")[0]
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${routes.map((r) => `  <url>
+    <loc>${r.canonical}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${r.path === "/" ? "weekly" : "monthly"}</changefreq>
+    <priority>${r.path === "/" ? "1.0" : r.path.startsWith("/guides/") ? "0.7" : r.path === "/privacy" ? "0.3" : "0.8"}</priority>
+  </url>`).join("
+")}
+</urlset>
+`
+fs.writeFileSync(path.join(DIST, "sitemap.xml"), sitemap)
+console.log(`prerender: sitemap.xml written with ${routes.length} URLs, lastmod ${today}`)
 console.log(`prerender: ${written} files written to ${DIST}/`)
