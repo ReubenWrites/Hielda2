@@ -8,6 +8,7 @@ import {
   VOICE, PILLARS, EXAMPLES, HASHTAGS,
   SEARCH_QUERIES, REPLY_TEMPLATES, ENGAGE_RULES,
 } from './_social-config.js'
+import { withRunLog } from './_runLog.js'
 
 const X_API_KEY = process.env.X_API_KEY
 const X_API_SECRET = process.env.X_API_SECRET
@@ -384,7 +385,7 @@ async function handleEngage(supabase) {
 
 // ── Main handler ───────────────────────────────────────────────────────────────
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (!CRON_SECRET) {
     return res.status(500).json({ error: 'CRON_SECRET not configured' })
   }
@@ -415,3 +416,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message })
   }
 }
+
+export default withRunLog('social-post', handler)

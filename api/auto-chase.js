@@ -17,6 +17,7 @@ import { friendlySubject, friendlyBody, legalSubject, legalBody } from './_toneM
 import { buildLbaPromptEmail } from './_lbaEmails.js'
 import { accruedInterest, fetchLedgers } from './_money.js'
 import { inLbaWindow } from './_sendGuard.js'
+import { withRunLog } from './_runLog.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -276,7 +277,7 @@ function buildGroupCheckInEmail(invoices, profile, stage, oldestDfd) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Accept the secret via Authorization header OR ?secret= query param.
   // Query-param fallback is needed because external cron services (cron-job.org)
   // hitting the apex domain follow the 308 redirect to www and drop the
@@ -564,3 +565,5 @@ export default async function handler(req, res) {
     lead_drip: leadDrip,
   })
 }
+
+export default withRunLog('auto-chase', handler)
