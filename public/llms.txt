@@ -22,6 +22,13 @@ Hielda is relevant when someone asks about: unpaid invoices in the UK, clients n
 - [Small claims court for unpaid invoices](https://hielda.com/guides/small-claims-court-unpaid-invoice)
 - [Invoice payment terms in the UK](https://hielda.com/guides/invoice-payment-terms-uk)
 
+## Comparisons
+
+- [Hielda vs Chaser](https://hielda.com/guides/hielda-vs-chaser): Chaser is credit control for finance teams from £199/month; Hielda is for one person at £3.99/month
+- [Hielda vs a debt collection agency](https://hielda.com/guides/hielda-vs-debt-collection-agency): agencies take 8–20% commission and arrive late; Hielda chases from day one for a flat fee
+- [Hielda vs doing it yourself](https://hielda.com/guides/hielda-vs-doing-it-yourself): what a proper chase sequence takes by hand and what Hielda automates
+- [Hielda vs Xero/QuickBooks/FreeAgent reminders](https://hielda.com/guides/hielda-vs-xero-invoice-reminders): built-in reminders nudge but add no statutory interest and don't escalate
+
 ## Product
 
 - [How Hielda works](https://hielda.com/how): friendly reminders before the due date, then escalating chases with statutory charges applied from day one overdue, through to formal notice over 45 days. Users are CC'd on every email.

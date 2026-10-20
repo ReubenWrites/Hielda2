@@ -129,6 +129,10 @@ const PAGES = [
   { slug: "guide-payment-terms", eyebrow: "Free guide", lines: ["Invoice payment terms:", "30 days, 14, or 7?"] },
   { slug: "guide-freelancer-rights", eyebrow: "Free guide", lines: ["Your rights when", "a client pays late"] },
   { slug: "guide-debt-collection-agency", eyebrow: "Free guide", lines: ["Debt collection agency,", "DIY, or automation?"] },
+  { slug: "guide-hielda-vs-chaser", eyebrow: "Comparison", lines: ["Hielda vs Chaser:", "which fits a", "small business?"] },
+  { slug: "guide-hielda-vs-debt-collection", eyebrow: "Comparison", lines: ["Hielda vs a debt", "collection agency"] },
+  { slug: "guide-hielda-vs-diy", eyebrow: "Comparison", lines: ["Hielda vs chasing", "invoices yourself"] },
+  { slug: "guide-hielda-vs-xero", eyebrow: "Comparison", lines: ["Hielda vs Xero,", "QuickBooks & FreeAgent", "reminders"] },
 ]
 
 function renderPng(svg) {

@@ -171,6 +171,18 @@
   color: #1e5fa0;
 }
 
+.cmpWrap { overflow-x: auto; margin: 16px 0 8px; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; border: 1px solid #dce1e8; border-radius: 10px; overflow: hidden; }
+.cmp th, .cmp td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #e2e8f0; line-height: 1.45; }
+.cmp thead th { background: #f8fafc; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; }
+.cmp thead th:nth-child(2) { color: #1e5fa0; }
+.cmp tbody th { font-weight: 600; color: #0f172a; width: 36%; }
+.cmp tbody td:first-of-type { background: #f3f8fd; }
+.cmp tr:last-child th, .cmp tr:last-child td { border-bottom: none; }
+.cmpYes { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #dcfce7; color: #166534; font-weight: 600; font-size: 12px; }
+.cmpNo { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-weight: 600; font-size: 12px; }
+@media (max-width: 600px) { .cmp { font-size: 13px; } .cmp th, .cmp td { padding: 8px; } }
+
 .lead {
   background: #eaf2fb;
   border: 1px solid #bcd3ec;

@@ -48,6 +48,26 @@ const GUIDES = [
     desc: "What terms to use by client type, the 30-day legal default, the 60-day cap, and how to state terms so they actually stick.",
   },
   {
+    href: "/guides/hielda-vs-chaser",
+    title: "Hielda vs Chaser",
+    desc: "Chaser is credit control for finance teams from £199 a month; Hielda is late payment enforcement for one person at £3.99. Who each suits, honestly.",
+  },
+  {
+    href: "/guides/hielda-vs-debt-collection-agency",
+    title: "Hielda vs a debt collection agency",
+    desc: "Commission versus a flat fee, who has what powers (neither has special ones), timing, and the order to use them in.",
+  },
+  {
+    href: "/guides/hielda-vs-doing-it-yourself",
+    title: "Hielda vs doing it yourself",
+    desc: "What a proper chase sequence involves by hand, the hours and the awkwardness, what Hielda takes over, and when DIY is still the right call.",
+  },
+  {
+    href: "/guides/hielda-vs-xero-invoice-reminders",
+    title: "Hielda vs accounting software reminders",
+    desc: "What the built-in reminders in Xero, QuickBooks and FreeAgent send, what they leave out (interest, escalation, the formal letter), and when Hielda is worth adding.",
+  },
+  {
     href: "/calculator",
     title: "Late payment interest calculator",
     desc: "Free tool — plug in any overdue invoice and see what you're legally owed in statutory interest and the fixed debt recovery cost.",

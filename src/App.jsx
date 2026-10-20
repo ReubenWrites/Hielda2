@@ -64,6 +64,10 @@ const HowMuchInterestLateInvoice = lazyRetry(() => import("./components/guides/H
 const InvoicePaymentTermsUk = lazyRetry(() => import("./components/guides/InvoicePaymentTermsUk"))
 const FreelancerRightsLatePayment = lazyRetry(() => import("./components/guides/FreelancerRightsLatePayment"))
 const DebtCollectionAgencyVsDiy = lazyRetry(() => import("./components/guides/DebtCollectionAgencyVsDiy"))
+const HieldaVsChaser = lazyRetry(() => import("./components/guides/HieldaVsChaser"))
+const HieldaVsDebtCollectionAgency = lazyRetry(() => import("./components/guides/HieldaVsDebtCollectionAgency"))
+const HieldaVsDoingItYourself = lazyRetry(() => import("./components/guides/HieldaVsDoingItYourself"))
+const HieldaVsXeroReminders = lazyRetry(() => import("./components/guides/HieldaVsXeroReminders"))
 
 const PageLoader = () => (
   <div className={s.pageLoader}>
@@ -390,6 +394,10 @@ export default function App() {
           <Route path="/guides/invoice-payment-terms-uk" element={<InvoicePaymentTermsUk onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/freelancer-rights-late-payment" element={<FreelancerRightsLatePayment onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/debt-collection-agency-vs-diy" element={<DebtCollectionAgencyVsDiy onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/hielda-vs-chaser" element={<HieldaVsChaser onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/hielda-vs-debt-collection-agency" element={<HieldaVsDebtCollectionAgency onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/hielda-vs-doing-it-yourself" element={<HieldaVsDoingItYourself onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/hielda-vs-xero-invoice-reminders" element={<HieldaVsXeroReminders onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/terms" element={<Terms onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />

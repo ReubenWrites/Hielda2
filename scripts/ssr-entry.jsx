@@ -26,6 +26,10 @@ import HowMuchInterestLateInvoice from "../src/components/guides/HowMuchInterest
 import InvoicePaymentTermsUk from "../src/components/guides/InvoicePaymentTermsUk"
 import FreelancerRightsLatePayment from "../src/components/guides/FreelancerRightsLatePayment"
 import DebtCollectionAgencyVsDiy from "../src/components/guides/DebtCollectionAgencyVsDiy"
+import HieldaVsChaser from "../src/components/guides/HieldaVsChaser"
+import HieldaVsDebtCollectionAgency from "../src/components/guides/HieldaVsDebtCollectionAgency"
+import HieldaVsDoingItYourself from "../src/components/guides/HieldaVsDoingItYourself"
+import HieldaVsXeroReminders from "../src/components/guides/HieldaVsXeroReminders"
 
 const noop = () => {}
 const nav = { onBack: noop, onGetStarted: noop }
@@ -47,6 +51,10 @@ const PAGES = {
   "guides-invoice-payment-terms-uk.html": () => <InvoicePaymentTermsUk {...nav} />,
   "guides-freelancer-rights-late-payment.html": () => <FreelancerRightsLatePayment {...nav} />,
   "guides-debt-collection-agency-vs-diy.html": () => <DebtCollectionAgencyVsDiy {...nav} />,
+  "guides-hielda-vs-chaser.html": () => <HieldaVsChaser {...nav} />,
+  "guides-hielda-vs-debt-collection-agency.html": () => <HieldaVsDebtCollectionAgency {...nav} />,
+  "guides-hielda-vs-doing-it-yourself.html": () => <HieldaVsDoingItYourself {...nav} />,
+  "guides-hielda-vs-xero-invoice-reminders.html": () => <HieldaVsXeroReminders {...nav} />,
 }
 
 /** Markup for a route's #root, or null when the route has no page here. */

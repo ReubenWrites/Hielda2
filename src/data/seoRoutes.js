@@ -194,6 +194,42 @@ export const SEO_ROUTES = [
     ogImage: `${SITE}/og/guide-payment-terms.png`,
   },
   {
+    path: "/guides/hielda-vs-chaser",
+    datePublished: "2026-10-20",
+    file: "guides-hielda-vs-chaser.html",
+    title: "Hielda vs Chaser: invoice chasing for freelancers vs finance teams — Hielda",
+    description:
+      "Hielda and Chaser compared: price (£3.99 vs from £199 a month), who each is built for, statutory interest, integrations, and how to choose.",
+    ogImage: `${SITE}/og/guide-hielda-vs-chaser.png`,
+  },
+  {
+    path: "/guides/hielda-vs-debt-collection-agency",
+    datePublished: "2026-10-20",
+    file: "guides-hielda-vs-debt-collection-agency.html",
+    title: "Hielda vs a Debt Collection Agency: cost and powers compared — Hielda",
+    description:
+      "Debt collection agencies take 8–20% of what they recover and arrive late. Hielda chases from day one for £3.99 a month and adds the statutory charges. Compared.",
+    ogImage: `${SITE}/og/guide-hielda-vs-debt-collection.png`,
+  },
+  {
+    path: "/guides/hielda-vs-doing-it-yourself",
+    datePublished: "2026-10-20",
+    file: "guides-hielda-vs-doing-it-yourself.html",
+    title: "Hielda vs Chasing Invoices Yourself: what £3.99 a month buys — Hielda",
+    description:
+      "Chasing late invoices yourself is free but takes hours and nerve. What a proper sequence involves, what Hielda automates, and when DIY is still right.",
+    ogImage: `${SITE}/og/guide-hielda-vs-diy.png`,
+  },
+  {
+    path: "/guides/hielda-vs-xero-invoice-reminders",
+    datePublished: "2026-10-20",
+    file: "guides-hielda-vs-xero-invoice-reminders.html",
+    title: "Hielda vs Xero, QuickBooks & FreeAgent Invoice Reminders — Hielda",
+    description:
+      "Accounting software reminders nudge; they don't add statutory interest or escalate. What Xero, QuickBooks and FreeAgent reminders do, and when to add Hielda.",
+    ogImage: `${SITE}/og/guide-hielda-vs-xero.png`,
+  },
+  {
     path: "/guides/debt-collection-agency-vs-diy",
     datePublished: "2026-06-11",
     file: "guides-debt-collection-agency-vs-diy.html",
