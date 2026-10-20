@@ -209,10 +209,12 @@ export default function App() {
     if (canonical) canonical.setAttribute("href", `https://hielda.com${location.pathname === "/" ? "" : location.pathname}`)
   }, [location.pathname, session])
 
-  // Track page views on route changes
+  // Track page views on route changes, signed in or not. This used to be
+  // gated on `session`, so no marketing-page visit was ever recorded and
+  // the Sources panel could not say where visitors came from.
   useEffect(() => {
-    if (session) trackPageView(location.pathname)
-  }, [location.pathname, session])
+    trackPageView(location.pathname)
+  }, [location.pathname])
 
   // Inside the app the tab used to keep the marketing title for every
   // page. Name the page — someone with six tabs open needs "INV-0012".
