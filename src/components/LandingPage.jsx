@@ -537,6 +537,8 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <div className={s.footerNavHeading}>Free tools</div>
           <a href="/calculator" className={s.footerNavLink}>Late payment interest calculator</a>
           <a href="/late-payment-letter-template" className={s.footerNavLink}>Late payment letter generator</a>
+          <a href="/free-invoice-template-uk" className={s.footerNavLink}>Free UK invoice template</a>
+          <a href="/late-payment-interest-rate" className={s.footerNavLink}>Current late payment interest rate</a>
         </div>
         <div className={s.footerNavCol}>
           <div className={s.footerNavHeading}>Guides</div>

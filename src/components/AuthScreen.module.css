@@ -1,3 +1,34 @@
+.googleBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  color: #0f172a;
+  cursor: pointer;
+}
+.googleBtn:hover { background: #f8fafc; }
+.googleBtn:disabled { opacity: 0.6; cursor: default; }
+.orRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.orRow::before, .orRow::after { content: ""; flex: 1; height: 1px; background: #e2e8f0; }
+
 .wrapper {
   font-family: var(--font);
   background: var(--bg);

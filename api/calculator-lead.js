@@ -73,6 +73,28 @@ function calculatorEmail({ invoice_amount, days_overdue, total_claimable }) {
   }
 }
 
+// Captures from the guides and the free invoice template were promised
+// the late payment checklist, not a calculation.
+function checklistEmail({ rate, source }) {
+  const body = `
+        <p>Hi there,</p>
+        <p>Here's the late payment checklist${source === 'invoice_template' ? ' to go with your invoice' : ''}. Seven things, in the order they happen.</p>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin:20px 0;font-size:14px;line-height:1.7;">
+          <p style="margin:0 0 12px;"><strong>1. Put the terms on the invoice.</strong> Due date, bank details, and one line: "Statutory interest at 8% over base rate and the fixed recovery cost apply to late payment under the Late Payment of Commercial Debts (Interest) Act 1998." Clients who see it pay faster.</p>
+          <p style="margin:0 0 12px;"><strong>2. Remind before it's due.</strong> A friendly note five days out and one day out. Most late payment is forgetting, not refusing.</p>
+          <p style="margin:0 0 12px;"><strong>3. Day one overdue: say what it now costs.</strong> Interest at ${rate}% a year runs daily from the day after the due date, plus £40, £70 or £100 fixed per invoice. State the new total; don't ask, inform.</p>
+          <p style="margin:0 0 12px;"><strong>4. Chase on a schedule, not on your mood.</strong> Day 1, 7, 14, 21, 30, each firmer than the last, each with the updated total. Weight beats frequency.</p>
+          <p style="margin:0 0 12px;"><strong>5. Day 30: Letter Before Action.</strong> The formal step the court expects. Fourteen days to pay (30 for a sole trader), with the full breakdown. Sending it commits you to nothing.</p>
+          <p style="margin:0 0 12px;"><strong>6. Deadline passed: decide.</strong> Money Claim Online for anything up to £10,000 costs from £35 and takes an hour; a recovery agent takes a cut; or park it with interest still running.</p>
+          <p style="margin:0;"><strong>7. Go back six years.</strong> You can claim interest and the fixed cost on invoices that were paid late up to six years ago, even if they're settled now.</p>
+        </div>
+
+        <p style="font-size:13px;">Tools for each step: the <a href="https://hielda.com/calculator" style="color:#1e5fa0;font-weight:600;">interest calculator</a>, the <a href="https://hielda.com/late-payment-letter-template" style="color:#1e5fa0;font-weight:600;">letter generator</a>, and the <a href="https://hielda.com/guides" style="color:#1e5fa0;font-weight:600;">guides</a>.</p>
+        ${trialCtaHtml()}`
+  return { subject: 'Your late payment checklist', body }
+}
+
 function letterTemplateEmail({ invoice_amount, days_overdue, total_claimable, rate }) {
   const hasFigures = invoice_amount > 0
   const amountStr = hasFigures ? fmt(invoice_amount) : '[£Amount]'
@@ -215,7 +237,9 @@ export default async function handler(req, res) {
     const { subject, body } =
       source === 'letter_template'
         ? letterTemplateEmail({ ...payload, rate: await statutoryRate() })
-        : calculatorEmail(payload)
+        : source === 'guide' || source === 'invoice_template'
+          ? checklistEmail({ rate: await statutoryRate(), source })
+          : calculatorEmail(payload)
 
     emailId = await sendLeadEmail({
       apiKey: RESEND_API_KEY,

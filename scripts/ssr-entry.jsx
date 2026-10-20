@@ -15,6 +15,8 @@ import HowItWorks from "../src/components/HowItWorks"
 import Calculator from "../src/components/Calculator"
 import LetterTemplate from "../src/components/LetterTemplate"
 import GuidesIndex from "../src/components/guides/GuidesIndex"
+import InterestRatePage from "../src/components/InterestRatePage"
+import InvoiceTemplate from "../src/components/InvoiceTemplate"
 import LatePaymentActExplained from "../src/components/guides/LatePaymentActExplained"
 import HowToChaseLateInvoices from "../src/components/guides/HowToChaseLateInvoices"
 import ClientNotPayingInvoice from "../src/components/guides/ClientNotPayingInvoice"
@@ -34,6 +36,8 @@ const PAGES = {
   "calculator.html": () => <Calculator {...nav} isMobile={false} />,
   "late-payment-letter-template.html": () => <LetterTemplate {...nav} />,
   "guides.html": () => <GuidesIndex {...nav} />,
+  "late-payment-interest-rate.html": () => <InterestRatePage {...nav} />,
+  "free-invoice-template-uk.html": () => <InvoiceTemplate {...nav} />,
   "guides-late-payment-act-1998-explained.html": () => <LatePaymentActExplained {...nav} />,
   "guides-how-to-chase-late-invoices.html": () => <HowToChaseLateInvoices {...nav} />,
   "guides-client-not-paying-invoice.html": () => <ClientNotPayingInvoice {...nav} />,

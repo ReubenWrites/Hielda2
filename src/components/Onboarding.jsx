@@ -6,8 +6,8 @@ import s from "./Onboarding.module.css"
 
 const STEPS = ["Welcome", "Your Business", "Getting Paid"]
 
-export default function Onboarding({ user, profile, onComplete }) {
-  const [step, setStep] = useState(0)
+export default function Onboarding({ user, profile, onComplete, startStep = 0 }) {
+  const [step, setStep] = useState(startStep)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [touched, setTouched] = useState({})
@@ -70,15 +70,13 @@ export default function Onboarding({ user, profile, onComplete }) {
 
       trackEvent("onboarding_completed", { business_name: form.business_name })
 
+      // The sign-up trigger creates the trial row; this only covers accounts
+      // from before that existed. An insert that hits the unique constraint
+      // is the normal case and is ignored.
       const { error: subError } = await supabase
         .from("subscriptions")
-        .upsert({
-          user_id: user.id,
-          status: "trialing",
-          plan: "pro",
-        }, { onConflict: "user_id" })
-
-      if (subError) console.warn("Subscription setup warning:", subError.message)
+        .insert({ user_id: user.id, status: "trialing", plan: "pro" })
+      if (subError && !/duplicate|unique/i.test(subError.message)) console.warn("Subscription setup warning:", subError.message)
 
       onComplete()
     } catch (e) {
@@ -165,7 +163,7 @@ export default function Onboarding({ user, profile, onComplete }) {
               />
 
               <div className={s.stepActions}>
-                <Btn v="ghost" onClick={() => setStep(0)}>← Back</Btn>
+                {startStep === 0 ? <Btn v="ghost" onClick={() => setStep(0)}>← Back</Btn> : <span />}
                 <Btn dis={!step1Valid} onClick={() => setStep(2)}>
                   Next →
                 </Btn>

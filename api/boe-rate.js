@@ -11,7 +11,7 @@ const CACHE_MS = 24 * 60 * 60 * 1000 // 24 hours
 async function fetchBoeRate() {
   // Check cache first
   if (cached.rate !== null && Date.now() - cached.fetchedAt < CACHE_MS) {
-    return { rate: cached.rate, cached: true }
+    return { rate: cached.rate, cached: true, changedOn: cached.changedOn, referenceRate: cached.referenceRate, refDate: cached.refDate }
   }
 
   try {
@@ -54,16 +54,36 @@ async function fetchBoeRate() {
       throw new Error(`Unreasonable rate value: ${parts[1]}`)
     }
 
-    // Update cache
-    cached = { rate, fetchedAt: Date.now() }
+    // Walk back to find when the current rate started, and the rate in
+    // force on the Act's last reference date (30 June or 31 December):
+    // the statutory rate is 8% over THAT rate for the following half-year,
+    // not over today's base rate. Rows are "DD MMM YYYY, rate".
+    const rows = lines.map((l) => {
+      const [d, r] = l.split(',')
+      return { date: new Date(d.trim()), rate: parseFloat((r || '').trim()) }
+    }).filter((x) => !isNaN(x.date.getTime()) && !isNaN(x.rate))
+    let changedOn = null
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (rows[i].rate !== rate) break
+      changedOn = rows[i].date
+    }
+    const today = new Date()
+    const refDate = today.getMonth() >= 6
+      ? new Date(Date.UTC(today.getFullYear(), 5, 30))
+      : new Date(Date.UTC(today.getFullYear() - 1, 11, 31))
+    const onOrBefore = rows.filter((x) => x.date <= refDate)
+    const referenceRate = onOrBefore.length ? onOrBefore[onOrBefore.length - 1].rate : null
 
-    return { rate, cached: false, date: parts[0].trim() }
+    // Update cache
+    cached = { rate, fetchedAt: Date.now(), changedOn, referenceRate, refDate }
+
+    return { rate, cached: false, date: parts[0].trim(), changedOn, referenceRate, refDate }
   } catch (e) {
     console.error('BoE rate fetch failed:', e.message)
 
     // Return cached rate if available, otherwise fallback
     if (cached.rate !== null) {
-      return { rate: cached.rate, cached: true, stale: true }
+      return { rate: cached.rate, cached: true, stale: true, changedOn: cached.changedOn, referenceRate: cached.referenceRate, refDate: cached.refDate }
     }
 
     return { rate: FALLBACK_RATE, cached: false, fallback: true }
@@ -88,6 +108,11 @@ export default async function handler(req, res) {
     daily_rate: dailyRate,
     cached: result.cached || false,
     fallback: result.fallback || false,
+    // When the base rate last changed, and the rate the Act fixes for the
+    // current half-year (base rate on the last 30 June / 31 December).
+    changed_on: result.changedOn ? new Date(result.changedOn).toISOString().slice(0, 10) : null,
+    reference_rate: result.referenceRate ?? null,
+    reference_date: result.refDate ? new Date(result.refDate).toISOString().slice(0, 10) : null,
     fetched_at: new Date(cached.fetchedAt || Date.now()).toISOString(),
   })
 }

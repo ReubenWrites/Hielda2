@@ -78,6 +78,22 @@ export const SEO_ROUTES = [
     ogImage: `${SITE}/og/late-payment-letter-template.png`,
   },
   {
+    path: "/late-payment-interest-rate",
+    file: "late-payment-interest-rate.html",
+    title: "Late Payment Interest Rate UK (Current Statutory Rate) — Hielda",
+    description:
+      "The current statutory late payment interest rate for UK invoices: 8% over the Bank of England base rate, how the reference rate is fixed, and what it adds per day.",
+    ogImage: `${SITE}/og/calculator.png`,
+  },
+  {
+    path: "/free-invoice-template-uk",
+    file: "free-invoice-template-uk.html",
+    title: "Free UK Invoice Template (PDF) with Late Payment Terms — Hielda",
+    description:
+      "Free invoice template for UK freelancers and small businesses. Fill in, download as PDF. VAT option, bank details and the statutory late payment clause built in.",
+    ogImage: `${SITE}/og/calculator.png`,
+  },
+  {
     path: "/how",
     file: "how.html",
     title: "How Hielda Works — Automatic Late Payment Chasing",

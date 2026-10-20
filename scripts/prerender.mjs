@@ -47,7 +47,7 @@ function setCanonical(html, url) {
 // unstyled. Linking the stylesheet and preloading the chunk in <head>
 // gives a styled first paint; Vite's preload helper skips a stylesheet
 // that is already in the document, so nothing loads twice.
-const ROUTE_CHUNK = { "index.html": "LandingPage", "how.html": "HowItWorks", "calculator.html": "Calculator" }
+const ROUTE_CHUNK = { "index.html": "LandingPage", "how.html": "HowItWorks", "calculator.html": "Calculator", "late-payment-interest-rate.html": "InterestRatePage", "free-invoice-template-uk.html": "InvoiceTemplate" }
 const assetNames = fs.readdirSync(path.join(DIST, "assets"))
 function routeAssets(file) {
   const name = file.startsWith("guides") ? "guides" : ROUTE_CHUNK[file]

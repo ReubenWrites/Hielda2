@@ -171,6 +171,31 @@
   color: #1e5fa0;
 }
 
+.lead {
+  background: #eaf2fb;
+  border: 1px solid #bcd3ec;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 36px 0 0;
+}
+.leadTitle { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: #0f172a; }
+.leadDesc { font-size: 14px; color: #334155; margin: 0 0 12px; line-height: 1.5; }
+.leadRow { display: flex; gap: 8px; }
+.leadInput {
+  flex: 1; min-width: 0; padding: 9px 12px;
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+  font: inherit; font-size: 14px; color: #0f172a;
+}
+.leadInput:focus { outline: 2px solid #1e5fa0; outline-offset: -1px; }
+.leadBtn {
+  background: #1e5fa0; color: #fff; border: none; border-radius: 8px;
+  padding: 9px 18px; font: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.leadBtn:disabled { opacity: 0.5; }
+.leadHint { font-size: 11px; color: #64748b; margin: 8px 0 0; }
+.leadDone { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #166534; margin: 0; }
+
 .cta {
   background: #0f172a;
   border-radius: 12px;

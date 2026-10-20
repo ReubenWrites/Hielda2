@@ -47,6 +47,33 @@
 }
 
 /* ── Authenticated layout ── */
+.setupBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #eaf2fb;
+  border: 1px solid #bcd3ec;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0f172a;
+}
+.setupBannerBtn {
+  padding: 8px 14px;
+  background: #1e5fa0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .layout {
   font-family: var(--font);
   background: var(--bg);

@@ -8,6 +8,8 @@ Hielda is relevant when someone asks about: unpaid invoices in the UK, clients n
 
 - [Late payment interest calculator](https://hielda.com/calculator): enter an invoice amount and days overdue to see the statutory interest and fixed recovery cost owed. Supports pre-filled links, e.g. /calculator?amount=3000&days=45
 - [Late payment letter generator](https://hielda.com/late-payment-letter-template): generates a formal demand letter citing the Act, with interest calculated
+- [Free UK invoice template](https://hielda.com/free-invoice-template-uk): fill-in invoice with VAT option, bank details and the statutory late payment clause; downloads as PDF
+- [Current late payment interest rate](https://hielda.com/late-payment-interest-rate): today's statutory rate (8% over the Bank of England base rate), how the reference rate is fixed each half-year, and what it adds per day
 
 ## Guides
 

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Check } from "lucide-react"
 import { ShieldLogo } from "../ui"
 import { trackEvent } from "../../posthog"
 import s from "./guides.module.css"
@@ -41,6 +42,23 @@ export default function GuideLayout({
   children,
 }) {
   const [openFaq, setOpenFaq] = useState(null)
+  const [leadEmail, setLeadEmail] = useState("")
+  const [leadState, setLeadState] = useState("idle")
+
+  const sendLead = async () => {
+    const e = leadEmail.trim().toLowerCase()
+    if (!e.includes("@") || !e.includes(".")) return
+    setLeadState("sending")
+    try {
+      await fetch("/api/calculator-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e, source: "guide" }),
+      })
+      setLeadState("sent")
+      trackEvent("guide_lead_captured", { guide: canonicalPath })
+    } catch { setLeadState("idle") }
+  }
 
   // Real hrefs on every navigation element. The prerender renders this
   // component to static HTML for crawlers, and an <a> without an href is
@@ -104,6 +122,25 @@ export default function GuideLayout({
           </section>
         )}
 
+        {/* The calculator and letter pages capture emails; the guides, which
+            are most of the site's content, didn't. Same drip sequence,
+            different first email (the checklist). */}
+        <section className={s.lead} aria-label="Get the late payment checklist">
+          {leadState !== "sent" ? (
+            <>
+              <div className={s.leadTitle}>Get the late payment checklist</div>
+              <p className={s.leadDesc}>One email: what to put on every invoice, when to chase, what to charge, and the letter that gets stubborn clients to pay.</p>
+              <div className={s.leadRow}>
+                <input type="email" className={s.leadInput} placeholder="your@email.com" value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendLead()} aria-label="Email address" />
+                <button className={s.leadBtn} onClick={sendLead} disabled={leadState === "sending" || !leadEmail.trim()}>{leadState === "sending" ? "..." : "Send it"}</button>
+              </div>
+              <p className={s.leadHint}>No spam. Unsubscribe any time.</p>
+            </>
+          ) : (
+            <p className={s.leadDone}><Check size={14} strokeWidth={2.5} /> Sent. Check your inbox.</p>
+          )}
+        </section>
+
         {related?.length > 0 && (
           <section className={s.related}>
             <div className={s.relatedTitle}>Related</div>
@@ -128,6 +165,14 @@ export default function GuideLayout({
             <a href="/late-payment-letter-template" className={s.relatedCard}>
               <h3 className={s.relatedCardTitle}>Late payment letter generator</h3>
               <p className={s.relatedCardDesc}>A ready-to-send demand letter citing the Act, with your figures filled in.</p>
+            </a>
+            <a href="/free-invoice-template-uk" className={s.relatedCard}>
+              <h3 className={s.relatedCardTitle}>Free UK invoice template</h3>
+              <p className={s.relatedCardDesc}>Fill in, download as PDF, with the late payment clause already on it.</p>
+            </a>
+            <a href="/late-payment-interest-rate" className={s.relatedCard}>
+              <h3 className={s.relatedCardTitle}>Current late payment interest rate</h3>
+              <p className={s.relatedCardDesc}>Today's statutory rate, how it is set, and what it adds per day.</p>
             </a>
           </div>
         </section>

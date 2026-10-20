@@ -44,6 +44,8 @@ const LandingPage = lazyRetry(() => import("./components/LandingPage"))
 const NotFound = lazyRetry(() => import("./components/NotFound"))
 import { seoForPath } from "./data/seoRoutes"
 const Calculator = lazyRetry(() => import("./components/Calculator"))
+const InterestRatePage = lazyRetry(() => import("./components/InterestRatePage"))
+const InvoiceTemplate = lazyRetry(() => import("./components/InvoiceTemplate"))
 const PrivacyPolicy = lazyRetry(() => import("./components/PrivacyPolicy"))
 const AdminDashboard = lazyRetry(() => import("./components/AdminDashboard"))
 const Referrals = lazyRetry(() => import("./components/Referrals"))
@@ -375,6 +377,8 @@ export default function App() {
         <Routes>
           <Route path="/calculator" element={<Calculator onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} isMobile={isMobile} />} />
           <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/late-payment-interest-rate" element={<InterestRatePage onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/free-invoice-template-uk" element={<InvoiceTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides" element={<GuidesIndex onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/late-payment-act-1998-explained" element={<LatePaymentActExplained onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/how-to-chase-late-invoices" element={<HowToChaseLateInvoices onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
@@ -406,13 +410,18 @@ export default function App() {
     )
   }
 
-  // ── Onboarding gate ──
-  if (!profile || !profile.onboarding_complete) {
+  // ── Setup ──
+  // A new account goes straight to the dashboard; the business name and
+  // bank details are collected from the "finish setup" banner (or when
+  // the first invoice needs them) rather than as a wall before the
+  // product. The full-page flow only remains for a missing profile row.
+  if (!profile || location.pathname === "/setup") {
     return (
       <Suspense fallback={<PageLoader />}>
         <Onboarding
           user={user}
           profile={profile}
+          startStep={profile ? 1 : 0}
           onComplete={() => { loadData(); navigate("/dashboard") }}
         />
       </Suspense>
@@ -570,6 +579,14 @@ export default function App() {
         <main className={s.content}>
           <div className={s.dotPattern} />
           <div className={s.contentInner}>
+            {!profile.onboarding_complete && (
+              <div role="status" className={s.setupBanner}>
+                <span>
+                  <strong>Welcome to Hielda.</strong> Add your business name and where clients should pay you, and your invoices are ready to send.
+                </span>
+                <button onClick={() => navigate("/setup")} className={s.setupBannerBtn}>Finish setup · 1 min</button>
+              </div>
+            )}
             <SubscriptionGate subscription={subscription} onUpgrade={() => navigate("/billing")} allowAccess={location.pathname === "/billing"}>
               {dataError && (
                 <div role="alert" className={s.errorBanner}>
@@ -593,6 +610,8 @@ export default function App() {
                 {isAdmin && <Route path="/admin" element={<AdminDashboard isMobile={isMobile} />} />}
                 <Route path="/calculator" element={<Calculator onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} isMobile={isMobile} inApp />} />
                 <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
+                <Route path="/late-payment-interest-rate" element={<InterestRatePage onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
+                <Route path="/free-invoice-template-uk" element={<InvoiceTemplate onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/dashboard")} />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
