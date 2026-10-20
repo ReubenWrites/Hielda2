@@ -47,13 +47,21 @@ function setCanonical(html, url) {
 // unstyled. Linking the stylesheet and preloading the chunk in <head>
 // gives a styled first paint; Vite's preload helper skips a stylesheet
 // that is already in the document, so nothing loads twice.
-const ROUTE_CHUNK = { "index.html": "LandingPage", "how.html": "HowItWorks", "calculator.html": "Calculator", "late-payment-interest-rate.html": "InterestRatePage", "free-invoice-template-uk.html": "InvoiceTemplate" }
+// A page's own chunk plus any shared stylesheet chunk it depends on (the
+// rate and invoice-template pages reuse the guides' stylesheet).
+const ROUTE_CHUNK = {
+  "index.html": ["LandingPage"],
+  "how.html": ["HowItWorks"],
+  "calculator.html": ["Calculator"],
+  "late-payment-interest-rate.html": ["guides", "InterestRatePage"],
+  "free-invoice-template-uk.html": ["guides", "InvoiceTemplate"],
+}
 const assetNames = fs.readdirSync(path.join(DIST, "assets"))
 function routeAssets(file) {
-  const name = file.startsWith("guides") ? "guides" : ROUTE_CHUNK[file]
-  if (!name) return ""
-  const css = assetNames.filter((f) => new RegExp(`^${name}-[\\w-]+\\.css$`).test(f))
-  const js = assetNames.filter((f) => new RegExp(`^${name}-[\\w-]+\\.js$`).test(f))
+  const names = file.startsWith("guides") ? ["guides"] : ROUTE_CHUNK[file]
+  if (!names) return ""
+  const css = names.flatMap((name) => assetNames.filter((f) => new RegExp(`^${name}-[\\w-]+\\.css$`).test(f)))
+  const js = names.flatMap((name) => assetNames.filter((f) => new RegExp(`^${name}-[\\w-]+\\.js$`).test(f)))
   return [
     ...css.map((f) => `    <link rel="stylesheet" href="/assets/${f}" />`),
     ...js.map((f) => `    <link rel="modulepreload" href="/assets/${f}" />`),
