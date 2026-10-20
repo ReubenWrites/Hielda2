@@ -11,8 +11,9 @@ describe('getTrialDaysRemaining', () => {
   })
 
   it('returns correct days for active trial', () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 5)
+    // Exactly 5 x 24h, not 5 calendar days: across a DST change the latter
+    // is 5 days + 1 hour, which ceil() reports as 6.
+    const futureDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
     const days = getTrialDaysRemaining({ status: 'trialing', trial_end: futureDate.toISOString() })
     expect(days).toBe(5)
   })
