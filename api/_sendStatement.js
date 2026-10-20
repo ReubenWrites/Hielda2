@@ -9,7 +9,7 @@
 // so the dashboard can show exactly what the client will receive.
 
 import { createClient } from '@supabase/supabase-js'
-import { accruedInterest, fetchLedgers } from './_money.js'
+import { accruedInterest, fetchLedgers, statutoryRateFor, dailyRateFor, setBaseRateHistory, getBaseRateHistory } from './_money.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
@@ -32,9 +32,10 @@ let DAILY_RATE = RATE / 365 / 100
 export async function loadLiveRate() {
   try {
     const { fetchBoeRate } = await import('./boe-rate.js')
-    const { rate } = await fetchBoeRate()
+    const { rate, history } = await fetchBoeRate()
     RATE = 8 + rate
     DAILY_RATE = RATE / 365 / 100
+    setBaseRateHistory(history)
   } catch {
     // Keep fallback
   }
@@ -83,7 +84,7 @@ function invoiceFigures(invoice, payments) {
   const outstanding = Math.max(0, round2(Number(invoice.amount) - amountPaid))
   const debtAtDue = Math.max(0, round2(Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)))
   const overdue = dl > 0
-  const interest = overdue && finesEnabled ? accruedInterest(invoice, payments, DAILY_RATE) : 0
+  const interest = overdue && finesEnabled ? accruedInterest(invoice, payments, dailyRateFor(invoice.due_date)) : 0
   const pen = overdue && finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const total = round2(outstanding + interest + pen)
   return { dl, amountPaid, outstanding, interest, pen, total }
@@ -114,7 +115,7 @@ function invoiceBlock(invoice, f, payments) {
 
   const chargeRows = f.pen + f.interest > 0
     ? `<tr><td style="${CELL_L}">Fixed debt recovery cost</td><td style="${CELL_R}color:#a16207;font-family:monospace;">+${fmt(f.pen)}</td></tr>
-       <tr><td style="${CELL_L}">Interest (${dl} days at ${RATE}% p.a. on the balance)</td><td style="${CELL_R}color:#a16207;font-family:monospace;">+${fmt(f.interest)}</td></tr>`
+       <tr><td style="${CELL_L}">Interest (${dl} days at ${statutoryRateFor(invoice.due_date)}% p.a. on the balance)</td><td style="${CELL_R}color:#a16207;font-family:monospace;">+${fmt(f.interest)}</td></tr>`
     : ''
 
   return `
@@ -152,7 +153,7 @@ function settledBlock(invoice, payments) {
   const debtAtDue = Math.max(0, round2(face - (Number(invoice.paid_before_due) || 0)))
   // Frozen at the settlement date, accrued period by period up to it.
   const interest = dlSettle > 0 && finesEnabled
-    ? accruedInterest(invoice, payments, DAILY_RATE, settledOn) : 0
+    ? accruedInterest(invoice, payments, dailyRateFor(invoice.due_date), settledOn) : 0
   const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const chargesCollected = Math.max(0, round2(cash - face))
   const writtenOff = Math.max(0, round2(face + interest + pen - cash))
@@ -193,7 +194,7 @@ function settledBlock(invoice, payments) {
 // tier quietly lowered or charges avoided entirely goes unnoticed unless
 // the statement explains it. Only renders when there's something
 // genuinely favourable to report.
-function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
+function collectFavourNotes(open, settled, settledPayments) {
   const notes = []
   const tierNote = (invoice) => {
     const face = Number(invoice.amount)
@@ -223,7 +224,7 @@ function collectFavourNotes(open, settled, settledPayments, DAILY_RATE) {
     const pays = (settledPayments && settledPayments[inv.id]) || []
     const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
     const interest = dlSettle > 0 && finesEnabled
-      ? accruedInterest(inv, pays, DAILY_RATE, settledOn) : 0
+      ? accruedInterest(inv, pays, dailyRateFor(inv.due_date), settledOn) : 0
     const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const writtenOff = Math.max(0, round2(face + interest + pen - cash))
     // Ignore sub-5p write-offs: they're rounding artifacts, not favours,
@@ -270,7 +271,7 @@ export function buildStatementEmail(invoices, profile, paymentsByInvoice, settle
       </div>
     </div>`
 
-  const favourNotes = collectFavourNotes(invoices, settled || [], settledPayments, DAILY_RATE)
+  const favourNotes = collectFavourNotes(invoices, settled || [], settledPayments)
   const favourSection = favourNotes.length
     ? `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:16px 0 0;">
         <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#5f6c7c;margin-bottom:8px;">How payments were applied</div>
@@ -525,7 +526,7 @@ export async function sendStatement(req, res) {
           invoice_ids: open.map((i) => i.id),
           include_payments: !!include_payments,
           include_settled: !!include_settled,
-          rate: RATE,
+          base_rate_history: getBaseRateHistory(),
         }),
       })
       if (pdfRes.ok) {

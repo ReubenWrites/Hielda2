@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, Trash2, Download, Plus, Inbox, MoreHorizontal, CreditCard, PartyPopper, FileText, X } from "lucide-react"
-import { colors as c, CHASE_STAGES, getRate, FORMAL_FROM_DAYS, lbaResponseDays } from "../constants"
+import { colors as c, CHASE_STAGES, getRate, getHistory, FORMAL_FROM_DAYS, lbaResponseDays } from "../constants"
 import { daysLate, calcInterest, penalty, fmt, formatDate, round2, outstanding, chargeableExtras, todayStr } from "../utils"
 import { Card, Badge, Btn, StatCard, useConfirm, useToast } from "./ui"
 import { supabase } from "../supabase"
@@ -526,7 +526,7 @@ export default function Dashboard({ invs, isMobile, onUpdate, profile }) {
           invoice_ids: stmtPreview.group.invoices.map((i) => i.id),
           include_payments: stmtPreview.includePayments,
           include_settled: stmtPreview.includeSettled,
-          rate: getRate(),
+          base_rate_history: getHistory(),
         }),
       })
       if (!res.ok) throw new Error(`PDF generation failed (${res.status})`)

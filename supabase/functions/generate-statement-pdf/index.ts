@@ -12,7 +12,35 @@ import { jsPDF } from "npm:jspdf@2.5.1"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
-const DEFAULT_RATE = 11.75
+
+// ── Late Payment Act reference rate (copy of api/_baseRates.js) ──────────
+// 8% over the base rate on the 30 June / 31 December preceding the day
+// interest starts to run (the day after the due date). Callers pass the
+// live history from /api/boe-rate as base_rate_history; this table is
+// the fallback.
+const BASE_RATE_HISTORY: { from: string; rate: number }[] = [
+  { from: "2018-08-02", rate: 0.75 }, { from: "2020-03-11", rate: 0.25 }, { from: "2020-03-19", rate: 0.1 },
+  { from: "2021-12-16", rate: 0.25 }, { from: "2022-02-03", rate: 0.5 }, { from: "2022-03-17", rate: 0.75 },
+  { from: "2022-05-05", rate: 1 }, { from: "2022-06-16", rate: 1.25 }, { from: "2022-08-04", rate: 1.75 },
+  { from: "2022-09-22", rate: 2.25 }, { from: "2022-11-03", rate: 3 }, { from: "2022-12-15", rate: 3.5 },
+  { from: "2023-02-02", rate: 4 }, { from: "2023-03-23", rate: 4.25 }, { from: "2023-05-11", rate: 4.5 },
+  { from: "2023-06-22", rate: 5 }, { from: "2023-08-03", rate: 5.25 }, { from: "2024-08-01", rate: 5 },
+  { from: "2024-11-07", rate: 4.75 }, { from: "2025-02-06", rate: 4.5 }, { from: "2025-05-08", rate: 4.25 },
+  { from: "2025-08-07", rate: 4 }, { from: "2025-12-18", rate: 3.75 },
+]
+function statutoryRateFor(dueDate: string | null | undefined, history: { from: string; rate: number }[]): number {
+  const h = Array.isArray(history) && history.length >= BASE_RATE_HISTORY.length ? history : BASE_RATE_HISTORY
+  const due = typeof dueDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(dueDate) ? dueDate.slice(0, 10) : null
+  if (!due) return 8 + h[h.length - 1].rate
+  const start = new Date(due + "T00:00:00Z")
+  start.setUTCDate(start.getUTCDate() + 1)
+  const s = start.toISOString().slice(0, 10)
+  const y = Number(s.slice(0, 4)), m = Number(s.slice(5, 7))
+  const ref = m >= 7 ? `${y}-06-30` : `${y - 1}-12-31`
+  let rate = h[0].rate
+  for (const x of h) { if (x.from <= ref) rate = x.rate; else break }
+  return Math.round((8 + rate) * 100) / 100
+}
 
 function penalty(amount: number): number {
   if (amount < 1000) return 40
@@ -146,9 +174,9 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    const { invoice_ids, include_payments, include_settled, rate: requestedRate } = await req.json()
-    const RATE = (typeof requestedRate === "number" && requestedRate > 0) ? requestedRate : DEFAULT_RATE
-    const DAILY_RATE = RATE / 365 / 100
+    const { invoice_ids, include_payments, include_settled, base_rate_history } = await req.json()
+    const rateFor = (inv: any) => statutoryRateFor(inv.due_date, base_rate_history)
+    const dailyFor = (inv: any) => rateFor(inv) / 365 / 100
 
     if (!Array.isArray(invoice_ids) || invoice_ids.length === 0 || invoice_ids.length > 50) {
       return jsonError("invoice_ids (1-50) required", 400)
@@ -225,7 +253,7 @@ serve(async (req) => {
       const outstanding = Math.max(0, round2(Number(invoice.amount) - amountPaid))
       const debtAtDue = Math.max(0, round2(Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)))
       const interest = dl > 0 && finesEnabled
-        ? accruedInterest(invoice, ledgers[invoice.id] ?? null, DAILY_RATE) : 0
+        ? accruedInterest(invoice, ledgers[invoice.id] ?? null, dailyFor(invoice)) : 0
       const pen = dl > 0 && finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
       return { dl, amountPaid, outstanding, interest, pen, total: round2(outstanding + interest + pen) }
     }
@@ -388,7 +416,7 @@ serve(async (req) => {
         rows.push({ label: "Payments received — thank you", value: `-${fmt(f.amountPaid)}`, color: green })
       }
       if (f.pen > 0) rows.push({ label: "Fixed debt recovery cost", value: `+${fmt(f.pen)}`, color: gold })
-      if (f.interest > 0) rows.push({ label: `Interest (${f.dl} days at ${RATE}% p.a. on the balance)`, value: `+${fmt(f.interest)}`, color: gold })
+      if (f.interest > 0) rows.push({ label: `Interest (${f.dl} days at ${rateFor(inv)}% p.a. on the balance)`, value: `+${fmt(f.interest)}`, color: gold })
 
       const chip = f.dl > 0 ? `${f.dl} DAYS OVERDUE` : `DUE IN ${daysUntil(inv.due_date)} DAYS`
       drawBlock(
@@ -431,7 +459,7 @@ serve(async (req) => {
         const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
         // Frozen at the settlement date, accrued period by period up to it.
         const interest = dlSettle > 0 && finesEnabled
-          ? accruedInterest(inv, pays, DAILY_RATE, settledOn) : 0
+          ? accruedInterest(inv, pays, dailyFor(inv), settledOn) : 0
         const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
         const chargesCollected = Math.max(0, round2(cash - face))
         const writtenOff = Math.max(0, round2(face + interest + pen - cash))
@@ -487,7 +515,7 @@ serve(async (req) => {
       const pays = settledPayments[inv.id] || []
       const debtAtDue = Math.max(0, round2(face - (Number(inv.paid_before_due) || 0)))
       const interest = dlSettle > 0 && finesEnabled
-        ? accruedInterest(inv, pays, DAILY_RATE, settledOn) : 0
+        ? accruedInterest(inv, pays, dailyFor(inv), settledOn) : 0
       const pen = dlSettle > 0 && finesEnabled && debtAtDue > 0 ? penalty(debtAtDue) : 0
       const writtenOff = Math.max(0, round2(face + interest + pen - cash))
       // Ignore sub-5p write-offs: rounding artifacts, not favours.

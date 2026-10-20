@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Check, FileUp } from "lucide-react"
 import { supabase } from "../supabase"
-import { colors as c, TERMS, getRate } from "../constants"
+import { colors as c, TERMS, getRate, getHistory } from "../constants"
 import { penalty, fmt, formatDate, addDays, generateRef, todayStr, isValidEmail, round2 } from "../utils"
 import { Card, Inp, Sel, Btn, ErrorBanner, CollapsibleSection, useToast, useConfirm } from "./ui"
 import { trackEvent } from "../posthog"
@@ -734,7 +734,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           apikey,
           Authorization: `Bearer ${session?.access_token || apikey}`,
         },
-        body: JSON.stringify({ invoice_id: newInvId }),
+        body: JSON.stringify({ invoice_id: newInvId, base_rate_history: getHistory() }),
       })
       if (!res.ok) {
         const text = await res.text()

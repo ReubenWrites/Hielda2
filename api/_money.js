@@ -10,6 +10,8 @@
 /** Whole days from a to b, negative if b precedes a. Date-only values
  *  normalise to UTC midnight so a payment dated 2026-09-01 means the same
  *  thing wherever it is read. */
+export { statutoryRateFor, dailyRateFor, setBaseRateHistory, getBaseRateHistory } from './_baseRates.js'
+
 export function dayDiff(a, b) {
   return Math.floor((new Date(b).getTime() - new Date(a).getTime()) / 864e5)
 }

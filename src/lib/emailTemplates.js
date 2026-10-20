@@ -1,4 +1,4 @@
-import { getRate, CHASE_STAGES, stageForDay, stageById } from "../constants"
+import { getStatutoryRateFor, CHASE_STAGES, stageForDay, stageById } from "../constants"
 import { fmt, formatDate, daysLate, calcInterest, penalty, round2 } from "../utils"
 import { friendlySubject, friendlyBody, legalSubject, legalBody, plainSubject, plainBody } from "./toneModifiers"
 
@@ -20,7 +20,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
   const amountPaid = Number(invoice.amount_paid) || 0
   const outstanding = Math.max(0, round2(Number(invoice.amount) - amountPaid))
   const debtAtDue = Math.max(0, round2(Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)))
-  const interest = finesEnabled ? calcInterest(outstanding, dl) : 0
+  const interest = finesEnabled ? calcInterest(outstanding, dl, invoice.due_date) : 0
   const pen = finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
   const total = round2(outstanding + interest + pen)
   const amtStr = fmt(outstanding)
@@ -41,7 +41,7 @@ export function buildChaseEmail(invoice, profile, stage, tone = 'firm') {
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
       ${paidRow}
       <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Interest (${dl} days at ${getRate()}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+      <tr><td style="padding:7px 16px 7px 0;color:#64748b;">Interest (${dl} days at ${getStatutoryRateFor(invoice.due_date)}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
       <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
     </table>`
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react"
 import { Check, Link as LinkIcon } from "lucide-react"
-import { getRate, getBoe } from "../constants"
+import { getRate, getBoe, getStatutoryRateFor } from "../constants"
 import { calcInterest, penalty, fmt } from "../utils"
 import { Card, ShieldLogo } from "./ui"
 import { trackEvent } from "../posthog"
@@ -112,7 +112,11 @@ export default function Calculator({ onBack, onGetStarted, isMobile, inApp = fal
     if (parsedAmt > 0 && parsedDays > 0) trackEvent("calculator_used", { amount: parsedAmt, days: parsedDays })
   }, [parsedAmt, parsedDays])
 
-  const interest = hasInput ? calcInterest(parsedAmt, parsedDays) : 0
+  // The due date implied by "days overdue" picks the Act's reference
+  // rate for that half-year, which is what a court would apply.
+  const impliedDue = hasInput ? new Date(Date.now() - parsedDays * 86400000).toISOString().slice(0, 10) : null
+  const appliedRate = impliedDue ? getStatutoryRateFor(impliedDue) : getRate()
+  const interest = hasInput ? calcInterest(parsedAmt, parsedDays, impliedDue) : 0
   const pen = hasInput ? penalty(parsedAmt) : 0
   const total = parsedAmt + interest + pen
 
@@ -211,7 +215,7 @@ export default function Calculator({ onBack, onGetStarted, isMobile, inApp = fal
               {[
                 { label: "Original invoice", value: fmt(parsedAmt), color: "var(--tx)" },
                 { label: `Fixed debt recovery cost (invoice ${penTier} tier)`, value: `+ ${fmt(pen)}`, color: "#d97706" },
-                { label: `Interest (${parsedDays} days at ${getRate()}% p.a.)`, value: `+ ${fmt(interest)}`, color: "#d97706" },
+                { label: `Interest (${parsedDays} days at ${appliedRate}% p.a.)`, value: `+ ${fmt(interest)}`, color: "#d97706" },
               ].map((row) => (
                 <div key={row.label} className={s.resultRow}>
                   <span className={s.resultRowLabel}>{row.label}</span>

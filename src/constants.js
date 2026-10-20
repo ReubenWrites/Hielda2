@@ -7,6 +7,16 @@ let _rate = 8 + _boe
 let _dailyRate = _rate / 365 / 100
 let _listeners = []
 
+import { setBaseRateHistory, getBaseRateHistory, statutoryRateFor, dailyRateFor } from "../api/_baseRates.js"
+
+// The Act fixes each invoice's rate by the half-year in which interest
+// started to run (8% over the base rate on the preceding 30 June or 31
+// December). getRate() is "the rate now" for copy; these are the rates
+// to CHARGE on a given invoice. See api/_baseRates.js.
+export function getStatutoryRateFor(dueDate) { return statutoryRateFor(dueDate) }
+export function getDailyRateFor(dueDate) { return dailyRateFor(dueDate) }
+export function getHistory() { return getBaseRateHistory() }
+
 export function getBoe() { return _boe }
 export function getRate() { return _rate }
 export function getDailyRate() { return _dailyRate }
@@ -37,6 +47,7 @@ export function loadLiveBoeRate() {
       _boe = newBoe
       _rate = newRate
       _dailyRate = newDailyRate
+      if (Array.isArray(data.history)) setBaseRateHistory(data.history)
       _listeners.forEach(cb => cb({ boe: _boe, rate: _rate, dailyRate: _dailyRate }))
     } catch {
       // Keep fallback values

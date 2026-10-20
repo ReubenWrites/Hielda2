@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody, plainSubject, plainBody } from './_toneModifiers.js'
-import { accruedInterest, fetchLedgers } from './_money.js'
+import { accruedInterest, fetchLedgers, statutoryRateFor, dailyRateFor, setBaseRateHistory } from './_money.js'
 import { clientSendBlock } from './_sendGuard.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
@@ -23,9 +23,10 @@ let DAILY_RATE = RATE / 365 / 100
 async function loadLiveRate() {
   try {
     const { fetchBoeRate } = await import('./boe-rate.js')
-    const { rate } = await fetchBoeRate()
+    const { rate, history } = await fetchBoeRate()
     RATE = 8 + rate
     DAILY_RATE = RATE / 365 / 100
+    setBaseRateHistory(history)
   } catch {
     // Keep fallback
   }
@@ -144,7 +145,7 @@ function buildChaseEmailHtml(invoice, profile, stage, dl, interest, pen, total, 
     <table style="border-collapse:collapse;margin:16px 0;font-size:14px;">
       <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
       <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+      <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${statutoryRateFor(invoice.due_date)}% p.a.)</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
       <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
     </table>`
   const totalBlock = `
@@ -510,7 +511,7 @@ export default async function handler(req, res) {
       // the books.
       const ledger = (await fetchLedgers(supabase, [invoice_id]))[invoice_id] ?? null
       const interest = dl > 0 && finesEnabled
-        ? accruedInterest(invoice, ledger, RATE / 365 / 100) : 0
+        ? accruedInterest(invoice, ledger, dailyRateFor(invoice.due_date)) : 0
       const owedNow = Math.round((outstandingNow + pen + interest) * 100) / 100
 
       if (owedNow > 0) {
@@ -724,7 +725,7 @@ export default async function handler(req, res) {
       const debtAtDue = Math.max(0, Math.round(
         (Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)) * 100) / 100)
       const ledger = (await fetchLedgers(supabase, [invoice.id]))[invoice.id] ?? null
-      const interest = finesEnabled ? accruedInterest(invoice, ledger, DAILY_RATE) : 0
+      const interest = finesEnabled ? accruedInterest(invoice, ledger, dailyRateFor(invoice.due_date)) : 0
       const pen = finesEnabled && outstandingNow > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
       const total = Math.round((outstandingNow + interest + pen) * 100) / 100
 

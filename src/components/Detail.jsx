@@ -5,7 +5,7 @@ import {
   Calendar, Mail, Forward, Send, Eye, Download, Copy, Trash2, Scale,
 } from "lucide-react"
 import { supabase } from "../supabase"
-import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, FORMAL_FROM_DAYS, lbaResponseDays, stageById, courtFee, MCOL_MAX } from "../constants"
+import { colors as c, MONO, CHASE_STAGES, FONT, getRate, getDailyRate, getDailyRateFor, getHistory, FORMAL_FROM_DAYS, lbaResponseDays, stageById, courtFee, MCOL_MAX } from "../constants"
 import { daysLate, calcInterest, accruedInterest, penalty, fmt, formatDate, addDays, round2, todayStr } from "../utils"
 import { Card, Badge, Btn, ErrorBanner, useConfirm, useToast } from "./ui"
 import { buildChaseEmail } from "../lib/emailTemplates"
@@ -444,7 +444,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
           apikey,
           Authorization: `Bearer ${session?.access_token || apikey}`,
         },
-        body: JSON.stringify({ invoice_id: inv.id }),
+        body: JSON.stringify({ invoice_id: inv.id, base_rate_history: getHistory() }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -1818,7 +1818,7 @@ export default function Detail({ inv, profile, onUpdate, isMobile, editChase, on
               <span className={s.oweTotalLabel}>TOTAL NOW OWED</span>
               <span className={isMobile ? s.oweTotalValueMobile : s.oweTotalValue}>{fmt(tot)}</span>
             </div>
-            <div className={s.oweDailyRate}>+{fmt(netAmount * getDailyRate())}/day interest</div>
+            <div className={s.oweDailyRate}>+{fmt(netAmount * getDailyRateFor(inv.due_date))}/day interest</div>
           </Card>
         )}
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Copy, Check, Printer, Send, Download } from "lucide-react"
-import { getRate, getDailyRate, lbaResponseDays } from "../constants"
+import { getStatutoryRateFor, getDailyRateFor, getHistory, lbaResponseDays } from "../constants"
 import { fmt, formatDate, round2, penalty, accruedInterest, outstanding, daysLate, addDays, todayStr } from "../utils"
 import { Card, Btn, useToast } from "./ui"
 import { supabase } from "../supabase"
@@ -53,7 +53,7 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
     const debtAtDue = round2(Math.max(0, face - (Number(inv.paid_before_due) || 0)))
     const interest = finesOn ? accruedInterest(inv, loaded ? payments : undefined) : 0
     const fee = finesOn && owed > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
-    const perDay = finesOn ? round2(owed * getDailyRate()) : 0
+    const perDay = finesOn ? round2(owed * getDailyRateFor(inv.due_date)) : 0
     return { face, paid, owed, interest, fee, perDay, total: round2(owed + interest + fee) }
   }, [inv, payments, loaded])
 
@@ -104,7 +104,7 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
     L.push(`  TOTAL NOW DUE                        ${fmt(figures.total)}`, "")
     if (figures.fee > 0 || figures.interest > 0) {
       L.push(
-        `The fixed sum and interest are claimed under the Late Payment of Commercial Debts (Interest) Act 1998, which entitles me to statutory interest at ${getRate()}% per annum (8% above the Bank of England base rate) together with a fixed sum for the cost of recovering the debt. Interest continues to accrue at approximately ${fmt(figures.perDay)} per day until payment is received.`,
+        `The fixed sum and interest are claimed under the Late Payment of Commercial Debts (Interest) Act 1998, which entitles me to statutory interest at ${getStatutoryRateFor(inv.due_date)}% per annum (8% above the Bank of England base rate) together with a fixed sum for the cost of recovering the debt. Interest continues to accrue at approximately ${fmt(figures.perDay)} per day until payment is received.`,
         "",
       )
     }
@@ -163,7 +163,7 @@ export default function LetterBeforeAction({ inv, profile, onUpdate }) {
           apikey,
           Authorization: `Bearer ${session?.access_token || apikey}`,
         },
-        body: JSON.stringify({ invoice_id: inv.id, rate: getRate() }),
+        body: JSON.stringify({ invoice_id: inv.id, base_rate_history: getHistory() }),
       })
       if (!res.ok) {
         const text = await res.text()

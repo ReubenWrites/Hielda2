@@ -1,4 +1,4 @@
-import { getDailyRate } from "./constants"
+import { getDailyRate, getDailyRateFor } from "./constants"
 
 /** Calculate penalty based on invoice amount (Late Payment Act 1998) */
 export const penalty = (amount) => {
@@ -8,7 +8,9 @@ export const penalty = (amount) => {
 }
 
 /** Calculate simple interest under the Late Payment of Commercial Debts Act 1998 */
-export const calcInterest = (amount, days) => Math.round(amount * getDailyRate() * days * 100) / 100
+// `due` picks the Act's reference rate for that invoice; without it the
+// current rate is used (demo figures, generic copy).
+export const calcInterest = (amount, days, due) => Math.round(amount * (due ? getDailyRateFor(due) : getDailyRate()) * days * 100) / 100
 
 /** Whole days from a to b (negative if b is before a). Date-only values are
  *  normalised to UTC midnight so a payment dated 2026-09-01 means the same
@@ -34,7 +36,7 @@ const dayDiff = (a, b) => Math.floor((new Date(b).getTime() - new Date(a).getTim
  * @param {Date|string} asOf accrue up to here (settlement date, or now)
  */
 export const accruedInterest = (inv, payments, asOf) => {
-  const dailyRate = getDailyRate()
+  const dailyRate = getDailyRateFor(inv.due_date)
   const due = inv.due_date
   const end = asOf ?? Date.now()
   const totalDays = dayDiff(due, end)

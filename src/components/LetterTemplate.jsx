@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Check, Copy } from "lucide-react"
-import { getRate } from "../constants"
+import { getRate, getStatutoryRateFor } from "../constants"
 import { penalty, calcInterest, fmt, formatDate, daysLate, round2 } from "../utils"
 import { trackEvent } from "../posthog"
 import { ShieldLogo } from "./ui"
@@ -43,7 +43,7 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
     if (!amt || amt <= 0 || !dueDate) return null
     const days = daysLate(dueDate)
     const fixed = penalty(amt)
-    const interest = days > 0 ? calcInterest(amt, days) : 0
+    const interest = days > 0 ? calcInterest(amt, days, dueDate) : 0
     const total = round2(amt + fixed + interest)
     return { amt, days, fixed, interest, total }
   }, [amount, dueDate])
@@ -72,14 +72,14 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
       "",
       `I am writing to notify you that invoice ${v(ref, "[Invoice Ref]")} for the sum of ${calc ? fmt(calc.amt) : "[£Amount]"} is now overdue. Payment was due on ${dueDate ? formatDate(dueDate) : "[Due Date]"}.`,
       "",
-      `Under the Late Payment of Commercial Debts (Interest) Act 1998, I am legally entitled to charge statutory interest at ${getRate()}% per annum (8% above the Bank of England base rate) on the outstanding amount, accruing daily from the day after the due date, plus a fixed sum for debt recovery costs.`,
+      `Under the Late Payment of Commercial Debts (Interest) Act 1998, I am legally entitled to charge statutory interest at ${dueDate ? getStatutoryRateFor(dueDate) : getRate()}% per annum (8% above the Bank of England base rate) on the outstanding amount, accruing daily from the day after the due date, plus a fixed sum for debt recovery costs.`,
       "",
       ...(calc ? [
         "The amount now owed is:",
         "",
         `  Original invoice:            ${fmt(calc.amt)}`,
         `  Fixed debt recovery cost:    ${fmt(calc.fixed)}`,
-        `  Statutory interest to date:  ${fmt(calc.interest)}${calc.days > 0 ? ` (${calc.days} days at ${getRate()}% p.a.)` : ""}`,
+        `  Statutory interest to date:  ${fmt(calc.interest)}${calc.days > 0 ? ` (${calc.days} days at ${getStatutoryRateFor(dueDate)}% p.a.)` : ""}`,
         `  TOTAL:                       ${fmt(calc.total)}`,
         "",
         "Interest continues to accrue daily until payment is received.",
@@ -260,7 +260,7 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
               <>
                 <div><strong>Original invoice:</strong> {fmt(calc.amt)}</div>
                 <div style={{ marginTop: 4 }}><strong>Fixed debt recovery cost:</strong> {fmt(calc.fixed)}</div>
-                <div style={{ marginTop: 4 }}><strong>Statutory interest to date:</strong> {fmt(calc.interest)}{calc.days > 0 ? ` (${calc.days} days at ${getRate()}% p.a.)` : ""}</div>
+                <div style={{ marginTop: 4 }}><strong>Statutory interest to date:</strong> {fmt(calc.interest)}{calc.days > 0 ? ` (${calc.days} days at ${getStatutoryRateFor(dueDate)}% p.a.)` : ""}</div>
                 <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #e2e8f0" }}><strong>Total now owed: {fmt(calc.total)}</strong> — interest continues to accrue daily</div>
               </>
             ) : (

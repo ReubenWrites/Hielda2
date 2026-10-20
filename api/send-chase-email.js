@@ -5,7 +5,7 @@ import { getInvoicePdfAttachment } from './_invoicePdfAttachment.js'
 
 import { createClient } from '@supabase/supabase-js'
 import { friendlySubject, friendlyBody, legalSubject, legalBody, firmSubject, firmBody, plainSubject, plainBody } from './_toneModifiers.js'
-import { accruedInterest, fetchLedgers } from './_money.js'
+import { accruedInterest, fetchLedgers, statutoryRateFor, dailyRateFor, setBaseRateHistory } from './_money.js'
 import { clientSendBlock } from './_sendGuard.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
@@ -25,9 +25,10 @@ let DAILY_RATE = RATE / 365 / 100
 async function loadLiveRate() {
   try {
     const { fetchBoeRate } = await import('./boe-rate.js')
-    const { rate } = await fetchBoeRate()
+    const { rate, history } = await fetchBoeRate()
     RATE = 8 + rate
     DAILY_RATE = RATE / 365 / 100
+    setBaseRateHistory(history)
   } catch {
     // Keep fallback
   }
@@ -136,7 +137,7 @@ function buildEmail(invoice, profile, stage, dl, interest, pen, total, tone = 'f
         <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Original invoice</td><td style="padding:6px 0;font-weight:600;">${fmt(invoice.amount)}</td></tr>
         ${paidRow}
         <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Fixed debt recovery cost</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(pen)}</td></tr>
-        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${RATE}% p.a.${paidSoFar > 0 ? ', on the outstanding balance' : ''})</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
+        <tr><td style="padding:6px 16px 6px 0;color:#64748b;">Interest (${dl} days at ${statutoryRateFor(invoice.due_date)}% p.a.${paidSoFar > 0 ? ', on the outstanding balance' : ''})</td><td style="padding:6px 0;font-weight:600;color:#a16207;">+${fmt(interest)}</td></tr>
         <tr style="border-top:2px solid #1e5fa0;"><td style="padding:10px 16px 6px 0;font-weight:700;">TOTAL NOW OWED</td><td style="padding:10px 0 6px;font-weight:700;font-size:16px;color:#1e5fa0;">${fmt(total)}</td></tr>
       </table>`
 
@@ -354,7 +355,7 @@ export default async function handler(req, res) {
     // it right. If the fetch fails we fall back to the flat model, which
     // under-states: never chase for more than we can evidence.
     const ledger = (await fetchLedgers(supabase, [invoice.id]))[invoice.id] ?? null
-    const interest = finesEnabled ? accruedInterest(invoice, ledger, DAILY_RATE) : 0
+    const interest = finesEnabled ? accruedInterest(invoice, ledger, dailyRateFor(invoice.due_date)) : 0
     const pen = finesEnabled && outstanding > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0
     const total = Math.round((outstanding + interest + pen) * 100) / 100
 

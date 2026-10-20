@@ -3,21 +3,24 @@
 
 const BOE_URL = 'https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp'
 const FALLBACK_RATE = 3.75
+import { BASE_RATE_HISTORY, mergeBaseRateHistory } from './_baseRates.js'
 
 // In-memory cache (persists across warm invocations)
-let cached = { rate: null, fetchedAt: 0 }
+let cached = { rate: null, fetchedAt: 0, history: null }
 const CACHE_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 async function fetchBoeRate() {
   // Check cache first
   if (cached.rate !== null && Date.now() - cached.fetchedAt < CACHE_MS) {
-    return { rate: cached.rate, cached: true, changedOn: cached.changedOn, referenceRate: cached.referenceRate, refDate: cached.refDate }
+    return { rate: cached.rate, cached: true, changedOn: cached.changedOn, referenceRate: cached.referenceRate, refDate: cached.refDate, history: cached.history }
   }
 
   try {
-    // Fetch the last 12 months of BoE base rate data
+    // Eight years of base rate data: the Act's reference rate for an
+    // old invoice (claims go back six years) needs the rate on a 30 June
+    // or 31 December years ago, not just the latest figure.
     const now = new Date()
-    const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+    const yearAgo = new Date(now.getFullYear() - 8, now.getMonth(), now.getDate())
     const fromDate = `${String(yearAgo.getDate()).padStart(2, '0')}/${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][yearAgo.getMonth()]}/${yearAgo.getFullYear()}`
 
     const url = `${BOE_URL}?SeriesCodes=IUDBEDR&Datefrom=${fromDate}&Dateto=now&UsingCodes=Y&csv.x=yes`
@@ -73,20 +76,28 @@ async function fetchBoeRate() {
       : new Date(Date.UTC(today.getFullYear() - 1, 11, 31))
     const onOrBefore = rows.filter((x) => x.date <= refDate)
     const referenceRate = onOrBefore.length ? onOrBefore[onOrBefore.length - 1].rate : null
+    // Collapse the daily series to the dates the rate changed.
+    const changes = []
+    for (const x of rows) {
+      if (!changes.length || changes[changes.length - 1].rate !== x.rate) {
+        changes.push({ from: x.date.toISOString().slice(0, 10), rate: x.rate })
+      }
+    }
+    const history = mergeBaseRateHistory(changes)
 
     // Update cache
-    cached = { rate, fetchedAt: Date.now(), changedOn, referenceRate, refDate }
+    cached = { rate, fetchedAt: Date.now(), changedOn, referenceRate, refDate, history }
 
-    return { rate, cached: false, date: parts[0].trim(), changedOn, referenceRate, refDate }
+    return { rate, cached: false, date: parts[0].trim(), changedOn, referenceRate, refDate, history }
   } catch (e) {
     console.error('BoE rate fetch failed:', e.message)
 
     // Return cached rate if available, otherwise fallback
     if (cached.rate !== null) {
-      return { rate: cached.rate, cached: true, stale: true, changedOn: cached.changedOn, referenceRate: cached.referenceRate, refDate: cached.refDate }
+      return { rate: cached.rate, cached: true, stale: true, changedOn: cached.changedOn, referenceRate: cached.referenceRate, refDate: cached.refDate, history: cached.history }
     }
 
-    return { rate: FALLBACK_RATE, cached: false, fallback: true }
+    return { rate: FALLBACK_RATE, cached: false, fallback: true, history: BASE_RATE_HISTORY }
   }
 }
 
@@ -113,6 +124,8 @@ export default async function handler(req, res) {
     changed_on: result.changedOn ? new Date(result.changedOn).toISOString().slice(0, 10) : null,
     reference_rate: result.referenceRate ?? null,
     reference_date: result.refDate ? new Date(result.refDate).toISOString().slice(0, 10) : null,
+    // Base rate changes since 2018, for the Act's per-invoice reference rate.
+    history: result.history || BASE_RATE_HISTORY,
     fetched_at: new Date(cached.fetchedAt || Date.now()).toISOString(),
   })
 }

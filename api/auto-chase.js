@@ -15,7 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { friendlySubject, friendlyBody, legalSubject, legalBody } from './_toneModifiers.js'
 import { buildLbaPromptEmail } from './_lbaEmails.js'
-import { accruedInterest, fetchLedgers } from './_money.js'
+import { accruedInterest, fetchLedgers, statutoryRateFor, dailyRateFor, setBaseRateHistory } from './_money.js'
 import { inLbaWindow } from './_sendGuard.js'
 import { withRunLog } from './_runLog.js'
 
@@ -96,9 +96,10 @@ let DAILY_RATE = RATE / 365 / 100
 async function loadLiveRate() {
   try {
     const { fetchBoeRate } = await import('./boe-rate.js')
-    const { rate } = await fetchBoeRate()
+    const { rate, history } = await fetchBoeRate()
     RATE = 8 + rate
     DAILY_RATE = RATE / 365 / 100
+    setBaseRateHistory(history)
   } catch { /* keep fallback */ }
 }
 
@@ -425,7 +426,7 @@ async function handler(req, res) {
               (Number(invoice.amount) - (Number(invoice.paid_before_due) || 0)) * 100) / 100)
             const owed = finesOn
               ? Math.round((outstandingNow
-                  + accruedInterest(invoice, ledger, DAILY_RATE)
+                  + accruedInterest(invoice, ledger, dailyRateFor(invoice.due_date))
                   + (outstandingNow > 0 && debtAtDue > 0 ? penalty(debtAtDue) : 0)) * 100) / 100
               : outstandingNow
             const lba = buildLbaPromptEmail(invoice, profile, dfd, owed)
