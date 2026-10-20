@@ -109,6 +109,13 @@ export const SEO_ROUTES = [
       "Hielda privacy policy: how we collect, use, and protect data for UK freelancers and SMEs using the platform.",
   },
   {
+    path: "/terms",
+    file: "terms.html",
+    title: "Terms of Service — Hielda",
+    description:
+      "The terms on which Hielda provides invoice chasing and late payment enforcement to UK freelancers and small businesses.",
+  },
+  {
     path: "/auth",
     // No static file: /auth is app, not marketing, and stays out of the sitemap.
     title: "Start Free Trial — Hielda",

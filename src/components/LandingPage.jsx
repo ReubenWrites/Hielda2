@@ -559,6 +559,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <a href="/how" className={s.footerNavLink}>How it works</a>
           <a href="/guides" className={s.footerNavLink}>All guides</a>
           <a href="/privacy" className={s.footerNavLink}>Privacy policy</a>
+          <a href="/terms" className={s.footerNavLink}>Terms of service</a>
           <a href="mailto:support@hielda.com" className={s.footerNavLink}>support@hielda.com</a>
         </div>
       </section>
@@ -594,6 +595,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <button onClick={onPrivacy} className={s.footerPrivacy}>
           Privacy Policy
         </button>
+        <a href="/terms" className={s.footerPrivacy} style={{ textDecoration: "none" }}>Terms</a>
         <a href="mailto:support@hielda.com" className={s.footerEmail}>support@hielda.com</a>
       </footer>
     </main>

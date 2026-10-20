@@ -47,6 +47,7 @@ const Calculator = lazyRetry(() => import("./components/Calculator"))
 const InterestRatePage = lazyRetry(() => import("./components/InterestRatePage"))
 const InvoiceTemplate = lazyRetry(() => import("./components/InvoiceTemplate"))
 const PrivacyPolicy = lazyRetry(() => import("./components/PrivacyPolicy"))
+const Terms = lazyRetry(() => import("./components/Terms"))
 const AdminDashboard = lazyRetry(() => import("./components/AdminDashboard"))
 const Referrals = lazyRetry(() => import("./components/Referrals"))
 const NotificationDropdown = lazyRetry(() => import("./components/NotificationDropdown"))
@@ -390,6 +391,7 @@ export default function App() {
           <Route path="/guides/freelancer-rights-late-payment" element={<FreelancerRightsLatePayment onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/debt-collection-agency-vs-diy" element={<DebtCollectionAgencyVsDiy onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
+          <Route path="/terms" element={<Terms onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />
           <Route path="/ref/:code" element={<ReferralRedirect />} />
           {/* /how is in the sitemap and prerendered; without a public route a
@@ -613,6 +615,7 @@ export default function App() {
                 <Route path="/late-payment-interest-rate" element={<InterestRatePage onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/free-invoice-template-uk" element={<InvoiceTemplate onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/dashboard")} />} />
+                <Route path="/terms" element={<Terms onBack={() => navigate("/dashboard")} />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
               </Suspense>
