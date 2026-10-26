@@ -584,6 +584,9 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         <a href="https://launchnest.io/p/hielda" target="_blank" rel="noopener noreferrer">
           <img loading="lazy" className={s.badgeImg} src="https://launchnest.io/badge/hielda.svg?variant=featured" alt="Hielda on LaunchNest" width="220" height="56" />
         </a>
+        <a href="https://launchkiwi.com/p/if-they-pay-you-late-they-will-pay-you-more" target="_blank" rel="noopener noreferrer">
+          <img loading="lazy" className={s.badgeImg} src="https://launchkiwi.com/badge-light.svg" alt="Featured on LaunchKiwi" width="198" height="62" />
+        </a>
         <a href="https://krispitech.com/why-late-payment-isnt-an-accident-and-how-hielda-fights-back-for-freelancers/" target="_blank" rel="noopener noreferrer" className={s.badgeText}>
           <span className={s.badgeTextLabel}>As featured in</span> KrispiTech
         </a>
