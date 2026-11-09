@@ -502,7 +502,8 @@ serve(async (req) => {
       ["Due Date", formatDate(invoice.due_date)],
       ["Terms", `${invoice.payment_term_days} days`],
     ]
-    if (invoice.client_ref) details.push(["Client Ref", invoice.client_ref])
+    // Labelled the way an accounts-payable team scans for it.
+    if (invoice.client_ref) details.push(["PO / Your Ref", invoice.client_ref])
     if (invoice.paid_date) details.push(["Paid", formatDate(invoice.paid_date)])
 
     let detailsY = y

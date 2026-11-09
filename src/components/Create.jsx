@@ -831,7 +831,14 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
 
   return (
     <div>
-      <button onClick={() => navigate("/dashboard")} className={s.backBtn}>← Back</button>
+      {/* Leaving with work on the form keeps it as a dashboard draft. The
+          old plain navigate() left the work in an invisible localStorage
+          slot; users read that as "Back deleted my invoice". */}
+      <button
+        onClick={() => (!isEditing && hasContent ? saveDraftAndLeave() : navigate("/dashboard"))}
+        disabled={savingDraft}
+        className={s.backBtn}
+      >← Back</button>
       <h1 className={s.pageTitle}>{isEditing ? `Edit Invoice ${ref}` : "Create Invoice"}</h1>
       <p className={s.pageDesc}>{isEditing ? "Update the details below and save your changes." : "Your details are pre-filled. Add client and job info."}</p>
 
@@ -881,7 +888,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
               {poImportResult && !poImportResult.error && (
                 <p className={s.poImportSuccess}>
                   <Check size={12} strokeWidth={3} /> Imported {poImportResult.items} line item{poImportResult.items !== 1 ? "s" : ""}
-                  {poImportResult.ref ? <> · ref {poImportResult.ref}</> : null}
+                  {poImportResult.ref ? <> · PO {poImportResult.ref}</> : <> · no PO number found, add it under Invoice details</>}
                   {poImportResult.client ? <> · {poImportResult.client}</> : null}
                   {" "}— check everything below before sending.
                 </p>
@@ -1241,7 +1248,9 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
           <div className={s.introFullWidth}>
             <CollapsibleSection
               title="Invoice details"
-              description="Invoice number, notes, dates, payment terms"
+              description={clientRef.trim()
+                ? `PO / ref ${clientRef.trim()} · invoice number, notes, dates, payment terms`
+                : "Invoice number, PO number, notes, dates, payment terms"}
             >
               <Inp label="Invoice number" value={ref} onChange={setRef} ph="e.g. INV-0001"
                 autoCapitalize="characters" spellCheck={false} autoComplete="off"
@@ -1411,6 +1420,7 @@ export default function Create({ profile, userId, onCreated, isMobile, invs }) {
                   <div>Issue: {formatDate(date)}</div>
                   <div>Due: {formatDate(due)}</div>
                   <div>Terms: {enforceableDays} days{termsUnagreed ? ` (you'll ask for ${effectiveDays})` : ""}</div>
+                  {clientRef.trim() && <div>PO / your ref: {clientRef.trim()}</div>}
                 </div>
               </div>
               <div className={s.lineItemsTable}>
