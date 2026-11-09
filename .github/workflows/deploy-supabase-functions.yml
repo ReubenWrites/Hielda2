@@ -26,5 +26,8 @@ jobs:
         with:
           version: latest
 
+      # CLI 3.x asks for confirmation before deploying to a hosted project
+      # and fails outright when nothing can answer (run 26, 9 Nov 2026).
+      # --yes gives that consent up front.
       - name: Deploy all functions
-        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
+        run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --yes
