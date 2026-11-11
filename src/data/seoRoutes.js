@@ -99,7 +99,7 @@ export const SEO_ROUTES = [
     file: "film-tv-freelancers.html",
     title: "Late Payment Help for Film & TV Freelancers — Hielda",
     description:
-      "Paid late by a production? Hielda chases your invoice and adds the statutory interest and late fee UK law allows. For crew who invoice. Free 6-week trial.",
+      "Film and TV run on freelancers, yet payments are too often late. Hielda chases your invoices and adds the interest and late fees UK law allows. Free trial.",
     ogImage: `${SITE}/og/film-tv-freelancers.png`,
     extraSchemas: [{
       "@context": "https://schema.org",
