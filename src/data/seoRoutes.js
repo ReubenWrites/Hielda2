@@ -12,6 +12,7 @@
 
 // Extension required: scripts/prerender.mjs imports this under plain Node.
 import { LANDING_FAQS } from "./faqs.js"
+import { FILM_TV_FAQS } from "./filmTvFaqs.js"
 
 const SITE = "https://hielda.com"
 
@@ -92,6 +93,23 @@ export const SEO_ROUTES = [
     description:
       "Free invoice template for UK freelancers and small businesses. Fill in, download as PDF. VAT option, bank details and the statutory late payment clause built in.",
     ogImage: `${SITE}/og/calculator.png`,
+  },
+  {
+    path: "/film-tv-freelancers",
+    file: "film-tv-freelancers.html",
+    title: "Late Payment Help for Film & TV Freelancers — Hielda",
+    description:
+      "Paid late by a production? Hielda chases your invoice and adds the statutory interest and late fee UK law allows. For crew who invoice. Free 6-week trial.",
+    ogImage: `${SITE}/og/film-tv-freelancers.png`,
+    extraSchemas: [{
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: FILM_TV_FAQS.map(({ q, a }) => ({
+        "@type": "Question",
+        name: q,
+        acceptedAnswer: { "@type": "Answer", text: a },
+      })),
+    }],
   },
   {
     path: "/how",

@@ -1,0 +1,146 @@
+/* /film-tv-freelancers. Shares nav, FAQ and CTA styles with the guides
+   stylesheet; this file is the hero, the call-sheet schedule and the
+   page-specific blocks. Palette matches the rest of the site. */
+
+.hero {
+  background: #0f172a;
+  color: #fff;
+  padding: 56px 24px 60px;
+  position: relative;
+  overflow: hidden;
+}
+/* Clapperboard stripe along the top edge. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 10px;
+  background: repeating-linear-gradient(-55deg, #f8fafc 0 22px, #0f172a 22px 44px);
+  opacity: 0.9;
+}
+.heroInner { max-width: 760px; margin: 0 auto; }
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8fb8e3;
+  margin: 0 0 14px;
+}
+.h1 {
+  font-size: 42px;
+  line-height: 1.12;
+  font-weight: 800;
+  margin: 0 0 16px;
+  letter-spacing: -0.01em;
+}
+.heroLede {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin: 0 0 26px;
+  max-width: 620px;
+}
+.heroBtns { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.primaryBtn {
+  padding: 14px 26px;
+  background: #1e5fa0;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.primaryBtn:hover { background: #2a71b8; }
+.ghostLink {
+  color: #cbd5e1;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.heroSmall { font-size: 12px; color: #94a3b8; margin: 12px 0 0; }
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 24px 64px; }
+
+/* Departments strip */
+.depts {
+  background: #fff;
+  border: 1px solid #dce1e8;
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin: -28px 0 0;
+  position: relative;
+}
+.deptsLabel { font-size: 14px; color: #334155; margin: 0 0 12px; line-height: 1.5; }
+.deptChips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.deptChip {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a5f;
+  background: #eaf2fb;
+  border: 1px solid #bcd3ec;
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+.section { margin-top: 48px; }
+.h2 { font-size: 24px; font-weight: 700; line-height: 1.25; margin: 0 0 12px; color: #0f172a; }
+.p { font-size: 15.5px; line-height: 1.75; color: #1e293b; margin: 0 0 14px; }
+.p a, .note a { color: #1e5fa0; }
+
+/* Three "sound familiar" cards */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.card { background: #fff; border: 1px solid #dce1e8; border-radius: 10px; padding: 16px 18px; }
+.cardTitle { font-size: 15px; font-weight: 700; margin: 0 0 6px; color: #0f172a; }
+.cardText { font-size: 13.5px; line-height: 1.6; color: #475569; margin: 0; }
+
+/* Worked example, laid out like an invoice total */
+.example { background: #fff; border: 1px solid #dce1e8; border-radius: 12px; padding: 20px 22px; margin-top: 18px; }
+.exampleHead { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin: 0 0 10px; }
+.exampleTable { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.exampleTable td { padding: 9px 0; border-bottom: 1px solid #eef1f5; color: #1e293b; }
+.exampleTable td:last-child { text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 600; white-space: nowrap; }
+.exampleTable tr:last-child td { border-bottom: none; border-top: 2px solid #1e5fa0; padding-top: 12px; font-size: 16px; font-weight: 700; color: #1e5fa0; }
+.note { font-size: 13px; color: #64748b; line-height: 1.6; margin: 12px 0 0; }
+
+/* Call-sheet style schedule */
+.sheet { margin-top: 18px; border: 1px solid #0f172a; border-radius: 10px; overflow: hidden; background: #fff; }
+.sheetHead {
+  display: flex; justify-content: space-between; gap: 12px;
+  background: #0f172a; color: #fff;
+  padding: 10px 16px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.sheetRow { display: grid; grid-template-columns: 132px 1fr; gap: 14px; padding: 13px 16px; border-top: 1px solid #e2e8f0; }
+.sheetRow:first-of-type { border-top: none; }
+.sheetWhen { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; font-weight: 600; color: #1e5fa0; padding-top: 2px; }
+.sheetWhat { font-size: 14.5px; line-height: 1.6; color: #1e293b; margin: 0; }
+.sheetWhat strong { color: #0f172a; }
+
+/* Covered / not covered */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.yes, .no { border-radius: 10px; padding: 16px 18px; }
+.yes { background: #f0fdf4; border: 1px solid #bbe5c8; }
+.no { background: #f8fafc; border: 1px solid #dce1e8; }
+.splitTitle { font-size: 14px; font-weight: 700; margin: 0 0 8px; color: #0f172a; }
+.splitList { margin: 0; padding-left: 18px; }
+.splitList li { font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 4px; }
+
+/* Feature list */
+.feats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; margin: 16px 0 0; padding: 0; list-style: none; }
+.feats li { font-size: 14.5px; line-height: 1.55; color: #1e293b; padding-left: 22px; position: relative; }
+.feats li::before { content: "✓"; position: absolute; left: 0; top: 0; color: #1e5fa0; font-weight: 800; }
+.feats strong { color: #0f172a; }
+
+@media (max-width: 680px) {
+  .hero { padding: 44px 20px 52px; }
+  .h1 { font-size: 31px; }
+  .heroLede { font-size: 16.5px; }
+  .wrap { padding: 0 16px 56px; }
+  .cards, .split, .feats { grid-template-columns: 1fr; }
+  .sheetRow { grid-template-columns: 1fr; gap: 2px; }
+  .h2 { font-size: 21px; }
+}

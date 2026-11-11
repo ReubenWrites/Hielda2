@@ -43,6 +43,7 @@
     { "source": "/late-payment-letter-template", "destination": "/late-payment-letter-template.html" },
     { "source": "/late-payment-interest-rate", "destination": "/late-payment-interest-rate.html" },
     { "source": "/free-invoice-template-uk", "destination": "/free-invoice-template-uk.html" },
+    { "source": "/film-tv-freelancers", "destination": "/film-tv-freelancers.html" },
     { "source": "/guides", "destination": "/guides.html" },
     { "source": "/guides/late-payment-act-1998-explained", "destination": "/guides-late-payment-act-1998-explained.html" },
     { "source": "/guides/how-to-chase-late-invoices", "destination": "/guides-how-to-chase-late-invoices.html" },

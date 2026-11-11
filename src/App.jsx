@@ -45,6 +45,7 @@ const NotFound = lazyRetry(() => import("./components/NotFound"))
 import { seoForPath } from "./data/seoRoutes"
 const Calculator = lazyRetry(() => import("./components/Calculator"))
 const InterestRatePage = lazyRetry(() => import("./components/InterestRatePage"))
+const FilmTvPage = lazyRetry(() => import("./components/FilmTvPage"))
 const InvoiceTemplate = lazyRetry(() => import("./components/InvoiceTemplate"))
 const PrivacyPolicy = lazyRetry(() => import("./components/PrivacyPolicy"))
 const Terms = lazyRetry(() => import("./components/Terms"))
@@ -384,6 +385,7 @@ export default function App() {
           <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/late-payment-interest-rate" element={<InterestRatePage onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/free-invoice-template-uk" element={<InvoiceTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/film-tv-freelancers" element={<FilmTvPage onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides" element={<GuidesIndex onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/late-payment-act-1998-explained" element={<LatePaymentActExplained onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/how-to-chase-late-invoices" element={<HowToChaseLateInvoices onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
@@ -622,6 +624,7 @@ export default function App() {
                 <Route path="/late-payment-letter-template" element={<LetterTemplate onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/late-payment-interest-rate" element={<InterestRatePage onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/free-invoice-template-uk" element={<InvoiceTemplate onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
+                <Route path="/film-tv-freelancers" element={<FilmTvPage onBack={() => navigate("/dashboard")} onGetStarted={() => navigate("/create")} />} />
                 <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/dashboard")} />} />
                 <Route path="/terms" element={<Terms onBack={() => navigate("/dashboard")} />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

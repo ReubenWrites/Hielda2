@@ -119,6 +119,7 @@ function pageSvg({ eyebrow, lines }) {
 const PAGES = [
   { slug: "calculator", eyebrow: "Free tool", lines: ["Late payment interest", "calculator"] },
   { slug: "late-payment-letter-template", eyebrow: "Free tool", lines: ["Late payment", "letter generator"] },
+  { slug: "film-tv-freelancers", eyebrow: "Film & TV freelancers", lines: ["The job wrapped.", "Get the invoice paid."] },
   { slug: "guides", eyebrow: "Guides", lines: ["Getting paid on time:", "guides for UK freelancers"] },
   { slug: "guide-late-payment-act", eyebrow: "Free guide", lines: ["The Late Payment Act,", "explained"] },
   { slug: "guide-how-to-chase", eyebrow: "Free guide", lines: ["How to chase", "late invoices"] },

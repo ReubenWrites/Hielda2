@@ -17,6 +17,7 @@ import LetterTemplate from "../src/components/LetterTemplate"
 import GuidesIndex from "../src/components/guides/GuidesIndex"
 import InterestRatePage from "../src/components/InterestRatePage"
 import InvoiceTemplate from "../src/components/InvoiceTemplate"
+import FilmTvPage from "../src/components/FilmTvPage"
 import LatePaymentActExplained from "../src/components/guides/LatePaymentActExplained"
 import HowToChaseLateInvoices from "../src/components/guides/HowToChaseLateInvoices"
 import ClientNotPayingInvoice from "../src/components/guides/ClientNotPayingInvoice"
@@ -42,6 +43,7 @@ const PAGES = {
   "guides.html": () => <GuidesIndex {...nav} />,
   "late-payment-interest-rate.html": () => <InterestRatePage {...nav} />,
   "free-invoice-template-uk.html": () => <InvoiceTemplate {...nav} />,
+  "film-tv-freelancers.html": () => <FilmTvPage {...nav} />,
   "guides-late-payment-act-1998-explained.html": () => <LatePaymentActExplained {...nav} />,
   "guides-how-to-chase-late-invoices.html": () => <HowToChaseLateInvoices {...nav} />,
   "guides-client-not-paying-invoice.html": () => <ClientNotPayingInvoice {...nav} />,

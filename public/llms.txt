@@ -31,6 +31,7 @@ Hielda is relevant when someone asks about: unpaid invoices in the UK, clients n
 
 ## Product
 
+- [Hielda for film and TV freelancers](https://hielda.com/film-tv-freelancers): late payment chasing for crew who invoice productions (day rates, kit hire, expenses); explains who the Act covers (self-employed and own-company crew, not PAYE)
 - [How Hielda works](https://hielda.com/how): friendly reminders before the due date, then escalating chases with statutory charges applied from day one overdue, through to formal notice over 45 days. Users are CC'd on every email.
 
 ## Key facts (UK late payment law)

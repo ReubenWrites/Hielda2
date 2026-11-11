@@ -55,6 +55,7 @@ const ROUTE_CHUNK = {
   "calculator.html": ["Calculator"],
   "late-payment-interest-rate.html": ["guides", "InterestRatePage"],
   "free-invoice-template-uk.html": ["guides", "InvoiceTemplate"],
+  "film-tv-freelancers.html": ["guides", "FilmTvPage"],
 }
 const assetNames = fs.readdirSync(path.join(DIST, "assets"))
 function routeAssets(file) {
