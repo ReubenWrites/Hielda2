@@ -69,6 +69,12 @@ const HieldaVsChaser = lazyRetry(() => import("./components/guides/HieldaVsChase
 const HieldaVsDebtCollectionAgency = lazyRetry(() => import("./components/guides/HieldaVsDebtCollectionAgency"))
 const HieldaVsDoingItYourself = lazyRetry(() => import("./components/guides/HieldaVsDoingItYourself"))
 const HieldaVsXeroReminders = lazyRetry(() => import("./components/guides/HieldaVsXeroReminders"))
+const PaymentReminderLetterTemplate = lazyRetry(() => import("./components/guides/PaymentReminderLetterTemplate"))
+const FinalDemandLetterTemplate = lazyRetry(() => import("./components/guides/FinalDemandLetterTemplate"))
+const OverdueInvoiceLetterTemplates = lazyRetry(() => import("./components/guides/OverdueInvoiceLetterTemplates"))
+const LettreRelanceFactureImpayeeAnglais = lazyRetry(() => import("./components/guides/LettreRelanceFactureImpayeeAnglais"))
+const ProductionCompanyNotPayingInvoice = lazyRetry(() => import("./components/guides/ProductionCompanyNotPayingInvoice"))
+const FilmTvInvoicePaymentTerms = lazyRetry(() => import("./components/guides/FilmTvInvoicePaymentTerms"))
 
 const PageLoader = () => (
   <div className={s.pageLoader}>
@@ -211,6 +217,8 @@ export default function App() {
     const seo = seoForPath(location.pathname)
     if (!seo) return
     document.title = seo.title
+    // The French guide sets lang="fr"; every other route is en-GB.
+    document.documentElement.lang = seo.lang || "en-GB"
     const metaDesc = document.querySelector('meta[name="description"]')
     if (metaDesc) metaDesc.setAttribute("content", seo.description)
     const canonical = document.querySelector('link[rel="canonical"]')
@@ -400,6 +408,12 @@ export default function App() {
           <Route path="/guides/hielda-vs-debt-collection-agency" element={<HieldaVsDebtCollectionAgency onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/hielda-vs-doing-it-yourself" element={<HieldaVsDoingItYourself onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/guides/hielda-vs-xero-invoice-reminders" element={<HieldaVsXeroReminders onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/payment-reminder-letter-template" element={<PaymentReminderLetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/final-demand-letter-template" element={<FinalDemandLetterTemplate onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/overdue-invoice-letter-templates" element={<OverdueInvoiceLetterTemplates onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/lettre-relance-facture-impayee-anglais" element={<LettreRelanceFactureImpayeeAnglais onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/production-company-not-paying-invoice" element={<ProductionCompanyNotPayingInvoice onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
+          <Route path="/guides/film-tv-invoice-payment-terms" element={<FilmTvInvoicePaymentTerms onBack={() => navigate("/")} onGetStarted={() => { trackPageView("auth"); navigate("/auth?mode=signup") }} />} />
           <Route path="/privacy" element={<PrivacyPolicy onBack={() => navigate("/")} />} />
           <Route path="/terms" element={<Terms onBack={() => navigate("/")} />} />
           <Route path="/auth" element={<AuthScreen onAuth={handleAuth} onBack={() => navigate("/")} />} />

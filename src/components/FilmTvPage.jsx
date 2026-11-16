@@ -261,6 +261,11 @@ export default function FilmTvPage({ onBack, onGetStarted }) {
             })}
           </div>
           <p className={s.fine} style={{ maxWidth: "none", textAlign: "center" }}>
+            Guides for crew:{" "}
+            <a href="/guides/production-company-not-paying-invoice">what to do when a production company is not paying</a> and{" "}
+            <a href="/guides/film-tv-invoice-payment-terms">invoicing a production: terms, POs and deal memos</a>.
+          </p>
+          <p className={s.fine} style={{ maxWidth: "none", textAlign: "center" }}>
             More on <a href="/guides/freelancer-rights-late-payment">your rights</a>,{" "}
             <a href="/guides/invoice-payment-terms-uk">payment terms</a> and{" "}
             <a href="/guides/letter-before-action">the Letter Before Action</a>.

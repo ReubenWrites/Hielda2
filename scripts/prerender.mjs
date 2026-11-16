@@ -37,6 +37,15 @@ function setTitle(html, title) {
   return html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeText(title)}</title>`)
 }
 
+// A route in another language (the French letter guide) declares `lang`.
+// The document language and the Open Graph locale follow it; every other
+// file keeps index.html's en-GB.
+function setLang(html, lang) {
+  if (!lang) return html
+  const locale = { fr: "fr_FR" }[lang] || lang
+  return setMetaContent(html.replace(/<html lang="[^"]*"/i, `<html lang="${escapeAttr(lang)}"`), 'property="og:locale"', locale)
+}
+
 function setCanonical(html, url) {
   return html.replace(/(<link\s+rel="canonical"\s+href=")[^"]*(")/i, `$1${escapeAttr(url)}$2`)
 }
@@ -116,6 +125,7 @@ for (const route of routes) {
   let html = baseHtml
   html = setBody(html, render(route.file))
   html = setTitle(html, route.title)
+  html = setLang(html, route.lang)
   html = setMetaContent(html, 'name="description"', route.description)
   html = setCanonical(html, route.canonical)
   html = setMetaContent(html, 'property="og:title"', route.title)

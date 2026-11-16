@@ -1,6 +1,7 @@
-// Article + Breadcrumb + FAQ JSON-LD for the "Hielda vs ..." pages.
+// Article + Breadcrumb + FAQ JSON-LD for the "Hielda vs ..." pages and the
+// letter template and film & TV guides (lang is "fr" on the French page).
 // GuideLayout adds image/dates to the Article node at render time.
-export function comparisonSchema({ title, lede, canonical, faqs }) {
+export function comparisonSchema({ title, lede, canonical, faqs, lang = "en-GB" }) {
   const url = `https://hielda.com${canonical}`
   return {
     "@context": "https://schema.org",
@@ -13,7 +14,7 @@ export function comparisonSchema({ title, lede, canonical, faqs }) {
         mainEntityOfPage: url,
         author: { "@type": "Organization", name: "Hielda", url: "https://hielda.com" },
         publisher: { "@type": "Organization", name: "Hielda", url: "https://hielda.com" },
-        inLanguage: "en-GB",
+        inLanguage: lang,
       },
       {
         "@type": "FAQPage",

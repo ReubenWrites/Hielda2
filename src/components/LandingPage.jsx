@@ -542,11 +542,20 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
           <a href="/film-tv-freelancers" className={s.footerNavLink}>For film &amp; TV freelancers</a>
         </div>
         <div className={s.footerNavCol}>
+          <div className={s.footerNavHeading}>Letter templates</div>
+          <a href="/guides/payment-reminder-letter-template" className={s.footerNavLink}>Payment reminder letters</a>
+          <a href="/guides/final-demand-letter-template" className={s.footerNavLink}>Final demand letter</a>
+          <a href="/guides/overdue-invoice-letter-templates" className={s.footerNavLink}>Overdue letters: 30, 60, 90 days</a>
+          <a href="/guides/lettre-relance-facture-impayee-anglais" className={s.footerNavLink} lang="fr" hrefLang="fr">Lettre de relance en anglais</a>
+        </div>
+        <div className={s.footerNavCol}>
           <div className={s.footerNavHeading}>Guides</div>
           <a href="/guides/client-not-paying-invoice" className={s.footerNavLink}>Client not paying? What to do</a>
           <a href="/guides/how-to-chase-late-invoices" className={s.footerNavLink}>How to chase late invoices</a>
           <a href="/guides/how-much-interest-late-invoice" className={s.footerNavLink}>How much interest can you charge?</a>
           <a href="/guides/letter-before-action" className={s.footerNavLink}>Letter Before Action</a>
+          <a href="/guides/production-company-not-paying-invoice" className={s.footerNavLink}>Production company not paying?</a>
+          <a href="/guides/film-tv-invoice-payment-terms" className={s.footerNavLink}>Invoicing a production</a>
         </div>
         <div className={s.footerNavCol}>
           <div className={s.footerNavHeading}>More guides</div>

@@ -31,6 +31,12 @@ import HieldaVsChaser from "../src/components/guides/HieldaVsChaser"
 import HieldaVsDebtCollectionAgency from "../src/components/guides/HieldaVsDebtCollectionAgency"
 import HieldaVsDoingItYourself from "../src/components/guides/HieldaVsDoingItYourself"
 import HieldaVsXeroReminders from "../src/components/guides/HieldaVsXeroReminders"
+import PaymentReminderLetterTemplate from "../src/components/guides/PaymentReminderLetterTemplate"
+import FinalDemandLetterTemplate from "../src/components/guides/FinalDemandLetterTemplate"
+import OverdueInvoiceLetterTemplates from "../src/components/guides/OverdueInvoiceLetterTemplates"
+import LettreRelanceFactureImpayeeAnglais from "../src/components/guides/LettreRelanceFactureImpayeeAnglais"
+import ProductionCompanyNotPayingInvoice from "../src/components/guides/ProductionCompanyNotPayingInvoice"
+import FilmTvInvoicePaymentTerms from "../src/components/guides/FilmTvInvoicePaymentTerms"
 
 const noop = () => {}
 const nav = { onBack: noop, onGetStarted: noop }
@@ -57,6 +63,12 @@ const PAGES = {
   "guides-hielda-vs-debt-collection-agency.html": () => <HieldaVsDebtCollectionAgency {...nav} />,
   "guides-hielda-vs-doing-it-yourself.html": () => <HieldaVsDoingItYourself {...nav} />,
   "guides-hielda-vs-xero-invoice-reminders.html": () => <HieldaVsXeroReminders {...nav} />,
+  "guides-payment-reminder-letter-template.html": () => <PaymentReminderLetterTemplate {...nav} />,
+  "guides-final-demand-letter-template.html": () => <FinalDemandLetterTemplate {...nav} />,
+  "guides-overdue-invoice-letter-templates.html": () => <OverdueInvoiceLetterTemplates {...nav} />,
+  "guides-lettre-relance-facture-impayee-anglais.html": () => <LettreRelanceFactureImpayeeAnglais {...nav} />,
+  "guides-production-company-not-paying-invoice.html": () => <ProductionCompanyNotPayingInvoice {...nav} />,
+  "guides-film-tv-invoice-payment-terms.html": () => <FilmTvInvoicePaymentTerms {...nav} />,
 }
 
 /** Markup for a route's #root, or null when the route has no page here. */

@@ -376,6 +376,18 @@ export default function LetterTemplate({ onBack, onGetStarted }) {
             Related reading
           </div>
           <div style={{ display: "grid", gap: 10 }}>
+            <a href="/guides/payment-reminder-letter-template" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Payment reminder letter templates</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>Not at the formal stage yet? A polite first chasing letter and a firmer second one, ready to copy.</div>
+            </a>
+            <a href="/guides/final-demand-letter-template" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Final demand letter template</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>The last letter before formal action, plus a strong but civil version for clients you want to keep.</div>
+            </a>
+            <a href="/guides/overdue-invoice-letter-templates" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Overdue invoice letters: 30, 60 and 90 days</div>
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>A letter for each stage of a long-overdue invoice, ending in a letter before claim.</div>
+            </a>
             <a href="/guides/letter-before-action" style={{ background: "#fff", border: "1px solid #dce1e8", borderRadius: 10, padding: "14px 16px", textDecoration: "none", color: "#0f172a", display: "block" }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Letter Before Action — how and when to send one</div>
               <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>The formal pre-court step, what it must contain, and why it's usually the letter that gets you paid.</div>

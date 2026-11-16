@@ -81,7 +81,7 @@ const defaultSvg = frame(`
 // ── Per-page card ────────────────────────────────────────────────────────
 // eyebrow (FREE GUIDE / FREE TOOL), title on up to 3 pre-split lines,
 // brand chip top-left, URL bottom-right.
-function pageSvg({ eyebrow, lines }) {
+function pageSvg({ eyebrow, lines, chip = "UK Late Payment Act 1998 · plain English" }) {
   const titleSize = lines.length >= 3 ? 56 : 64
   const lineHeight = titleSize * 1.18
   const firstBaseline = 285
@@ -106,7 +106,7 @@ function pageSvg({ eyebrow, lines }) {
   <rect x="80" y="${H - 110}" width="460" height="52" rx="26" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.15"/>
   <text x="310" y="${H - 76}" text-anchor="middle"
     font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="500"
-    fill="#cbd5e1">UK Late Payment Act 1998 · plain English</text>
+    fill="#cbd5e1">${escapeText(chip)}</text>
 
   <text x="${W - 80}" y="${H - 74}" text-anchor="end"
     font-family="Helvetica, Arial, sans-serif" font-size="26" font-weight="500"
@@ -134,6 +134,12 @@ const PAGES = [
   { slug: "guide-hielda-vs-debt-collection", eyebrow: "Comparison", lines: ["Hielda vs a debt", "collection agency"] },
   { slug: "guide-hielda-vs-diy", eyebrow: "Comparison", lines: ["Hielda vs chasing", "invoices yourself"] },
   { slug: "guide-hielda-vs-xero", eyebrow: "Comparison", lines: ["Hielda vs Xero,", "QuickBooks & FreeAgent", "reminders"] },
+  { slug: "guide-payment-reminder", eyebrow: "Free templates", lines: ["Payment reminder", "letter templates"], chip: "Copy and paste · UK late payment law" },
+  { slug: "guide-final-demand", eyebrow: "Free template", lines: ["Final demand", "letter template"], chip: "Copy and paste · UK late payment law" },
+  { slug: "guide-overdue-letters", eyebrow: "Free templates", lines: ["Overdue invoice letters:", "30, 60 and 90 days"], chip: "Copy and paste · UK late payment law" },
+  { slug: "guide-lettre-relance", eyebrow: "Modèles gratuits", lines: ["Lettre de relance", "pour facture impayée", "en anglais"], chip: "Modèles en anglais · traduction française" },
+  { slug: "guide-production-not-paying", eyebrow: "Film & TV freelancers", lines: ["Production company", "not paying your invoice?"], chip: "Who to chase · what the law adds" },
+  { slug: "guide-film-tv-invoicing", eyebrow: "Film & TV freelancers", lines: ["Invoicing a production:", "terms, POs and", "deal memos"], chip: "Get paid first time · UK crew" },
 ]
 
 function renderPng(svg) {

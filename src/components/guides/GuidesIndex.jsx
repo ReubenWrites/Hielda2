@@ -48,6 +48,37 @@ const GUIDES = [
     desc: "What terms to use by client type, the 30-day legal default, the 60-day cap, and how to state terms so they actually stick.",
   },
   {
+    href: "/guides/payment-reminder-letter-template",
+    title: "Payment reminder letter templates",
+    desc: "Three chasing letters to copy: a friendly first reminder, a firmer second one that mentions the Late Payment Act, and a note to the accounts department.",
+  },
+  {
+    href: "/guides/final-demand-letter-template",
+    title: "Final demand letter template",
+    desc: "The last letter before formal action, with the statutory interest and recovery costs set out, plus a strong but civil version for clients you want to keep.",
+  },
+  {
+    href: "/guides/overdue-invoice-letter-templates",
+    title: "Overdue invoice letters: 30, 60 and 90 days past due",
+    desc: "A letter for each stage of a long-overdue invoice, from applying the statutory charges to a letter before claim.",
+  },
+  {
+    href: "/guides/production-company-not-paying-invoice",
+    title: "Production company not paying your invoice?",
+    desc: "For film and TV freelancers: who to chase after wrap, what to check on Companies House, and what changes if the company is about to disappear.",
+  },
+  {
+    href: "/guides/film-tv-invoice-payment-terms",
+    title: "Invoicing a production: payment terms, POs and deal memos",
+    desc: "What film and TV crew should agree before day one, and what to put on the invoice so accounts can pay it first time.",
+  },
+  {
+    href: "/guides/lettre-relance-facture-impayee-anglais",
+    title: "Lettre de relance pour facture impayée en anglais",
+    desc: "En français : trois modèles de relance rédigés en anglais, avec traduction, vocabulaire et usages de la correspondance britannique.",
+    lang: "fr",
+  },
+  {
     href: "/guides/hielda-vs-chaser",
     title: "Hielda vs Chaser",
     desc: "Chaser is credit control for finance teams from £199 a month; Hielda is late payment enforcement for one person at £3.99. Who each suits, honestly.",
@@ -108,7 +139,7 @@ export default function GuidesIndex({ onBack, onGetStarted }) {
 
         <div className={s.relatedList}>
           {GUIDES.map(g => (
-            <a key={g.href} href={g.href} className={s.relatedCard}>
+            <a key={g.href} href={g.href} className={s.relatedCard} lang={g.lang} hrefLang={g.lang}>
               <h2 className={s.relatedCardTitle}>{g.title}</h2>
               <p className={s.relatedCardDesc}>{g.desc}</p>
             </a>

@@ -27,6 +27,47 @@ function enrichGuideSchema(schema, canonicalPath, title) {
   return { ...schema, "@graph": [...graph, crumbs] }
 }
 
+// Page chrome in each language a guide is published in. English is the
+// default; the French page (English letters explained for French speakers)
+// passes locale="fr" so the furniture around the article matches it.
+const STRINGS = {
+  en: {
+    home: "Home",
+    guides: "Guides",
+    trial: "Start Free Trial",
+    faqTitle: "Frequently asked questions",
+    related: "Related",
+    toolsTitle: "Free tools",
+    tools: [
+      { href: "/calculator", title: "Late payment interest calculator", desc: "Exactly what you can add to an overdue invoice today: statutory interest at the current rate plus the fixed recovery cost." },
+      { href: "/late-payment-letter-template", title: "Late payment letter generator", desc: "A ready-to-send demand letter citing the Act, with your figures filled in." },
+      { href: "/free-invoice-template-uk", title: "Free UK invoice template", desc: "Fill in, download as PDF, with the late payment clause already on it." },
+      { href: "/late-payment-interest-rate", title: "Current late payment interest rate", desc: "Today's statutory rate, how it is set, and what it adds per day." },
+    ],
+    ctaTitle: "Let Hielda handle this for you",
+    ctaText: "Stop writing chase emails and calculating interest by hand. Hielda does it all on your behalf — automatically, professionally, and legally backed.",
+    ctaBtn: "Start your free 6-week trial",
+    ctaSmall: "No credit card required",
+  },
+  fr: {
+    home: "Accueil",
+    guides: "Guides (en anglais)",
+    trial: "Essai gratuit",
+    faqTitle: "Questions fréquentes",
+    related: "À lire aussi (en anglais)",
+    toolsTitle: "Outils gratuits (en anglais)",
+    tools: [
+      { href: "/calculator", title: "Calculateur d'intérêts de retard (droit anglais)", desc: "Le montant des intérêts légaux et de l'indemnité forfaitaire prévus par le Late Payment Act pour une facture en retard." },
+      { href: "/late-payment-letter-template", title: "Générateur de lettre de relance en anglais", desc: "Saisissez votre facture : la mise en demeure est rédigée en anglais, avec les montants calculés." },
+      { href: "/free-invoice-template-uk", title: "Modèle de facture britannique", desc: "Une facture en anglais, au format PDF, avec la clause de retard de paiement déjà rédigée." },
+    ],
+    ctaTitle: "Vous facturez depuis le Royaume-Uni ?",
+    ctaText: "Hielda est un service britannique : il relance automatiquement vos factures impayées, en anglais, et ajoute les intérêts et l'indemnité forfaitaire prévus par le droit anglais. L'interface est en anglais.",
+    ctaBtn: "Essayer gratuitement pendant 6 semaines",
+    ctaSmall: "Sans carte bancaire",
+  },
+}
+
 // Wraps a guide article with nav, breadcrumbs, body, CTA, and a Related
 // section. Each concrete guide imports this and passes its content as
 // children plus a list of related guides.
@@ -39,8 +80,10 @@ export default function GuideLayout({
   faqs,
   related,
   schema,
+  locale = "en",
   children,
 }) {
+  const t = STRINGS[locale] || STRINGS.en
   const [openFaq, setOpenFaq] = useState(null)
   const [leadEmail, setLeadEmail] = useState("")
   const [leadState, setLeadState] = useState("idle")
@@ -66,7 +109,7 @@ export default function GuideLayout({
   const go = (fn) => (e) => { e.preventDefault(); fn() }
 
   return (
-    <main className={s.page}>
+    <main className={s.page} lang={locale === "en" ? undefined : locale}>
       {/* Article (+ optional FAQPage) JSON-LD, rendered inline so it's in
           the prerendered HTML on first crawl, not added by an effect after
           JS runs. Google accepts JSON-LD anywhere in the document. */}
@@ -82,15 +125,15 @@ export default function GuideLayout({
           <span className={s.navLogoText}>Hielda</span>
         </a>
         <button onClick={() => { trackEvent("guide_cta_clicked", { guide: canonicalPath, placement: "nav" }); onGetStarted() }} className={s.navTrialBtn}>
-          Start Free Trial
+          {t.trial}
         </button>
       </nav>
 
       <article className={s.article}>
         <nav className={s.breadcrumbs} aria-label="Breadcrumb">
-          <a href="/" onClick={go(onBack)}>Home</a>
+          <a href="/" onClick={go(onBack)}>{t.home}</a>
           {" · "}
-          <a href="/guides">Guides</a>
+          <a href="/guides">{t.guides}</a>
           {" · "}
           <span>{title}</span>
         </nav>
@@ -103,7 +146,7 @@ export default function GuideLayout({
         {faqs?.length > 0 && (
           <section>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "36px 0 14px" }}>
-              Frequently asked questions
+              {t.faqTitle}
             </h2>
             <div className={s.faqList}>
               {faqs.map(({ q, a }) => {
@@ -124,8 +167,9 @@ export default function GuideLayout({
 
         {/* The calculator and letter pages capture emails; the guides, which
             are most of the site's content, didn't. Same drip sequence,
-            different first email (the checklist). */}
-        <section className={s.lead} aria-label="Get the late payment checklist">
+            different first email (the checklist). English only: the drip
+            emails are in English, so the French page leaves it out. */}
+        {locale === "en" && <section className={s.lead} aria-label="Get the late payment checklist">
           {leadState !== "sent" ? (
             <>
               <div className={s.leadTitle}>Get the late payment checklist</div>
@@ -139,11 +183,11 @@ export default function GuideLayout({
           ) : (
             <p className={s.leadDone}><Check size={14} strokeWidth={2.5} /> Sent. Check your inbox.</p>
           )}
-        </section>
+        </section>}
 
         {related?.length > 0 && (
           <section className={s.related}>
-            <div className={s.relatedTitle}>Related</div>
+            <div className={s.relatedTitle}>{t.related}</div>
             <div className={s.relatedList}>
               {related.map(r => (
                 <a key={r.href} href={r.href} className={s.relatedCard}>
@@ -156,38 +200,24 @@ export default function GuideLayout({
         )}
 
         <section className={s.related}>
-          <div className={s.relatedTitle}>Free tools</div>
+          <div className={s.relatedTitle}>{t.toolsTitle}</div>
           <div className={s.relatedList}>
-            <a href="/calculator" className={s.relatedCard}>
-              <h3 className={s.relatedCardTitle}>Late payment interest calculator</h3>
-              <p className={s.relatedCardDesc}>Exactly what you can add to an overdue invoice today: statutory interest at the current rate plus the fixed recovery cost.</p>
-            </a>
-            <a href="/late-payment-letter-template" className={s.relatedCard}>
-              <h3 className={s.relatedCardTitle}>Late payment letter generator</h3>
-              <p className={s.relatedCardDesc}>A ready-to-send demand letter citing the Act, with your figures filled in.</p>
-            </a>
-            <a href="/free-invoice-template-uk" className={s.relatedCard}>
-              <h3 className={s.relatedCardTitle}>Free UK invoice template</h3>
-              <p className={s.relatedCardDesc}>Fill in, download as PDF, with the late payment clause already on it.</p>
-            </a>
-            <a href="/late-payment-interest-rate" className={s.relatedCard}>
-              <h3 className={s.relatedCardTitle}>Current late payment interest rate</h3>
-              <p className={s.relatedCardDesc}>Today's statutory rate, how it is set, and what it adds per day.</p>
-            </a>
+            {t.tools.map((tool) => (
+              <a key={tool.href} href={tool.href} className={s.relatedCard}>
+                <h3 className={s.relatedCardTitle}>{tool.title}</h3>
+                <p className={s.relatedCardDesc}>{tool.desc}</p>
+              </a>
+            ))}
           </div>
         </section>
 
         <div className={s.cta}>
-          <div className={s.ctaTitle}>Let Hielda handle this for you</div>
-          <p className={s.ctaText}>
-            Stop writing chase emails and calculating interest by hand. Hielda
-            does it all on your behalf — automatically, professionally, and
-            legally backed.
-          </p>
+          <div className={s.ctaTitle}>{t.ctaTitle}</div>
+          <p className={s.ctaText}>{t.ctaText}</p>
           <button onClick={() => { trackEvent("guide_cta_clicked", { guide: canonicalPath, placement: "bottom" }); onGetStarted() }} className={s.ctaBtn}>
-            Start your free 6-week trial
+            {t.ctaBtn}
           </button>
-          <p className={s.ctaSmall}>No credit card required</p>
+          <p className={s.ctaSmall}>{t.ctaSmall}</p>
         </div>
       </article>
     </main>

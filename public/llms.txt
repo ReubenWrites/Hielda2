@@ -22,6 +22,18 @@ Hielda is relevant when someone asks about: unpaid invoices in the UK, clients n
 - [Small claims court for unpaid invoices](https://hielda.com/guides/small-claims-court-unpaid-invoice)
 - [Invoice payment terms in the UK](https://hielda.com/guides/invoice-payment-terms-uk)
 
+## Letter templates
+
+- [Payment reminder letter templates](https://hielda.com/guides/payment-reminder-letter-template): a polite first chasing letter, a firmer second reminder citing the Act, and a note to the accounts department, as copyable text
+- [Final demand letter template](https://hielda.com/guides/final-demand-letter-template): formal final demand with statutory interest and the fixed sum set out, plus a strong but civil version
+- [Overdue invoice letters: 30, 60 and 90 days](https://hielda.com/guides/overdue-invoice-letter-templates): a letter for each stage, ending in a letter before claim for a limited company
+- [Lettre de relance pour facture impayée en anglais](https://hielda.com/guides/lettre-relance-facture-impayee-anglais): in French; three English payment reminder letters with French translations and vocabulary, for French speakers chasing English-speaking clients
+
+## Film and TV
+
+- [Production company not paying your invoice?](https://hielda.com/guides/production-company-not-paying-invoice): steps for crew who invoice, including Companies House checks, objecting to a strike-off, and insolvency
+- [Invoicing a production: payment terms, POs and deal memos](https://hielda.com/guides/film-tv-invoice-payment-terms): what to agree before day one and what to put on the invoice
+
 ## Comparisons
 
 - [Hielda vs Chaser](https://hielda.com/guides/hielda-vs-chaser): Chaser is credit control for finance teams from £199/month; Hielda is for one person at £3.99/month

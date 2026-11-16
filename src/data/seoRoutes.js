@@ -73,9 +73,11 @@ export const SEO_ROUTES = [
   {
     path: "/late-payment-letter-template",
     file: "late-payment-letter-template.html",
-    title: "Free Late Payment Letter Generator (UK) — Hielda",
+    // "template" leads: it is the word in the URL and in almost every query
+    // Search Console shows for this page ("generator" appears in none).
+    title: "Late Payment Letter Template UK (Free Generator) — Hielda",
     description:
-      "Free late payment letter generator for UK freelancers: enter your invoice and get a formal demand citing the Late Payment Act 1998 with interest worked out.",
+      "Free UK late payment letter template: enter your invoice and get a formal demand citing the Late Payment Act 1998, with interest and recovery costs worked out.",
     ogImage: `${SITE}/og/late-payment-letter-template.png`,
   },
   {
@@ -264,6 +266,68 @@ export const SEO_ROUTES = [
     description:
       "UK freelancers' late-payment rights: statutory interest, fixed recovery costs, six years to claim, and court access without a solicitor. How to use them.",
     ogImage: `${SITE}/og/guide-freelancer-rights.png`,
+  },
+  // Letter template library (Nov 2026). Search Console showed impressions
+  // for "final demand letter", "chasing letter", "90 days past due letter"
+  // and similar, all landing on the single generator page at position 60+.
+  // Each gets its own page with the full letter text in the HTML.
+  {
+    path: "/guides/payment-reminder-letter-template",
+    datePublished: "2026-11-16",
+    file: "guides-payment-reminder-letter-template.html",
+    title: "Payment Reminder Letter Templates (UK, Free) — Hielda",
+    description:
+      "Three free payment reminder letters to copy: a polite first chasing letter, a firmer second reminder citing the Late Payment Act, and a note to accounts.",
+    ogImage: `${SITE}/og/guide-payment-reminder.png`,
+  },
+  {
+    path: "/guides/final-demand-letter-template",
+    datePublished: "2026-11-16",
+    file: "guides-final-demand-letter-template.html",
+    title: "Final Demand Letter Template UK (Free) — Hielda",
+    description:
+      "Free UK final demand letter template with statutory interest and recovery costs set out, plus a strong but civil version. What to include and what comes next.",
+    ogImage: `${SITE}/og/guide-final-demand.png`,
+  },
+  {
+    path: "/guides/overdue-invoice-letter-templates",
+    datePublished: "2026-11-16",
+    file: "guides-overdue-invoice-letter-templates.html",
+    title: "Overdue Invoice Letters: 30, 60 & 90 Days (UK) — Hielda",
+    description:
+      "Free overdue invoice letter templates for 30, 60 and 90 days past due: statutory charges, last notice before legal action, and a letter before claim.",
+    ogImage: `${SITE}/og/guide-overdue-letters.png`,
+  },
+  {
+    // French-language page: English reminder letters explained in French.
+    // `lang` makes the prerender set <html lang> for this file.
+    path: "/guides/lettre-relance-facture-impayee-anglais",
+    datePublished: "2026-11-16",
+    lang: "fr",
+    file: "guides-lettre-relance-facture-impayee-anglais.html",
+    title: "Lettre de relance facture impayée en anglais : modèles — Hielda",
+    description:
+      "Trois modèles gratuits de lettre de relance pour facture impayée en anglais, du rappel courtois à la mise en demeure, avec traduction française et vocabulaire.",
+    ogImage: `${SITE}/og/guide-lettre-relance.png`,
+  },
+  // Film & TV guides, linked from /film-tv-freelancers.
+  {
+    path: "/guides/production-company-not-paying-invoice",
+    datePublished: "2026-11-16",
+    file: "guides-production-company-not-paying-invoice.html",
+    title: "Production Company Not Paying Your Invoice? — Hielda",
+    description:
+      "What film and TV freelancers can do when a production company pays late: who to chase, what to check on Companies House, and the interest the law adds.",
+    ogImage: `${SITE}/og/guide-production-not-paying.png`,
+  },
+  {
+    path: "/guides/film-tv-invoice-payment-terms",
+    datePublished: "2026-11-16",
+    file: "guides-film-tv-invoice-payment-terms.html",
+    title: "Film & TV Crew Invoices: Payment Terms & POs — Hielda",
+    description:
+      "What film and TV crew should agree before day one and put on the invoice: payment terms, PO numbers, the right company name, and a late payment clause.",
+    ogImage: `${SITE}/og/guide-film-tv-invoicing.png`,
   },
 ]
 
