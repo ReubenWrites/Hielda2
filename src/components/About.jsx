@@ -11,8 +11,9 @@ import s from "./guides/guides.module.css"
 //
 // People read this before trusting a service with their invoices, and
 // search engines and AI assistants read it to work out what Hielda is.
-// Keep it honest: no invented anecdotes, no customer numbers, nothing the
-// product cannot back up. The facts table is mirrored in ABOUT_SCHEMA in
+// Keep it honest: no invented anecdotes, nothing the product cannot back
+// up. The "thousands of pounds" line is Reuben's own statement about what
+// clients have claimed; do not add figures of your own. The facts table is mirrored in ABOUT_SCHEMA in
 // src/data/seoRoutes.js; change both together.
 
 const FACTS = [
@@ -69,14 +70,16 @@ export default function About({ onBack, onGetStarted }) {
           </p>
 
           <h2>What Hielda does</h2>
+          {/* This section is Reuben's own wording (17 Nov 2026), typos fixed
+              and two links added. Edit it only at his request. */}
           <p>
-            Hielda does the asking, so you don't have to.
+            First of all, Hielda keeps track of your invoices, so you know exactly when they're due, and if they do become late, you can keep track of when interest and late fees become due, and how much you're owed day by day.
           </p>
           <p>
-            You add an invoice. Hielda sends a couple of polite reminders before it's due. If the due date passes, it starts chasing, a little firmer each time, with the interest and the fixed fee added and worked out again every day. At 30 days overdue it drafts a <a href="/guides/letter-before-action">Letter Before Action</a>, which is the formal letter that comes before a court claim, ready for you to send.
+            Secondly, we have tried to make it easier for you to chase up and claim those additional charges. Hielda can <a href="/how">chase on your behalf</a>, politely, professionally, but insistently. This way it's a little less personal. Think of us as your accounts department. We don't send any emails without your approval, but when you do want to send them, we have already got the templates drafted, we know the fees and figures, and if your clients still refuse to pay, we have <a href="/guides/letter-before-action">resources to help you escalate it</a> if needed.
           </p>
           <p>
-            It all goes out in your name, and you're copied on every email. Nothing is sent until you've approved it, and you can pause any invoice whenever you like. The full schedule is on <a href="/how">how Hielda works</a>.
+            So far Hielda has helped our clients claim thousands of pounds extra in unpaid charges. We'd love to help you do the same.
           </p>
           <p>
             The idea is simple. If they pay you late, they should pay you more.
