@@ -67,9 +67,6 @@ export default function About({ onBack, onGetStarted }) {
           <p>
             Since 1998, if a business pays your invoice late, it owes you interest. The rate is 8% above the Bank of England base rate, and it runs from the first day the invoice is overdue. It also owes you a fixed fee of £40, £70 or £100, depending on the size of the invoice. You don't need a clause in your contract, and you don't need to have warned them. It's called the <a href="/guides/late-payment-act-1998-explained">Late Payment of Commercial Debts (Interest) Act</a>, and it covers every invoice from one business to another.
           </p>
-          <p>
-            Hardly anyone claims it. To do it yourself you have to work out the interest day by day, then send a run of awkward emails to someone you'd quite like to hire you again. Most freelancers decide it's easier to keep waiting, which is exactly what the late payers are counting on.
-          </p>
 
           <h2>What Hielda does</h2>
           <p>
