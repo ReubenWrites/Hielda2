@@ -92,7 +92,7 @@ export default function About({ onBack, onGetStarted }) {
 
           <h2>Who it's for</h2>
           <p>
-            I built Hielda for people like me, and there's a page just for <a href="/film-tv-freelancers">film and TV freelancers</a>. So far it has been used or trialled by people in acting, camera, sound, lighting, production and costume.
+            I built Hielda for people like me, and there's a page just for <a href="/film-tv-freelancers">film and TV freelancers</a>.
           </p>
           <p>
             But late payment isn't only an entertainment problem. Hielda works for anyone in the UK who sends invoices: designers, developers, writers, consultants, tradespeople, small companies. If a bigger business is sitting on your money, this is for you.
