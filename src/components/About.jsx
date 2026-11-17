@@ -87,7 +87,7 @@ export default function About({ onBack, onGetStarted }) {
 
           <h2>What it costs</h2>
           <p>
-            £3.99 a month, or £34.99 a year. The first six weeks are free and I don't ask for a card. There's no commission and no percentage of what you get back. The fixed fee on a single late invoice is at least £40, so the first one you recover pays for the year.
+            £3.99 a month, or £34.99 a year. The fixed fee on a single late invoice is at least £40, so the first one you recover pays for the year. The first six weeks are free to see if it's useful for you.
           </p>
 
           <h2>Who it's for</h2>
