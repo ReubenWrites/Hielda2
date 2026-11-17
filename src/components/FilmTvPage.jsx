@@ -11,16 +11,14 @@ import s from "./FilmTvPage.module.css"
 // as everywhere else; the copy speaks to how crew are actually paid (day
 // rates, kit hire, PO numbers, productions that wrap and go quiet).
 //
-// Claims on this page are deliberately narrow:
-//  - the departments list is the founder's own account of who has used or
-//    trialled Hielda, and the wording says "used or trialled";
-//  - the Act only covers people who invoice (sole trader / own company),
-//    not PAYE crew, and the page says so rather than implying otherwise.
+// Claims on this page are deliberately narrow: the Act only covers people
+// who invoice (sole trader / own company), not PAYE crew, and the page
+// says so rather than implying otherwise. The "used or trialled by" strip
+// of departments under the hero was removed at the founder's request
+// (17 Nov 2026); do not add user or department claims back without him.
 
 const fmt = (n) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n)
 const pct = (n) => `${Number(n).toFixed(2).replace(/\.?0+$/, "")}%`
-
-const DEPARTMENTS = ["Acting", "Camera", "Sound", "Lighting", "Production", "Costume"]
 
 // Worked example: five days at £350 plus a week's kit hire, paid 45 days late.
 const EXAMPLE = { fee: 1750, kit: 400, days: 45 }
@@ -91,13 +89,6 @@ export default function FilmTvPage({ onBack, onGetStarted }) {
         </div>
         <p className={s.small}>Six weeks free · No card · Nothing sent without your approval</p>
       </header>
-
-      <section className={s.proof} aria-label="Who uses Hielda">
-        <p className={s.proofLabel}>Used or trialled by freelancers in</p>
-        <p className={s.proofList}>
-          {DEPARTMENTS.map((d, i) => <span key={d}>{i > 0 && <i aria-hidden="true">·</i>}{d}</span>)}
-        </p>
-      </section>
 
       <section className={s.band}>
         <div className={s.row}>
