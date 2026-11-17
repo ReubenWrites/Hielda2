@@ -65,6 +65,7 @@
     { "source": "/guides/production-company-not-paying-invoice", "destination": "/guides-production-company-not-paying-invoice.html" },
     { "source": "/guides/film-tv-invoice-payment-terms", "destination": "/guides-film-tv-invoice-payment-terms.html" },
     { "source": "/how", "destination": "/how.html" },
+    { "source": "/about", "destination": "/about.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/((?!sitemap\\.xml|robots\\.txt|llms\\.txt).*)", "destination": "/index.html" }

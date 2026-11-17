@@ -566,6 +566,7 @@ export default function LandingPage({ onGetStarted, onPrivacy, onCalculator, isM
         </div>
         <div className={s.footerNavCol}>
           <div className={s.footerNavHeading}>Hielda</div>
+          <a href="/about" className={s.footerNavLink}>About Hielda</a>
           <a href="/how" className={s.footerNavLink}>How it works</a>
           <a href="/guides" className={s.footerNavLink}>All guides</a>
           <a href="/privacy" className={s.footerNavLink}>Privacy policy</a>

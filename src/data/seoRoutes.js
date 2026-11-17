@@ -50,6 +50,33 @@ export const HOWTO_SCHEMA = {
   ],
 }
 
+// The facts on /about as structured data, so a search engine or AI
+// assistant can read who makes Hielda and what it costs without parsing
+// prose. Mirrors FACTS in src/components/About.jsx; change both together.
+export const ABOUT_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  url: `${SITE}/about`,
+  name: "About Hielda",
+  inLanguage: "en-GB",
+  mainEntity: {
+    "@type": "Organization",
+    name: "Hielda",
+    url: SITE,
+    logo: `${SITE}/logo-square-512.png`,
+    description:
+      "Hielda chases late invoices for UK freelancers and small businesses and adds the statutory interest and fixed recovery sum allowed by the Late Payment of Commercial Debts (Interest) Act 1998.",
+    foundingDate: "2026",
+    founder: { "@type": "Person", name: "Reuben Williams", jobTitle: "Film and television producer" },
+    areaServed: { "@type": "Country", name: "United Kingdom" },
+    email: "support@hielda.com",
+    makesOffer: [
+      { "@type": "Offer", name: "Hielda monthly", price: "3.99", priceCurrency: "GBP", description: "Billed monthly after a six-week free trial, no card required" },
+      { "@type": "Offer", name: "Hielda annual", price: "34.99", priceCurrency: "GBP", description: "Billed yearly after a six-week free trial, no card required" },
+    ],
+  },
+}
+
 // Titles stay under 60 characters so results pages don't truncate them.
 export const SEO_ROUTES = [
   {
@@ -120,6 +147,14 @@ export const SEO_ROUTES = [
     description:
       "How Hielda chases late invoices automatically: escalating, legally backed reminders, statutory charges applied, and a Letter Before Action at 30 days.",
     extraSchemas: [HOWTO_SCHEMA],
+  },
+  {
+    path: "/about",
+    file: "about.html",
+    title: "About Hielda — Why I Built It, What It Does, What It Costs",
+    description:
+      "Hielda was built by Reuben Williams, a UK freelancer sick of big companies paying late. It chases your invoices and adds the interest the law allows. £3.99 a month.",
+    extraSchemas: [ABOUT_SCHEMA],
   },
   {
     path: "/privacy",
