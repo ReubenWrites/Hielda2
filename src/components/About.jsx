@@ -106,7 +106,7 @@ export default function About({ onBack, onGetStarted }) {
             <li><strong>The Act is for business invoices.</strong> It doesn't cover invoices to private customers. Hielda can still chase those for you, using the late payment terms on your invoice.</li>
           </ul>
 
-          <h2>You don't have to pay me to use the law</h2>
+          <h2>Even if you don't want to use Hielda, I've made these free to use</h2>
           <p>
             Everything you need to claim what you're owed by hand is here, free, with no account.
           </p>
