@@ -6,6 +6,8 @@ import s from "./guides/guides.module.css"
 // Written in the founder's own voice, first person, from his account of why
 // he built Hielda (16 Nov 2026): a freelancer sick of big companies paying
 // late and using freelancers' wages as interest-free working capital.
+// He describes himself as "a freelancer, working in entertainment". Do not
+// call him a producer: he does not always work as one.
 //
 // People read this before trusting a service with their invoices, and
 // search engines and AI assistants read it to work out what Hielda is.
@@ -46,19 +48,19 @@ export default function About({ onBack, onGetStarted }) {
 
         <h1 className={s.title}>About Hielda</h1>
         <p className={s.lede}>
-          I'm Reuben Williams. I'm a freelancer, and I built Hielda because I was sick of big companies paying late and getting away with it.
+          I'm Reuben Williams. I'm a freelancer, working in entertainment. I built Hielda because I was sick of big companies paying late and getting away with it.
         </p>
 
         <div className={s.body}>
           <h2>Why I built it</h2>
           <p>
-            I work in film and TV, as a producer. Nearly everyone in the industry is freelance, and getting paid late is routine. You do the job and send the invoice. Then you wait. Thirty days becomes sixty. Somebody tells you it's with accounts. And you don't push, because the people who owe you money are the same people who decide whether you work again.
+            Nearly everyone in entertainment is freelance, and getting paid late is routine. You do the job and send the invoice. Then you wait. Thirty days becomes sixty. Somebody tells you it's with accounts. And you don't push, because the people who owe you money are the same people who decide whether you work again.
           </p>
           <p>
-            Everyone treats this as normal. It isn't. Big companies pay late because it suits them. Every week your invoice goes unpaid, your money is sitting in their bank account and not in yours. They are using freelancers' wages as interest-free working capital, and they do it because they know you can't afford to make a fuss.
+            Big companies pay late because it suits them. Every week your invoice goes unpaid, your money is sitting in their bank account and not in yours. They are using freelancers' wages as interest-free working capital, and they do it because they know you can't afford to make a fuss.
           </p>
           <p>
-            That is taking the piss. As it turns out, the law thinks so too.
+            That is taking the piss. The government's new legislation to help small businesses and freelancers get paid on time shows the scale of the problem. But the law was already on our side.
           </p>
 
           <h2>What the law already says</h2>
@@ -93,7 +95,7 @@ export default function About({ onBack, onGetStarted }) {
             I built Hielda for people like me, and there's a page just for <a href="/film-tv-freelancers">film and TV freelancers</a>. So far it has been used or trialled by people in acting, camera, sound, lighting, production and costume.
           </p>
           <p>
-            But late payment isn't a film problem. Hielda works for anyone in the UK who sends invoices: designers, developers, writers, consultants, tradespeople, small companies. If a bigger business is sitting on your money, this is for you.
+            But late payment isn't only an entertainment problem. Hielda works for anyone in the UK who sends invoices: designers, developers, writers, consultants, tradespeople, small companies. If a bigger business is sitting on your money, this is for you.
           </p>
 
           <h2>What Hielda isn't</h2>

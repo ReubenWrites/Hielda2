@@ -67,7 +67,7 @@ export const ABOUT_SCHEMA = {
     description:
       "Hielda chases late invoices for UK freelancers and small businesses and adds the statutory interest and fixed recovery sum allowed by the Late Payment of Commercial Debts (Interest) Act 1998.",
     foundingDate: "2026",
-    founder: { "@type": "Person", name: "Reuben Williams", jobTitle: "Film and television producer" },
+    founder: { "@type": "Person", name: "Reuben Williams", description: "Freelancer working in entertainment" },
     areaServed: { "@type": "Country", name: "United Kingdom" },
     email: "support@hielda.com",
     makesOffer: [
