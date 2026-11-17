@@ -93,7 +93,7 @@ export default function FilmTvPage({ onBack, onGetStarted }) {
       </header>
 
       <section className={s.proof} aria-label="Who uses Hielda">
-        <p className={s.proofLabel}>Made by a working producer · Used or trialled by freelancers in</p>
+        <p className={s.proofLabel}>Used or trialled by freelancers in</p>
         <p className={s.proofList}>
           {DEPARTMENTS.map((d, i) => <span key={d}>{i > 0 && <i aria-hidden="true">·</i>}{d}</span>)}
         </p>
